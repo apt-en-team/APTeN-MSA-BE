@@ -1,7 +1,6 @@
-package com.apten.auth.application.controller;
+package com.apten.auth.application;
 
 import com.apten.auth.application.dto.AuthTokenResponse;
-import com.apten.auth.application.service.AuthService;
 import com.apten.common.constants.SecurityConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

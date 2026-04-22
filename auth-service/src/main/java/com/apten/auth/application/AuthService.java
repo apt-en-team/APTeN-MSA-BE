@@ -1,4 +1,4 @@
-package com.apten.auth.application.service;
+package com.apten.auth.application;
 
 import com.apten.auth.application.dto.AuthTokenResponse;
 import com.apten.auth.mapper.AuthUserMapper;
