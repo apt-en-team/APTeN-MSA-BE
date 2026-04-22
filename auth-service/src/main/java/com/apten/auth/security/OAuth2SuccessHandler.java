@@ -1,8 +1,9 @@
 package com.apten.auth.security;
 
+import com.apten.auth.application.dto.AuthTokenResponse;
+import com.apten.auth.application.service.AuthService;
 import com.apten.common.constants.HeaderConstants;
 import com.apten.common.constants.SecurityConstants;
-import com.apten.common.security.UserContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthService authService;
 
     @Override
     public void onAuthenticationSuccess(
@@ -25,15 +26,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             HttpServletResponse response,
             Authentication authentication
     ) throws IOException, ServletException {
-        if (authentication.getPrincipal() instanceof CustomUserPrincipal principal) {
-            UserContext userContext = UserContext.builder()
-                    .userId(principal.getUserId())
-                    .userRole(principal.getRole())
-                    .build();
+        if (authentication.getPrincipal() instanceof UserPrincipal principal) {
+            AuthTokenResponse tokenResponse = authService.issueTokenResponse(principal);
 
-            String accessToken = jwtTokenProvider.issueAccessToken(userContext);
-
-            response.setHeader(SecurityConstants.AUTHORIZATION_HEADER, SecurityConstants.BEARER_PREFIX + accessToken);
+            response.setHeader(
+                    SecurityConstants.AUTHORIZATION_HEADER,
+                    SecurityConstants.BEARER_PREFIX + tokenResponse.getAccessToken()
+            );
             response.setHeader(HeaderConstants.X_USER_ID, String.valueOf(principal.getUserId()));
             response.setHeader(HeaderConstants.X_USER_ROLE, principal.getRole().name());
         }

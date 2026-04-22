@@ -13,7 +13,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 // OAuth2 로그인 사용자 정보
 @Getter
 @Builder
-public class CustomUserPrincipal implements OAuth2User {
+public class UserPrincipal implements OAuth2User {
 
     private final Long userId;
     private final String email;

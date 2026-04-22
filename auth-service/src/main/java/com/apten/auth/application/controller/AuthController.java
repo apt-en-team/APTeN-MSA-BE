@@ -1,6 +1,7 @@
-package com.apten.auth.application;
+package com.apten.auth.application.controller;
 
 import com.apten.auth.application.dto.AuthTokenResponse;
+import com.apten.auth.application.service.AuthService;
 import com.apten.common.constants.SecurityConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 // 인증 진입 컨트롤러
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
