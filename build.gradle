@@ -18,6 +18,11 @@ subprojects {
         }
     }
 
+    dependencies {
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+    }
+
     configurations {
         compileOnly {
             extendsFrom annotationProcessor

@@ -1,3 +1,6 @@
 spring:
   application:
     name: apartment-complex-service
+
+server:
+  port: 9082
