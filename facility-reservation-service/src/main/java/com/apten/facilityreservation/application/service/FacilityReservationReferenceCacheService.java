@@ -4,11 +4,11 @@ import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
-import com.apten.facilityreservation.domain.entity.ApartmentComplexCache;
+import com.apten.facilityreservation.domain.entity.ComplexCache;
 import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.entity.UserCache;
-import com.apten.facilityreservation.domain.repository.ApartmentComplexCacheRepository;
+import com.apten.facilityreservation.domain.repository.ComplexCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.UserCacheRepository;
@@ -25,8 +25,8 @@ public class FacilityReservationReferenceCacheService {
     // user cache 저장소
     private final UserCacheRepository userCacheRepository;
 
-    // apartment complex cache 저장소
-    private final ApartmentComplexCacheRepository apartmentComplexCacheRepository;
+    // complex cache 저장소
+    private final ComplexCacheRepository complexCacheRepository;
 
     // household cache 저장소
     private final HouseholdCacheRepository householdCacheRepository;
@@ -37,17 +37,17 @@ public class FacilityReservationReferenceCacheService {
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertUserCache(UserEventPayload payload) {
         UserCache userCache = userCacheRepository.findById(payload.getUserId())
-                .orElseGet(() -> UserCache.builder().userId(payload.getUserId()).build());
+                .orElseGet(() -> UserCache.builder().id(payload.getUserId()).build());
         userCache.apply(payload);
         userCacheRepository.save(userCache);
     }
 
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertApartmentComplexCache(ApartmentComplexEventPayload payload) {
-        ApartmentComplexCache apartmentComplexCache = apartmentComplexCacheRepository.findById(payload.getApartmentComplexId())
-                .orElseGet(() -> ApartmentComplexCache.builder().apartmentComplexId(payload.getApartmentComplexId()).build());
-        apartmentComplexCache.apply(payload);
-        apartmentComplexCacheRepository.save(apartmentComplexCache);
+        ComplexCache complexCache = complexCacheRepository.findById(payload.getApartmentComplexId())
+                .orElseGet(() -> ComplexCache.builder().id(payload.getApartmentComplexId()).build());
+        complexCache.apply(payload);
+        complexCacheRepository.save(complexCache);
     }
 
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
