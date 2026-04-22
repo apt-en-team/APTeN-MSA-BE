@@ -1,38 +1,77 @@
 package com.apten.notification.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
-import com.apten.notification.domain.enums.NotificationStatus;
+import com.apten.notification.domain.enums.NotificationTargetType;
+import com.apten.notification.domain.enums.NotificationType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// notification-service의 알림 집합 루트를 대표하는 최소 엔티티
-// 알림 상세 규칙을 넣기 전에도 JPA 기준 엔티티 형태가 보이도록 최소 필드만 둔다
+// 앱 내 알림 원본 데이터를 저장하는 엔티티
 @Entity
+@Table(name = "notification")
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Notification extends BaseEntity {
 
-    // 모든 서비스 엔티티가 같은 PK 규칙을 따르도록 TSID 마커를 함께 둔다
+    // 알림 내부 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
+    // 수신 사용자 ID
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    // 수신 사용자 소속 단지 ID
+    @Column(name = "complex_id", nullable = false)
+    private Long complexId;
+
+    // 알림 유형
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false, length = 30)
+    private NotificationType type;
+
+    // 관련 대상 유형
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_type", nullable = false, length = 30)
+    private NotificationTargetType targetType;
+
+    // 관련 대상 ID
+    @Column(name = "target_id")
+    private Long targetId;
+
     // 알림 제목
-    @Column(nullable = false)
+    @Column(name = "title", nullable = false, length = 100)
     private String title;
 
-    // 알림 처리 상태
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private NotificationStatus status;
+    // 알림 본문
+    @Column(name = "content", nullable = false, length = 500)
+    private String content;
+
+    // 읽음 여부
+    @Column(name = "is_read", nullable = false)
+    private Boolean isRead;
+
+    // 읽음 일시
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
+    // 알림을 읽음 상태로 바꾼다
+    public void markRead(LocalDateTime readAt) {
+        this.isRead = true;
+        this.readAt = readAt;
+    }
 }
