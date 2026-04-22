@@ -1,5 +1,4 @@
 # APTeN-MSA-BE
- # APT-EN MSA Backend
 
 ## 프로젝트 상태
 
