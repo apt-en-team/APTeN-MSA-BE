@@ -8,31 +8,71 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// apartment-complex-service의 단지 집합 루트를 대표하는 최소 엔티티
-// 단지 상세 규칙을 넣기 전에도 JPA 기준 엔티티 형태가 보이도록 최소 필드만 둔다
+// 단지 원본 테이블을 표현하는 엔티티
+// 단지 기본 정보는 이 서비스가 직접 관리한다
 @Entity
+@Table(name = "complex")
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApartmentComplex extends BaseEntity {
 
-    // 모든 서비스 엔티티가 같은 PK 규칙을 따르도록 TSID 마커를 함께 둔다
+    // 단지 내부 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
-    // 단지 이름
-    @Column(nullable = false)
+    // 외부 노출용 단지 코드
+    @Column(name = "code", nullable = false, unique = true)
+    private String code;
+
+    // 단지명
+    @Column(name = "name", nullable = false)
     private String name;
 
-    // 단지 운영 상태
+    // 대표 주소
+    @Column(name = "address", nullable = false)
+    private String address;
+
+    // 상세 주소
+    @Column(name = "address_detail")
+    private String addressDetail;
+
+    // 우편번호
+    @Column(name = "zip_code")
+    private String zipCode;
+
+    // 단지 상태
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "status", nullable = false)
     private ApartmentComplexStatus status;
+
+    // 단지 설명
+    @Column(name = "description")
+    private String description;
+
+    // 단지 기본 정보를 수정할 때 사용한다
+    public void update(
+            String name,
+            String address,
+            String addressDetail,
+            String zipCode,
+            ApartmentComplexStatus status,
+            String description
+    ) {
+        this.name = name;
+        this.address = address;
+        this.addressDetail = addressDetail;
+        this.zipCode = zipCode;
+        this.status = status;
+        this.description = description;
+    }
 }
