@@ -2,7 +2,7 @@ package com.apten.auth.domain.entity;
 
 import com.apten.auth.domain.enums.AuthProvider;
 import com.apten.common.entity.BaseEntity;
-import com.apten.common.entity.Tsid;
+import io.hypersistence.utils.hibernate.id.Tsid;
 import com.apten.common.security.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -1,8 +1,8 @@
 package com.apten.household.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
-import com.apten.common.entity.Tsid;
 import com.apten.household.domain.enums.HouseholdStatus;
+import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
