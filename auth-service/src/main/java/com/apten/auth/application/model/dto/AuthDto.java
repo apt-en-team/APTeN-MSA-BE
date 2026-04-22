@@ -1,5 +1,7 @@
 package com.apten.auth.application.model.dto;
 
+import com.apten.auth.domain.enums.AuthProvider;
+import com.apten.common.security.UserRole;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -8,4 +10,16 @@ import lombok.Getter;
 @Getter
 @Builder
 public class AuthDto {
+
+    // auth-service 내부 사용자 식별자
+    private final Long id;
+
+    // 로그인 공급자
+    private final AuthProvider provider;
+
+    // 사용자 이메일
+    private final String email;
+
+    // 공통 사용자 역할
+    private final UserRole role;
 }

@@ -1,5 +1,7 @@
 package com.apten.auth.application.mapper;
 
+import com.apten.auth.application.model.dto.AuthDto;
+import com.apten.auth.application.model.response.AuthTokenResponse;
 import com.apten.auth.domain.entity.AuthUser;
 import com.apten.auth.security.UserPrincipal;
 import com.apten.common.security.UserContext;
@@ -23,12 +25,38 @@ public class AuthUserMapper {
                 .build();
     }
 
+    // 엔티티를 auth-service 내부 전달용 DTO로 바꾼다
+    public AuthDto toDto(AuthUser authUser) {
+        return AuthDto.builder()
+                .id(authUser.getId())
+                .provider(authUser.getProvider())
+                .email(authUser.getEmail())
+                .role(authUser.getRole())
+                .build();
+    }
+
     // principal을 common의 UserContext로 바꿔 JWT 발급이나 헤더 전달에 재사용한다
     // auth-service와 gateway가 같은 사용자 구조를 공유할 수 있게 만드는 연결 지점이다
     public UserContext toUserContext(UserPrincipal userPrincipal) {
         return UserContext.builder()
                 .userId(userPrincipal.getUserId())
                 .userRole(userPrincipal.getRole())
+                .build();
+    }
+
+    // 토큰 발급 결과와 현재 사용자 정보를 한 응답 모델로 묶는다
+    public AuthTokenResponse toTokenResponse(
+            String grantType,
+            String accessToken,
+            String refreshToken,
+            UserContext userContext
+    ) {
+        return AuthTokenResponse.builder()
+                .grantType(grantType)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .userId(userContext.getUserId())
+                .userRole(userContext.getUserRole().name())
                 .build();
     }
 }

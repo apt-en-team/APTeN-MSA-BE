@@ -1,6 +1,7 @@
 package com.apten.auth.domain.repository;
 
 import com.apten.auth.domain.entity.AuthUser;
+import com.apten.auth.domain.enums.AuthProvider;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -9,5 +10,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AuthUserRepository extends JpaRepository<AuthUser, Long> {
 
     // 로그인 공급자 정보로 기존 인증 사용자를 조회한다
-    Optional<AuthUser> findByProviderAndProviderUserId(String provider, String providerUserId);
+    Optional<AuthUser> findByProviderAndProviderUserId(AuthProvider provider, String providerUserId);
 }

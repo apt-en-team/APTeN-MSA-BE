@@ -1,5 +1,6 @@
 package com.apten.household.application.model.response;
 
+import com.apten.household.domain.enums.HouseholdStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -8,4 +9,13 @@ import lombok.Getter;
 @Getter
 @Builder
 public class HouseholdBaseResponse {
+
+    // 세대 식별자
+    private final Long id;
+
+    // 세대 이름
+    private final String name;
+
+    // 세대 상태
+    private final HouseholdStatus status;
 }

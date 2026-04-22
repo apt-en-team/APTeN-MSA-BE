@@ -1,5 +1,6 @@
 package com.apten.board.application.model.dto;
 
+import com.apten.board.domain.enums.BoardStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -8,4 +9,13 @@ import lombok.Getter;
 @Getter
 @Builder
 public class BoardDto {
+
+    // 게시글 식별자
+    private final Long id;
+
+    // 게시글 제목
+    private final String title;
+
+    // 게시글 상태
+    private final BoardStatus status;
 }

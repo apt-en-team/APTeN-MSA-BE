@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 // 로그인 성공 후 클라이언트에 내려줄 토큰 응답 객체
-// access token, refresh token, grant type을 한 번에 묶어 전달할 때 사용한다
+// access token과 refresh token, 현재 로그인 사용자를 함께 묶어 반환할 때 사용한다
 @Getter
 @Builder
 public class AuthTokenResponse {
@@ -17,4 +17,10 @@ public class AuthTokenResponse {
 
     // 재발급 흐름에서 사용할 refresh token 값
     private final String refreshToken;
+
+    // 현재 로그인한 사용자 식별자
+    private final Long userId;
+
+    // 현재 로그인한 사용자 역할
+    private final String userRole;
 }
