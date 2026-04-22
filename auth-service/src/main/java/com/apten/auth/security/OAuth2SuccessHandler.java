@@ -1,7 +1,7 @@
 package com.apten.auth.security;
 
-import com.apten.auth.application.dto.AuthTokenResponse;
-import com.apten.auth.application.AuthService;
+import com.apten.auth.application.model.response.AuthTokenResponse;
+import com.apten.auth.application.service.AuthService;
 import com.apten.common.constants.HeaderConstants;
 import com.apten.common.constants.SecurityConstants;
 import jakarta.servlet.ServletException;
