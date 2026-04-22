@@ -1,39 +1,109 @@
 package com.apten.auth.application.controller;
 
-import com.apten.auth.application.model.response.AuthTokenResponse;
+import com.apten.auth.application.model.request.AuthCheckEmailReq;
+import com.apten.auth.application.model.request.AuthLoginPostReq;
+import com.apten.auth.application.model.request.AuthPasswordForgotPostReq;
+import com.apten.auth.application.model.request.AuthPasswordResetPostReq;
+import com.apten.auth.application.model.request.AuthRegisterPostReq;
+import com.apten.auth.application.model.request.AuthSmsSendPostReq;
+import com.apten.auth.application.model.request.AuthSmsVerifyPostReq;
+import com.apten.auth.application.model.request.AuthSocialSignupPostReq;
+import com.apten.auth.application.model.request.AuthTokenRefreshPostReq;
+import com.apten.auth.application.model.response.AuthCheckEmailRes;
+import com.apten.auth.application.model.response.AuthLoginPostRes;
+import com.apten.auth.application.model.response.AuthLogoutPostRes;
+import com.apten.auth.application.model.response.AuthPasswordForgotPostRes;
+import com.apten.auth.application.model.response.AuthPasswordResetPostRes;
+import com.apten.auth.application.model.response.AuthRegisterPostRes;
+import com.apten.auth.application.model.response.AuthSmsSendPostRes;
+import com.apten.auth.application.model.response.AuthSmsVerifyPostRes;
+import com.apten.auth.application.model.response.AuthSocialSignupPostRes;
+import com.apten.auth.application.model.response.AuthTokenRefreshPostRes;
 import com.apten.auth.application.service.AuthService;
-import com.apten.common.constants.SecurityConstants;
 import com.apten.common.response.ResultResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-// 인증 관련 HTTP 요청이 처음 들어오는 지점
-// 클라이언트가 auth-service 응답 형식과 로그인 흐름을 확인할 때 가장 먼저 보게 되는 컨트롤러다
+// 인증 API 진입점
+// 로그인과 회원가입, 토큰 재발급, 비밀번호와 SMS 인증 흐름을 이 컨트롤러가 받는다
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    // 실제 토큰 응답 조합은 서비스 계층에 위임
+    // 인증 응용 서비스
     private final AuthService authService;
 
-    // Authorization 헤더를 받아 auth-service 토큰 응답 형식을 확인하는 최소 엔드포인트
-    @GetMapping("/tokens/sample")
-    public ResultResponse<AuthTokenResponse> sampleTokenResponse(
-            @RequestHeader(name = SecurityConstants.AUTHORIZATION_HEADER, required = false) String authorizationHeader
-    ) {
-        return ResultResponse.success(
-                "auth token response ready",
-                authService.createSampleTokenResponse(authorizationHeader)
-        );
+    // OAuth2 진입 경로는 Security Config에서 처리한다
+
+    // 이메일 로그인 API
+    @PostMapping("/login")
+    public ResultResponse<AuthLoginPostRes> login(@RequestBody AuthLoginPostReq request) {
+        return ResultResponse.success("로그인 성공", authService.login(request));
     }
 
-    // auth-service의 기본 application 계층과 응답 포맷이 정상인지 확인하는 최소 엔드포인트
-    @GetMapping("/template")
-    public ResultResponse<AuthTokenResponse> getAuthTemplate() {
-        return ResultResponse.success("auth template ready", authService.getAuthTemplate());
+    // 로그아웃 API
+    @PostMapping("/logout")
+    public ResultResponse<AuthLogoutPostRes> logout() {
+        return ResultResponse.success("로그아웃 성공", authService.logout());
+    }
+
+    // 이메일 회원가입 API
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<AuthRegisterPostRes> register(@RequestBody AuthRegisterPostReq request) {
+        return ResultResponse.success("회원가입 성공", authService.register(request));
+    }
+
+    // 소셜 회원가입 추가정보 입력 API
+    @PostMapping("/social/signup")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<AuthSocialSignupPostRes> socialSignup(@RequestBody AuthSocialSignupPostReq request) {
+        return ResultResponse.success("소셜 회원가입 성공", authService.socialSignup(request));
+    }
+
+    // 토큰 재발급 API
+    @PostMapping("/token/refresh")
+    public ResultResponse<AuthTokenRefreshPostRes> refreshToken(@RequestBody AuthTokenRefreshPostReq request) {
+        return ResultResponse.success("토큰 재발급 성공", authService.refreshToken(request));
+    }
+
+    // 비밀번호 재설정 메일 발송 API
+    @PostMapping("/password/forgot")
+    public ResultResponse<AuthPasswordForgotPostRes> sendPasswordResetMail(
+            @RequestBody AuthPasswordForgotPostReq request
+    ) {
+        return ResultResponse.success("비밀번호 재설정 메일 발송 성공", authService.sendPasswordResetMail(request));
+    }
+
+    // 비밀번호 재설정 API
+    @PostMapping("/password/reset")
+    public ResultResponse<AuthPasswordResetPostRes> resetPassword(@RequestBody AuthPasswordResetPostReq request) {
+        return ResultResponse.success("비밀번호 재설정 성공", authService.resetPassword(request));
+    }
+
+    // SMS 인증번호 발송 API
+    @PostMapping("/sms/send")
+    public ResultResponse<AuthSmsSendPostRes> sendSmsCode(@RequestBody AuthSmsSendPostReq request) {
+        return ResultResponse.success("SMS 인증번호 발송 성공", authService.sendSmsCode(request));
+    }
+
+    // SMS 인증번호 검증 API
+    @PostMapping("/sms/verify")
+    public ResultResponse<AuthSmsVerifyPostRes> verifySmsCode(@RequestBody AuthSmsVerifyPostReq request) {
+        return ResultResponse.success("SMS 인증 성공", authService.verifySmsCode(request));
+    }
+
+    // 이메일 중복 확인 API
+    @GetMapping("/check-email")
+    public ResultResponse<AuthCheckEmailRes> checkEmailDuplicate(@ModelAttribute AuthCheckEmailReq request) {
+        return ResultResponse.success("이메일 중복 확인 성공", authService.checkEmailDuplicate(request));
     }
 }

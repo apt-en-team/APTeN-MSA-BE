@@ -1,79 +1,162 @@
 package com.apten.auth.application.service;
 
 import com.apten.auth.application.mapper.AuthUserMapper;
-import com.apten.auth.application.model.response.AuthTokenResponse;
-import com.apten.auth.domain.entity.AuthUser;
-import com.apten.auth.domain.enums.AuthProvider;
-import com.apten.auth.domain.repository.AuthUserRepository;
+import com.apten.auth.application.model.request.AuthCheckEmailReq;
+import com.apten.auth.application.model.request.AuthLoginPostReq;
+import com.apten.auth.application.model.request.AuthPasswordForgotPostReq;
+import com.apten.auth.application.model.request.AuthPasswordResetPostReq;
+import com.apten.auth.application.model.request.AuthRegisterPostReq;
+import com.apten.auth.application.model.request.AuthSmsSendPostReq;
+import com.apten.auth.application.model.request.AuthSmsVerifyPostReq;
+import com.apten.auth.application.model.request.AuthSocialSignupPostReq;
+import com.apten.auth.application.model.request.AuthTokenRefreshPostReq;
+import com.apten.auth.application.model.response.AuthCheckEmailRes;
+import com.apten.auth.application.model.response.AuthLoginPostRes;
+import com.apten.auth.application.model.response.AuthLogoutPostRes;
+import com.apten.auth.application.model.response.AuthPasswordForgotPostRes;
+import com.apten.auth.application.model.response.AuthPasswordResetPostRes;
+import com.apten.auth.application.model.response.AuthRegisterPostRes;
+import com.apten.auth.application.model.response.AuthSmsSendPostRes;
+import com.apten.auth.application.model.response.AuthSmsVerifyPostRes;
+import com.apten.auth.application.model.response.AuthSocialSignupPostRes;
+import com.apten.auth.application.model.response.AuthTokenRefreshPostRes;
+import com.apten.auth.domain.enums.UserRole;
+import com.apten.auth.domain.enums.UserStatus;
+import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
 import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
-import com.apten.common.constants.SecurityConstants;
 import com.apten.common.security.UserContext;
-import com.apten.common.security.UserRole;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-// OAuth2 로그인 성공 이후 토큰 응답을 조합하는 서비스
-// 컨트롤러나 성공 핸들러가 직접 저장소와 JWT 발급을 다루지 않도록 중간 흐름을 모아둔다
+// 인증 응용 서비스
+// 로그인과 회원가입, 토큰, 비밀번호, SMS 인증 시그니처를 이 서비스에 모아둔다
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    // 기본 사용자 저장과 조회는 JPA Repository가 맡는다
-    private final AuthUserRepository authUserRepository;
+    // 회원 기본 저장소
+    private final UserRepository userRepository;
 
-    // 복잡한 인증 조회가 필요해지면 MyBatis 매퍼를 이 계층에서만 사용한다
+    // 인증 조회용 MyBatis 매퍼
     private final ObjectProvider<AuthQueryMapper> authQueryMapperProvider;
 
-    // 로그인 사용자 정보를 공통 컨텍스트와 응답 객체로 바꾸는 변환기
+    // principal과 응답 변환기
     private final AuthUserMapper authUserMapper;
 
-    // 실제 access token과 refresh token 생성 담당
+    // JWT 발급기
     private final JwtTokenProvider jwtTokenProvider;
 
-    // 헤더를 받아 auth-service가 어떤 토큰 응답을 줄지 확인하는 샘플 응답을 만든다
-    public AuthTokenResponse createSampleTokenResponse(String authorizationHeader) {
-        UserContext sampleUserContext = UserContext.builder()
+    // 이메일 로그인 서비스
+    public AuthLoginPostRes login(AuthLoginPostReq request) {
+        // TODO: 이메일 로그인 로직 구현
+        return AuthLoginPostRes.builder()
+                .accessToken("access-token")
+                .refreshToken("refresh-token")
                 .userId(1L)
-                .userRole(UserRole.RESIDENT)
+                .name(request.getEmail())
+                .role("RESIDENT")
+                .status("ACTIVE")
                 .build();
-
-        return authUserMapper.toTokenResponse(
-                jwtTokenProvider.resolveTokenType(authorizationHeader),
-                null,
-                null,
-                sampleUserContext
-        );
     }
 
-    // OAuth2 로그인으로 확보한 사용자 정보를 기준으로 실제 토큰 응답을 만든다
-    // 성공 핸들러는 이 메서드를 호출해 JWT 발급 책임을 서비스 계층으로 넘긴다
-    public AuthTokenResponse issueTokenResponse(UserPrincipal userPrincipal) {
+    // 로그아웃 서비스
+    public AuthLogoutPostRes logout() {
+        // TODO: Refresh Token 무효화 처리
+        // TODO: Access Token 블랙리스트 등록 처리
+        return AuthLogoutPostRes.builder()
+                .message("로그아웃 완료")
+                .build();
+    }
+
+    // 이메일 회원가입 서비스
+    public AuthRegisterPostRes register(AuthRegisterPostReq request) {
+        // TODO: 회원가입 저장 로직 구현
+        // TODO: 회원가입 요청 이벤트 Kafka 발행
+        return AuthRegisterPostRes.builder()
+                .apartmentComplexUid(request.getApartmentComplexUid())
+                .email(request.getEmail())
+                .name(request.getName())
+                .role("RESIDENT")
+                .status("PENDING")
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 소셜 회원가입 서비스
+    public AuthSocialSignupPostRes socialSignup(AuthSocialSignupPostReq request) {
+        // TODO: 소셜 회원가입 저장 로직 구현
+        // TODO: 회원가입 요청 이벤트 Kafka 발행
+        return AuthSocialSignupPostRes.builder()
+                .email(request.getEmail())
+                .name(request.getName())
+                .role("RESIDENT")
+                .status("PENDING")
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 토큰 재발급 서비스
+    public AuthTokenRefreshPostRes refreshToken(AuthTokenRefreshPostReq request) {
+        // TODO: Refresh Token 검증 및 재발급 로직 구현
+        return AuthTokenRefreshPostRes.builder()
+                .accessToken("refreshed-access-token")
+                .refreshToken(request.getRefreshToken())
+                .build();
+    }
+
+    // 비밀번호 재설정 메일 발송 서비스
+    public AuthPasswordForgotPostRes sendPasswordResetMail(AuthPasswordForgotPostReq request) {
+        // TODO: 비밀번호 재설정 메일 발송 로직 구현
+        return AuthPasswordForgotPostRes.builder()
+                .message("비밀번호 재설정 메일 발송 완료")
+                .build();
+    }
+
+    // 비밀번호 재설정 서비스
+    public AuthPasswordResetPostRes resetPassword(AuthPasswordResetPostReq request) {
+        // TODO: 비밀번호 재설정 로직 구현
+        return AuthPasswordResetPostRes.builder()
+                .message("비밀번호 재설정 완료")
+                .build();
+    }
+
+    // SMS 인증번호 발송 서비스
+    public AuthSmsSendPostRes sendSmsCode(AuthSmsSendPostReq request) {
+        // TODO: SMS 인증번호 발송 로직 구현
+        return AuthSmsSendPostRes.builder()
+                .message("SMS 인증번호 발송 완료")
+                .build();
+    }
+
+    // SMS 인증번호 검증 서비스
+    public AuthSmsVerifyPostRes verifySmsCode(AuthSmsVerifyPostReq request) {
+        // TODO: SMS 인증번호 검증 로직 구현
+        return AuthSmsVerifyPostRes.builder()
+                .verified(true)
+                .build();
+    }
+
+    // 이메일 중복 확인 서비스
+    public AuthCheckEmailRes checkEmailDuplicate(AuthCheckEmailReq request) {
+        // TODO: 이메일 중복 확인 로직 구현
+        return AuthCheckEmailRes.builder()
+                .isDuplicate(false)
+                .build();
+    }
+
+    // OAuth2 성공 핸들러가 호출하는 JWT 응답 생성 서비스
+    public AuthLoginPostRes issueTokenResponse(UserPrincipal userPrincipal) {
         UserContext userContext = authUserMapper.toUserContext(userPrincipal);
-        String grantType = SecurityConstants.BEARER_PREFIX.trim();
         String accessToken = jwtTokenProvider.issueAccessToken(userContext);
         String refreshToken = jwtTokenProvider.issueRefreshToken(userPrincipal.getUserId());
-
-        return authUserMapper.toTokenResponse(grantType, accessToken, refreshToken, userContext);
+        return authUserMapper.toLoginResponse(accessToken, refreshToken, userPrincipal);
     }
 
-    // auth-service 기본 구조와 응답 포맷을 확인할 수 있는 최소 사용자 응답을 만든다
-    public AuthTokenResponse getAuthTemplate() {
-        AuthUser authUser = AuthUser.builder()
-                .id(1L)
-                .provider(AuthProvider.KAKAO)
-                .providerUserId("oauth2-user-1")
-                .email("auth-template@apten.com")
-                .role(UserRole.RESIDENT)
-                .build();
-
-        UserContext userContext = UserContext.builder()
-                .userId(authUser.getId())
-                .userRole(authUser.getRole())
-                .build();
-
-        return authUserMapper.toTokenResponse("Bearer", null, null, userContext);
-    }
+    // TODO: 내 계정 정보 조회는 API 명세 확정 후 추가
+    // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
+    // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
 }

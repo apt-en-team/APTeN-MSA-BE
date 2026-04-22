@@ -1,25 +1,32 @@
 package com.apten.auth.application.model.dto;
 
-import com.apten.auth.domain.enums.AuthProvider;
-import com.apten.common.security.UserRole;
+import com.apten.auth.domain.enums.SignupType;
+import com.apten.auth.domain.enums.UserRole;
+import com.apten.auth.domain.enums.UserStatus;
 import lombok.Builder;
 import lombok.Getter;
 
-// auth-service 내부 계층 간 전달에 사용할 최소 DTO
-// 컨트롤러 응답 모델과 엔티티를 바로 섞지 않기 위한 중간 전달 객체다
+// 인증 도메인 내부 전달용 DTO
+// 엔티티와 응답 모델을 직접 섞지 않기 위한 중간 객체다
 @Getter
 @Builder
 public class AuthDto {
 
-    // auth-service 내부 사용자 식별자
+    // 회원 ID
     private final Long id;
 
-    // 로그인 공급자
-    private final AuthProvider provider;
-
-    // 사용자 이메일
+    // 이메일
     private final String email;
 
-    // 공통 사용자 역할
+    // 이름
+    private final String name;
+
+    // 권한
     private final UserRole role;
+
+    // 상태
+    private final UserStatus status;
+
+    // 가입 방식
+    private final SignupType signupType;
 }

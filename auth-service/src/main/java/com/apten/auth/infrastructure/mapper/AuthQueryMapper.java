@@ -8,5 +8,5 @@ import java.util.List;
 public interface AuthQueryMapper {
 
     // 인증 사용자 목록 조회가 필요해질 때 확장할 기본 메서드 위치
-    List<AuthDto> findAuthUserSummaries();
+    List<AuthDto> findUserSummaries();
 }

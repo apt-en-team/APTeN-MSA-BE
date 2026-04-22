@@ -1,6 +1,6 @@
 package com.apten.auth.security;
 
-import com.apten.auth.application.model.response.AuthTokenResponse;
+import com.apten.auth.application.model.response.AuthLoginPostRes;
 import com.apten.auth.application.service.AuthService;
 import com.apten.common.constants.HeaderConstants;
 import com.apten.common.constants.SecurityConstants;
@@ -31,7 +31,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             Authentication authentication
     ) throws IOException, ServletException {
         if (authentication.getPrincipal() instanceof UserPrincipal principal) {
-            AuthTokenResponse tokenResponse = authService.issueTokenResponse(principal);
+            AuthLoginPostRes tokenResponse = authService.issueTokenResponse(principal);
 
             // 클라이언트가 바로 사용할 수 있도록 Authorization 헤더에 access token을 담는다
             response.setHeader(
