@@ -38,7 +38,7 @@ public class BoardReferenceCacheService {
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertUserCache(UserEventPayload payload) {
         UserCache userCache = userCacheRepository.findById(payload.getUserId())
-                .orElseGet(() -> UserCache.builder().userId(payload.getUserId()).build());
+                .orElseGet(() -> UserCache.builder().id(payload.getUserId()).build());
         userCache.apply(payload);
         userCacheRepository.save(userCache);
     }
@@ -62,7 +62,7 @@ public class BoardReferenceCacheService {
     // 제거 이벤트도 물리 삭제 대신 상태값을 포함한 upsert로 반영한다
     public void upsertHouseholdMemberCache(HouseholdMemberEventPayload payload) {
         HouseholdMemberCache householdMemberCache = householdMemberCacheRepository.findById(payload.getHouseholdMemberId())
-                .orElseGet(() -> HouseholdMemberCache.builder().householdMemberId(payload.getHouseholdMemberId()).build());
+                .orElseGet(() -> HouseholdMemberCache.builder().id(payload.getHouseholdMemberId()).build());
         householdMemberCache.apply(payload);
         householdMemberCacheRepository.save(householdMemberCache);
     }
