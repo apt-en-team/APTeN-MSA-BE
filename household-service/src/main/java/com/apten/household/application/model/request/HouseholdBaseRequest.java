@@ -14,8 +14,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class HouseholdBaseRequest {
 
-    // 세대 이름 입력값
-    private String name;
+    // 세대 동 입력값
+    private String building;
+
+    // 세대 호 입력값
+    private String unit;
 
     // 세대 상태 입력값
     private HouseholdStatus status;

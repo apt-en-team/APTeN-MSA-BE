@@ -1,8 +1,8 @@
 package com.apten.household.domain.enums;
 
-// household-service에서 세대 상태를 구분할 때 사용할 기본 enum
+// 세대 상태를 관리하는 enum
 public enum HouseholdStatus {
-    ACTIVE,
-    INACTIVE,
-    DELETED
+    OCCUPIED,
+    VACANT,
+    MOVED_OUT
 }

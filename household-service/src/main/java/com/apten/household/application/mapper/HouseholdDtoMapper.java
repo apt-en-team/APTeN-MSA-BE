@@ -14,7 +14,8 @@ public class HouseholdDtoMapper {
     // 요청 DTO를 저장 전 엔티티 형태로 옮긴다
     public Household toEntity(HouseholdBaseRequest request) {
         return Household.builder()
-                .name(request.getName())
+                .building(request.getBuilding())
+                .unit(request.getUnit())
                 .status(request.getStatus())
                 .build();
     }
@@ -23,7 +24,8 @@ public class HouseholdDtoMapper {
     public HouseholdDto toDto(Household household) {
         return HouseholdDto.builder()
                 .id(household.getId())
-                .name(household.getName())
+                .building(household.getBuilding())
+                .unit(household.getUnit())
                 .status(household.getStatus())
                 .build();
     }
@@ -32,7 +34,8 @@ public class HouseholdDtoMapper {
     public HouseholdBaseResponse toResponse(HouseholdDto householdDto) {
         return HouseholdBaseResponse.builder()
                 .id(householdDto.getId())
-                .name(householdDto.getName())
+                .building(householdDto.getBuilding())
+                .unit(householdDto.getUnit())
                 .status(householdDto.getStatus())
                 .build();
     }

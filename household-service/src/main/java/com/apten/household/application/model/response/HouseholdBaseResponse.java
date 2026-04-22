@@ -13,8 +13,11 @@ public class HouseholdBaseResponse {
     // 세대 식별자
     private final Long id;
 
-    // 세대 이름
-    private final String name;
+    // 세대 동
+    private final String building;
+
+    // 세대 호
+    private final String unit;
 
     // 세대 상태
     private final HouseholdStatus status;
