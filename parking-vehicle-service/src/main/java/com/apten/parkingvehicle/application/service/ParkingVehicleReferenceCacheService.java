@@ -37,7 +37,7 @@ public class ParkingVehicleReferenceCacheService {
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertUserCache(UserEventPayload payload) {
         UserCache userCache = userCacheRepository.findById(payload.getUserId())
-                .orElseGet(() -> UserCache.builder().userId(payload.getUserId()).build());
+                .orElseGet(() -> UserCache.builder().id(payload.getUserId()).build());
         userCache.apply(payload);
         userCacheRepository.save(userCache);
     }
@@ -53,7 +53,7 @@ public class ParkingVehicleReferenceCacheService {
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertHouseholdCache(HouseholdEventPayload payload) {
         HouseholdCache householdCache = householdCacheRepository.findById(payload.getHouseholdId())
-                .orElseGet(() -> HouseholdCache.builder().householdId(payload.getHouseholdId()).build());
+                .orElseGet(() -> HouseholdCache.builder().id(payload.getHouseholdId()).build());
         householdCache.apply(payload);
         householdCacheRepository.save(householdCache);
     }

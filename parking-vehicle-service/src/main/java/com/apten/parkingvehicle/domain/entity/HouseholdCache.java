@@ -2,51 +2,59 @@ package com.apten.parkingvehicle.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
+import com.apten.parkingvehicle.domain.enums.HouseholdStatus;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// parking-vehicle-service가 세대 참조 데이터를 로컬 캐시 테이블로 유지하는 엔티티
+// 차량 등록 검증과 조회에 사용하는 세대 캐시 엔티티
 @Entity
-@Getter
-@NoArgsConstructor
 @Table(name = "household_cache")
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class HouseholdCache extends BaseEntity {
 
-    // 원본 세대 ID를 그대로 캐시 PK로 사용한다
+    // 원본 세대 PK
     @Id
-    private Long householdId;
+    @Column(name = "id", nullable = false)
+    private Long id;
 
-    // 세대가 속한 단지 식별자
-    private Long apartmentComplexId;
+    // 소속 단지 ID
+    @Column(name = "complex_id", nullable = false)
+    private Long complexId;
 
     // 동 정보
-    private String buildingNo;
+    @Column(name = "building", nullable = false, length = 10)
+    private String building;
 
     // 호 정보
-    private String unitNo;
+    @Column(name = "unit", nullable = false, length = 10)
+    private String unit;
 
-    // soft delete를 포함한 상태값
-    private String status;
+    // 세대 상태
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private HouseholdStatus status;
 
-    @Builder
-    private HouseholdCache(Long householdId, Long apartmentComplexId, String buildingNo, String unitNo, String status) {
-        this.householdId = householdId;
-        this.apartmentComplexId = apartmentComplexId;
-        this.buildingNo = buildingNo;
-        this.unitNo = unitNo;
-        this.status = status;
-    }
+    // 세대주 사용자 ID
+    @Column(name = "head_user_id")
+    private Long headUserId;
 
-    // 같은 이벤트를 다시 받아도 같은 상태가 되도록 필드를 덮어쓴다
+    // 세대 이벤트로 캐시 내용을 갱신한다
     public void apply(HouseholdEventPayload payload) {
-        this.householdId = payload.getHouseholdId();
-        this.apartmentComplexId = payload.getApartmentComplexId();
-        this.buildingNo = payload.getBuildingNo();
-        this.unitNo = payload.getUnitNo();
-        this.status = payload.getStatus();
+        this.id = payload.getHouseholdId();
+        this.complexId = payload.getApartmentComplexId();
+        this.building = payload.getBuildingNo();
+        this.unit = payload.getUnitNo();
+        this.status = payload.getStatus() != null ? HouseholdStatus.valueOf(payload.getStatus()) : null;
     }
 }
