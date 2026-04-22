@@ -1,0 +1,38 @@
+# Gradle
+.gradle/
+build/
+*/build/
+out/
+
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+__MACOSX/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Spring secret configs
+application-local.yml
+application-local.yaml
+application-prod.yml
+application-prod.yaml
+application-secret.yml
+application-secret.yaml
+*/src/main/resources/application-local.yml
+*/src/main/resources/application-local.yaml
+*/src/main/resources/application-prod.yml
+*/src/main/resources/application-prod.yaml
+*/src/main/resources/application-secret.yml
+*/src/main/resources/application-secret.yaml
