@@ -1,3 +1,7 @@
 spring:
   application:
     name: parking-vehicle-service
+
+
+server:
+  port: 9083

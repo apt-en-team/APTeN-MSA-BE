@@ -1,3 +1,6 @@
 spring:
   application:
     name: facility-reservation-service
+
+server:
+  port: 9086

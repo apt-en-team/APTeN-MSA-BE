@@ -1,3 +1,6 @@
 spring:
   application:
     name: household-service
+
+server:
+  port: 9084
