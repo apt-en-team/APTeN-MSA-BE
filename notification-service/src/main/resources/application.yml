@@ -1,7 +1,23 @@
+server:
+  port: 9081
+
 spring:
   application:
     name: notification-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka.yml
+  datasource:
+    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    url: jdbc:log4jdbc:mysql://localhost:3306/apten_notification?createDatabaseIfNotExist=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: root
+    password: qaws7579
+  kafka:
+    consumer:
+      group-id: notification-service-group
 
-
-server:
-  port: 9081
+constants:
+  api:
+    prefix: /api/notifications

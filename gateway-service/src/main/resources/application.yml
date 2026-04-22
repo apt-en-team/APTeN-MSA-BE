@@ -1,6 +1,10 @@
 spring:
   application:
     name: gateway-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-auth.yml
   cloud:
     gateway:
       routes:
@@ -43,3 +47,7 @@ gateway:
 
 server:
   port: 9000
+
+constants:
+  api:
+    prefix: /api
