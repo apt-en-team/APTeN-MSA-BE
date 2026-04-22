@@ -7,7 +7,7 @@ spring:
         - id: auth-service-auth
           uri: http://localhost:9080
           predicates:
-            - Path=/auth/**,/login/**,/oauth2/**
+            - Path=/api/auth/**,/login/**,/oauth2/**
         - id: household-service
           uri: http://localhost:9084
           predicates:
@@ -36,7 +36,7 @@ spring:
 gateway:
   auth:
     excluded-paths:
-      - /auth/**
+      - /api/auth/**
       - /login/**
       - /oauth2/**
     jwt-secret: apten-auth-service-secret-key-for-local-template-123456
