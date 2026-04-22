@@ -1,0 +1,25 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'APTeN-MSA-BE'
+
+include 'common'
+include 'gateway-service'
+include 'auth-service'
+include 'apartment-complex-service'
+include 'notification-service'
+include 'household-service'
+include 'parking-vehicle-service'
+include 'facility-reservation-service'
+include 'board-service'
