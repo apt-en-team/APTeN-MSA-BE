@@ -1,0 +1,2 @@
+com.apten.common.outbox.OutboxAutoConfiguration
+com.apten.common.kafka.KafkaConfiguration
