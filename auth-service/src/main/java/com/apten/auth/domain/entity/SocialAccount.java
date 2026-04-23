@@ -6,8 +6,6 @@ import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -35,8 +33,7 @@ public class SocialAccount extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    // 제공자 종류
-    @Enumerated(EnumType.STRING)
+    // 제공자 종류는 converter를 통해 DB에는 code로 저장된다
     @Column(name = "provider", nullable = false, length = 20)
     private SocialProvider provider;
 
@@ -48,8 +45,7 @@ public class SocialAccount extends BaseEntity {
     @Column(name = "provider_email", length = 100)
     private String providerEmail;
 
-    // 연동 상태
-    @Enumerated(EnumType.STRING)
+    // 연동 상태는 converter를 통해 DB에는 code로 저장된다
     @Column(name = "link_status", nullable = false, length = 20)
     private SocialLinkStatus linkStatus;
 

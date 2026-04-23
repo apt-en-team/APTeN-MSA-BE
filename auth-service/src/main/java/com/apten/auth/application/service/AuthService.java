@@ -65,8 +65,8 @@ public class AuthService {
                 .refreshToken("refresh-token")
                 .userId(1L)
                 .name(request.getEmail())
-                .role("RESIDENT")
-                .status("ACTIVE")
+                .role(UserRole.USER.getValue())
+                .status(UserStatus.ACTIVE.getValue())
                 .build();
     }
 
@@ -112,8 +112,8 @@ public class AuthService {
                 .userUid(String.valueOf(savedUser.getId()))
                 .email(savedUser.getEmail())
                 .name(savedUser.getName())
-                .role(savedUser.getRole().name())
-                .status(savedUser.getStatus().name())
+                .role(savedUser.getRole().getValue())
+                .status(savedUser.getStatus().getValue())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -150,8 +150,8 @@ public class AuthService {
                 .userUid(String.valueOf(savedUser.getId()))
                 .email(savedUser.getEmail())
                 .name(savedUser.getName())
-                .role(savedUser.getRole().name())
-                .status(savedUser.getStatus().name())
+                .role(savedUser.getRole().getValue())
+                .status(savedUser.getStatus().getValue())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
