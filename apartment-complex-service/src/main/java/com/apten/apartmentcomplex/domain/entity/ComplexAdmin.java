@@ -5,8 +5,6 @@ import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
@@ -43,8 +41,7 @@ public class ComplexAdmin extends BaseEntity {
     @Column(name = "admin_name", nullable = false)
     private String adminName;
 
-    // 단지 내 관리자 역할
-    @Enumerated(EnumType.STRING)
+    // 단지 내 관리자 역할은 converter를 통해 DB에는 code로 저장된다
     @Column(name = "admin_role", nullable = false)
     private ComplexAdminRole adminRole;
 

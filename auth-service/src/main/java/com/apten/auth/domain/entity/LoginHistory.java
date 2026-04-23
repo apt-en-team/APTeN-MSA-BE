@@ -5,8 +5,6 @@ import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -38,8 +36,7 @@ public class LoginHistory extends BaseEntity {
     @Column(name = "email", nullable = false, length = 100)
     private String email;
 
-    // 로그인 결과
-    @Enumerated(EnumType.STRING)
+    // 로그인 결과는 converter를 통해 DB에는 code로 저장된다
     @Column(name = "result", nullable = false, length = 20)
     private LoginResult result;
 

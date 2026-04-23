@@ -4,8 +4,6 @@ import com.apten.auth.domain.enums.ComplexCacheStatus;
 import com.apten.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -36,8 +34,7 @@ public class ComplexCache extends BaseEntity {
     @Column(name = "address", nullable = false, length = 255)
     private String address;
 
-    // 단지 상태
-    @Enumerated(EnumType.STRING)
+    // 단지 상태는 converter를 통해 DB에는 code로 저장된다
     @Column(name = "status", nullable = false, length = 20)
     private ComplexCacheStatus status;
 

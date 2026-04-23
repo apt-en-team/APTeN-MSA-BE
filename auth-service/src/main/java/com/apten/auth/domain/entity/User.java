@@ -7,8 +7,6 @@ import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
@@ -66,18 +64,15 @@ public class User extends BaseEntity {
     @Column(name = "unit", nullable = false, length = 10)
     private String unit;
 
-    // 사용자 권한
-    @Enumerated(EnumType.STRING)
+    // 사용자 권한은 converter를 통해 DB에는 code로 저장된다
     @Column(name = "role", nullable = false, length = 20)
     private UserRole role;
 
-    // 회원 상태
-    @Enumerated(EnumType.STRING)
+    // 회원 상태는 converter를 통해 DB에는 code로 저장된다
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status;
 
-    // 가입 방식
-    @Enumerated(EnumType.STRING)
+    // 가입 방식은 converter를 통해 DB에는 code로 저장된다
     @Column(name = "signup_type", nullable = false, length = 20)
     private SignupType signupType;
 

@@ -5,8 +5,6 @@ import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
@@ -39,8 +37,7 @@ public class SmsVerification extends BaseEntity {
     @Column(name = "code_hash", nullable = false, length = 255)
     private String codeHash;
 
-    // 인증 목적
-    @Enumerated(EnumType.STRING)
+    // 인증 목적은 converter를 통해 DB에는 code로 저장된다
     @Column(name = "verify_type", nullable = false, length = 20)
     private SmsVerifyType verifyType;
 
