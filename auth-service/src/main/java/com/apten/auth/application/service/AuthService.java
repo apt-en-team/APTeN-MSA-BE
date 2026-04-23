@@ -20,9 +20,12 @@ import com.apten.auth.application.model.response.AuthSmsSendPostRes;
 import com.apten.auth.application.model.response.AuthSmsVerifyPostRes;
 import com.apten.auth.application.model.response.AuthSocialSignupPostRes;
 import com.apten.auth.application.model.response.AuthTokenRefreshPostRes;
+import com.apten.auth.domain.entity.User;
+import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.UserRepository;
+import com.apten.auth.infrastructure.kafka.AuthOutboxService;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
 import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
@@ -31,6 +34,7 @@ import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 // 인증 응용 서비스
 // 로그인과 회원가입, 토큰, 비밀번호, SMS 인증 시그니처를 이 서비스에 모아둔다
@@ -49,6 +53,9 @@ public class AuthService {
 
     // JWT 발급기
     private final JwtTokenProvider jwtTokenProvider;
+
+    // 사용자 원본 변경 이벤트를 Kafka 직접 발행 대신 Outbox에 저장하는 서비스
+    private final AuthOutboxService authOutboxService;
 
     // 이메일 로그인 서비스
     public AuthLoginPostRes login(AuthLoginPostReq request) {
@@ -73,28 +80,78 @@ public class AuthService {
     }
 
     // 이메일 회원가입 서비스
+    @Transactional
     public AuthRegisterPostRes register(AuthRegisterPostReq request) {
-        // TODO: 회원가입 저장 로직 구현
-        // TODO: 회원가입 요청 이벤트 Kafka 발행
+        // 회원 원본을 먼저 저장해 aggregateId로 사용할 Long PK를 확보한다
+        User user = User.builder()
+                .complexId(resolveComplexId(request.getApartmentComplexUid()))
+                .email(request.getEmail())
+                .passwordHash(null)
+                .name(request.getName())
+                .phone(request.getPhone())
+                .birthDate(request.getBirthDate())
+                .building(request.getDong())
+                .unit(request.getHo())
+                .role(UserRole.USER)
+                .status(UserStatus.PENDING)
+                .signupType(SignupType.EMAIL)
+                .isPhoneVerified(false)
+                .isEmailVerified(false)
+                .loginFailCount(0)
+                .isDeleted(false)
+                .build();
+        User savedUser = userRepository.save(user);
+
+        // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남긴다
+        authOutboxService.saveCreatedEvent(savedUser);
+
+        // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
         return AuthRegisterPostRes.builder()
                 .apartmentComplexUid(request.getApartmentComplexUid())
-                .email(request.getEmail())
-                .name(request.getName())
-                .role("RESIDENT")
-                .status("PENDING")
+                .userId(savedUser.getId())
+                .userUid(String.valueOf(savedUser.getId()))
+                .email(savedUser.getEmail())
+                .name(savedUser.getName())
+                .role(savedUser.getRole().name())
+                .status(savedUser.getStatus().name())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
 
     // 소셜 회원가입 서비스
+    @Transactional
     public AuthSocialSignupPostRes socialSignup(AuthSocialSignupPostReq request) {
-        // TODO: 소셜 회원가입 저장 로직 구현
-        // TODO: 회원가입 요청 이벤트 Kafka 발행
-        return AuthSocialSignupPostRes.builder()
+        // 소셜 가입도 user 원본을 먼저 저장해 Outbox aggregateId로 사용할 PK를 확보한다
+        User user = User.builder()
+                .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
+                .passwordHash(null)
                 .name(request.getName())
-                .role("RESIDENT")
-                .status("PENDING")
+                .phone(request.getPhone())
+                .birthDate(request.getBirthDate())
+                .building(request.getDong())
+                .unit(request.getHo())
+                .role(UserRole.USER)
+                .status(UserStatus.PENDING)
+                .signupType(SignupType.valueOf(request.getProvider().name()))
+                .isPhoneVerified(false)
+                .isEmailVerified(false)
+                .loginFailCount(0)
+                .isDeleted(false)
+                .build();
+        User savedUser = userRepository.save(user);
+
+        // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
+        authOutboxService.saveCreatedEvent(savedUser);
+
+        // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
+        return AuthSocialSignupPostRes.builder()
+                .userId(savedUser.getId())
+                .userUid(String.valueOf(savedUser.getId()))
+                .email(savedUser.getEmail())
+                .name(savedUser.getName())
+                .role(savedUser.getRole().name())
+                .status(savedUser.getStatus().name())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -159,4 +216,13 @@ public class AuthService {
     // TODO: 내 계정 정보 조회는 API 명세 확정 후 추가
     // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
     // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
+
+    // 단지 UID와 Long 원본 ID 매핑이 들어오기 전까지 숫자 UID만 이벤트용 complexId로 변환한다
+    private Long resolveComplexId(String apartmentComplexUid) {
+        try {
+            return Long.valueOf(apartmentComplexUid);
+        } catch (NumberFormatException exception) {
+            return 0L;
+        }
+    }
 }
