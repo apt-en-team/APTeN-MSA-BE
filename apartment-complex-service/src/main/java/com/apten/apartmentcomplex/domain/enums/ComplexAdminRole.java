@@ -15,10 +15,7 @@ public enum ComplexAdminRole implements EnumMapperType {
     MASTER("01", "마스터"),
 
     // 단지 운영 관리자 역할이다.
-    MANAGER("02", "매니저"),
-
-    // 단지 운영 실무자 역할이다.
-    STAFF("03", "스태프");
+    MANAGER("02", "매니저");
 
     // DB에 저장할 관리자 역할 code이다.
     private final String code;
