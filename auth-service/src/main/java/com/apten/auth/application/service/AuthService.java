@@ -39,8 +39,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 // 인증 응용 서비스 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @Service
@@ -68,6 +70,9 @@ public class AuthService {
     // Coolsms 문자 발송 클라이언트
     private final CoolsmsClient coolsmsClient;
 
+    // 비밀번호 단방향 암호화
+    private final BCryptPasswordEncoder passwordEncoder;
+
     // 이메일 로그인 서비스
     public AuthLoginPostRes login(AuthLoginPostReq request) {
         // TODO: 이메일 로그인 로직 구현
@@ -82,7 +87,7 @@ public class AuthService {
     }
 
     // 로그아웃 서비스
-    public AuthLogoutPostRes logout() {
+    public AuthLogoutPostRes logout(String authorizationHeader) {
         // TODO: Refresh Token 무효화 처리
         // TODO: Access Token 블랙리스트 등록 처리
         return AuthLogoutPostRes.builder()
@@ -93,11 +98,36 @@ public class AuthService {
     // 이메일 회원가입 서비스
     @Transactional
     public AuthRegisterPostRes register(AuthRegisterPostReq request) {
-        // 회원 원본을 먼저 저장해 aggregateId로 사용할 Long PK를 확보
+        // SMS 인증코드 검증 — Redis에 저장된 코드와 요청 코드 비교
+        String storedCode = redisTemplate.opsForValue()
+                .get("sms:" + request.getPhone());
+
+        // Redis에 없으면 TTL 만료 — 인증코드 유효시간 초과
+        if (storedCode == null) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_EXPIRED);
+        }
+
+        // 입력값과 저장값 불일치
+        if (!storedCode.equals(request.getAuthCode())) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
+        }
+
+        // 인증 성공 후 즉시 삭제 — 재사용 방지
+        redisTemplate.delete("sms:" + request.getPhone());
+
+        // 이메일 중복 확인
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new BusinessException(AuthErrorCode.DUPLICATE_EMAIL);
+        }
+
+        // 비밀번호 BCrypt 암호화
+        String passwordHash = passwordEncoder.encode(request.getPassword());
+
+        // 회원 원본 저장 — aggregateId로 사용할 Long PK 확보
         User user = User.builder()
                 .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
-                .passwordHash(null)
+                .passwordHash(passwordHash)
                 .name(request.getName())
                 .phone(request.getPhone())
                 .birthDate(request.getBirthDate())
@@ -106,7 +136,7 @@ public class AuthService {
                 .role(UserRole.USER)
                 .status(UserStatus.PENDING)
                 .signupType(SignupType.EMAIL)
-                .isPhoneVerified(false)
+                .isPhoneVerified(true)  // SMS 인증 완료
                 .isEmailVerified(false)
                 .loginFailCount(0)
                 .isDeleted(false)
@@ -116,7 +146,6 @@ public class AuthService {
         // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남김
         authOutboxService.saveCreatedEvent(savedUser);
 
-        // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
         return AuthRegisterPostRes.builder()
                 .apartmentComplexUid(request.getApartmentComplexUid())
                 .userId(savedUser.getId())
@@ -155,7 +184,6 @@ public class AuthService {
         // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
         authOutboxService.saveCreatedEvent(savedUser);
 
-        // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
         return AuthSocialSignupPostRes.builder()
                 .userId(savedUser.getId())
                 .userUid(String.valueOf(savedUser.getId()))
@@ -213,7 +241,7 @@ public class AuthService {
                 .build();
     }
 
-    // SMS 인증번호 검증 서비스
+    // SMS 인증번호 검증 서비스 — 회원가입 외 단독 인증에 사용
     public AuthSmsVerifyPostRes verifySmsCode(AuthSmsVerifyPostReq request) {
         String storedCode = redisTemplate.opsForValue()
                 .get("sms:" + request.getPhone());
@@ -238,9 +266,9 @@ public class AuthService {
 
     // 이메일 중복 확인 서비스
     public AuthCheckEmailRes checkEmailDuplicate(AuthCheckEmailReq request) {
-        // TODO: 이메일 중복 확인 로직 구현
+        boolean isDuplicate = userRepository.findByEmail(request.getEmail()).isPresent();
         return AuthCheckEmailRes.builder()
-                .isDuplicate(false)
+                .isDuplicate(isDuplicate)
                 .build();
     }
 
