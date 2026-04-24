@@ -25,19 +25,24 @@ import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.UserRepository;
+import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
+import com.apten.auth.infrastructure.sms.CoolsmsClient;
 import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
+import com.apten.common.exception.BusinessException;
 import com.apten.common.security.UserContext;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 인증 응용 서비스
-// 로그인과 회원가입, 토큰, 비밀번호, SMS 인증 시그니처를 이 서비스에 모아둔다
+// 인증 응용 서비스 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -56,6 +61,12 @@ public class AuthService {
 
     // 사용자 원본 변경 이벤트를 Kafka 직접 발행 대신 Outbox에 저장하는 서비스
     private final AuthOutboxService authOutboxService;
+
+    // SMS 인증코드 및 토큰 임시 저장소
+    private final RedisTemplate<String, String> redisTemplate;
+
+    // Coolsms 문자 발송 클라이언트
+    private final CoolsmsClient coolsmsClient;
 
     // 이메일 로그인 서비스
     public AuthLoginPostRes login(AuthLoginPostReq request) {
@@ -82,7 +93,7 @@ public class AuthService {
     // 이메일 회원가입 서비스
     @Transactional
     public AuthRegisterPostRes register(AuthRegisterPostReq request) {
-        // 회원 원본을 먼저 저장해 aggregateId로 사용할 Long PK를 확보한다
+        // 회원 원본을 먼저 저장해 aggregateId로 사용할 Long PK를 확보
         User user = User.builder()
                 .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
@@ -102,7 +113,7 @@ public class AuthService {
                 .build();
         User savedUser = userRepository.save(user);
 
-        // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남긴다
+        // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남김
         authOutboxService.saveCreatedEvent(savedUser);
 
         // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
@@ -121,7 +132,7 @@ public class AuthService {
     // 소셜 회원가입 서비스
     @Transactional
     public AuthSocialSignupPostRes socialSignup(AuthSocialSignupPostReq request) {
-        // 소셜 가입도 user 원본을 먼저 저장해 Outbox aggregateId로 사용할 PK를 확보한다
+        // 소셜 가입도 user 원본을 먼저 저장해 Outbox aggregateId로 사용할 PK를 확보
         User user = User.builder()
                 .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
@@ -141,7 +152,7 @@ public class AuthService {
                 .build();
         User savedUser = userRepository.save(user);
 
-        // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
+        // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
         authOutboxService.saveCreatedEvent(savedUser);
 
         // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
@@ -183,7 +194,20 @@ public class AuthService {
 
     // SMS 인증번호 발송 서비스
     public AuthSmsSendPostRes sendSmsCode(AuthSmsSendPostReq request) {
-        // TODO: SMS 인증번호 발송 로직 구현
+        // 6자리 랜덤 인증코드 생성
+        String code = String.format("%06d",
+                ThreadLocalRandom.current().nextInt(0, 1_000_000));
+
+        // Redis 저장 — key: sms:{phone}, TTL: 5분 후 자동 삭제
+        redisTemplate.opsForValue().set(
+                "sms:" + request.getPhone(),
+                code,
+                Duration.ofMinutes(5)
+        );
+
+        // Coolsms로 실제 문자 발송
+        coolsmsClient.send(request.getPhone(), code);
+
         return AuthSmsSendPostRes.builder()
                 .message("SMS 인증번호 발송 완료")
                 .build();
@@ -191,7 +215,22 @@ public class AuthService {
 
     // SMS 인증번호 검증 서비스
     public AuthSmsVerifyPostRes verifySmsCode(AuthSmsVerifyPostReq request) {
-        // TODO: SMS 인증번호 검증 로직 구현
+        String storedCode = redisTemplate.opsForValue()
+                .get("sms:" + request.getPhone());
+
+        // Redis에 없으면 TTL 만료 — 인증코드 유효시간 초과
+        if (storedCode == null) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_EXPIRED);
+        }
+
+        // 입력값과 저장값 불일치
+        if (!storedCode.equals(request.getCode())) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
+        }
+
+        // 인증 성공 후 즉시 삭제 — 재사용 방지
+        redisTemplate.delete("sms:" + request.getPhone());
+
         return AuthSmsVerifyPostRes.builder()
                 .verified(true)
                 .build();
@@ -217,7 +256,7 @@ public class AuthService {
     // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
     // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
 
-    // 단지 UID와 Long 원본 ID 매핑이 들어오기 전까지 숫자 UID만 이벤트용 complexId로 변환한다
+    // 단지 UID를 Long으로 변환 — 매핑 확정 전까지 숫자 UID만 허용
     private Long resolveComplexId(String apartmentComplexUid) {
         try {
             return Long.valueOf(apartmentComplexUid);

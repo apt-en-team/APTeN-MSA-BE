@@ -23,6 +23,11 @@ spring:
       host: localhost # Redis 호스트
       port: 6379 # Redis 포트
 
+coolsms:
+  api-key: ${COOLSMS_API_KEY} # Coolsms API 키
+  api-secret: ${COOLSMS_API_SECRET} # Coolsms API 시크릿
+  from: ${COOLSMS_FROM_NUMBER} # 발신번호
+
 constants:
   api:
     prefix: /api/auth
