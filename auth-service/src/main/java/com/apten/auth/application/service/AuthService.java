@@ -42,7 +42,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
 
 // 인증 응용 서비스 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @Service
@@ -74,19 +73,62 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
 
     // 이메일 로그인 서비스
+    @Transactional
     public AuthLoginPostRes login(AuthLoginPostReq request) {
-        // TODO: 이메일 로그인 로직 구현
+        // 이메일로 회원 조회
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
+
+        // 계정 잠금 상태 확인 — 5회 실패 시 잠금 처리된 계정
+        if (user.getStatus() == UserStatus.LOCKED) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_LOCKED);
+        }
+
+        // 계정 활성화 상태 확인 — PENDING, REJECTED, DELETED 계정 차단
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
+        }
+
+        // 비밀번호 검증 실패 시 실패 횟수 증가 (5회 시 자동 잠금)
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            user.incrementLoginFailCount();
+            throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // 로그인 성공 — 실패 횟수 초기화 + 마지막 로그인 시각 갱신
+        user.resetLoginFailCount();
+
+        // auth.UserRole → common.UserRole 변환
+        // auth에는 USER가 있고 common에는 RESIDENT — JWT claim은 common 기준
+        com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+        UserContext userContext = UserContext.builder()
+                .userId(user.getId())
+                .userRole(commonRole)
+                .build();
+
+        // JWT 발급
+        String accessToken = jwtTokenProvider.issueAccessToken(userContext);
+        String refreshToken = jwtTokenProvider.issueRefreshToken(user.getId());
+
+        // Redis에 RefreshToken 저장 — key: refresh:{userId}, TTL: 14일
+        redisTemplate.opsForValue().set(
+                "refresh:" + user.getId(),
+                refreshToken,
+                Duration.ofDays(14)
+        );
+
         return AuthLoginPostRes.builder()
-                .accessToken("access-token")
-                .refreshToken("refresh-token")
-                .userId(1L)
-                .name(request.getEmail())
-                .role(UserRole.USER.getValue())
-                .status(UserStatus.ACTIVE.getValue())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .userId(user.getId())
+                .name(user.getName())
+                .role(user.getRole().getValue())
+                .status(user.getStatus().getValue())
                 .build();
     }
 
     // 로그아웃 서비스
+    @Transactional
     public AuthLogoutPostRes logout(String authorizationHeader) {
         // TODO: Refresh Token 무효화 처리
         // TODO: Access Token 블랙리스트 등록 처리
@@ -273,10 +315,19 @@ public class AuthService {
     }
 
     // OAuth2 성공 핸들러가 호출하는 JWT 응답 생성 서비스
+    @Transactional
     public AuthLoginPostRes issueTokenResponse(UserPrincipal userPrincipal) {
         UserContext userContext = authUserMapper.toUserContext(userPrincipal);
         String accessToken = jwtTokenProvider.issueAccessToken(userContext);
         String refreshToken = jwtTokenProvider.issueRefreshToken(userPrincipal.getUserId());
+
+        // Redis에 RefreshToken 저장 — key: refresh:{userId}, TTL: 14일
+        redisTemplate.opsForValue().set(
+                "refresh:" + userPrincipal.getUserId(),
+                refreshToken,
+                Duration.ofDays(14)
+        );
+
         return authUserMapper.toLoginResponse(accessToken, refreshToken, userPrincipal);
     }
 

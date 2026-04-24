@@ -21,7 +21,9 @@ public enum AuthErrorCode implements ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH_404_01", "사용자를 찾을 수 없습니다."),
     MAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AUTH_500_01", "이메일 발송에 실패했습니다."),
     SMS_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "AUTH_400_01", "인증코드가 만료되었습니다."),
-    SMS_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_400_02", "인증코드가 일치하지 않습니다.");
+    SMS_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_400_02", "인증코드가 일치하지 않습니다."),
+    ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "AUTH_401_07", "로그인 실패 횟수 초과로 계정이 잠금 처리되었습니다."),
+    ACCOUNT_NOT_ACTIVE(HttpStatus.UNAUTHORIZED, "AUTH_401_08", "활성화되지 않은 계정입니다.");
 
     // HTTP 상태값
     private final HttpStatus status;

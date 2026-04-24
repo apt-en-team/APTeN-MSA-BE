@@ -16,8 +16,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 회원 계정 원본 엔티티
-// 로그인과 회원가입, 계정 상태를 이 테이블이 직접 관리한다
+// 회원 계정 원본 엔티티 — 로그인, 회원가입, 계정 상태 관리
 @Entity
 @Table(name = "user")
 @Getter
@@ -25,6 +24,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User extends BaseEntity {
+
+    // 로그인 실패 최대 허용 횟수 (FR-010)
+    private static final int MAX_LOGIN_FAIL_COUNT = 5;
 
     // 회원 내부 PK
     @Id
@@ -104,7 +106,7 @@ public class User extends BaseEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    // 회원 기본 정보를 갱신할 때 사용한다
+    // 회원 기본 정보 갱신
     public void apply(
             Long complexId,
             String email,
@@ -129,5 +131,21 @@ public class User extends BaseEntity {
         this.role = role;
         this.status = status;
         this.signupType = signupType;
+    }
+
+    // 로그인 실패 횟수 증가 — 5회 이상이면 계정 잠금 처리
+    public void incrementLoginFailCount() {
+        this.loginFailCount++;
+        if (this.loginFailCount >= MAX_LOGIN_FAIL_COUNT) {
+            this.status = UserStatus.LOCKED;
+            this.lockedAt = LocalDateTime.now();
+        }
+    }
+
+    // 로그인 성공 시 실패 횟수 초기화 + 마지막 로그인 시각 갱신
+    public void resetLoginFailCount() {
+        this.loginFailCount = 0;
+        this.lockedAt = null;
+        this.lastLoginAt = LocalDateTime.now();
     }
 }
