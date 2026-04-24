@@ -45,19 +45,16 @@ public class JwtTokenProvider {
     }
 
     // 로그인 사용자의 ID와 역할을 담은 access token을 발급한다
-    // gateway와 각 서비스는 이 토큰을 기준으로 현재 사용자를 식별하게 된다
     public String issueAccessToken(UserContext userContext) {
         return issueToken(userContext.getUserId(), userContext.getUserRole(), accessTokenExpirationMillis);
     }
 
     // 재발급 흐름에서 사용할 refresh token을 만든다
-    // 지금 단계에서는 저장 전략 없이 발급 역할만 남겨둔다
     public String issueRefreshToken(Long userId) {
         return issueToken(userId, null, refreshTokenExpirationMillis);
     }
 
     // 외부에서 전달받은 JWT가 만료되었는지 또는 위조되었는지 확인한다
-    // gateway나 후속 인증 검증 단계에서 공통적으로 재사용할 수 있는 메서드다
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
@@ -83,8 +80,12 @@ public class JwtTokenProvider {
         return UserRole.valueOf(role);
     }
 
+    // JWT 만료 시각 반환 — 로그아웃 시 블랙리스트 TTL 계산에 사용
+    public Date getExpiration(String token) {
+        return parseClaims(token).getExpiration();
+    }
+
     // Authorization 헤더에서 Bearer 접두사를 제거하고 실제 토큰 문자열만 꺼낸다
-    // 컨트롤러나 필터가 헤더를 직접 파싱하지 않도록 역할을 분리한 메서드다
     public String resolveToken(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
             throw new BusinessException(AuthErrorCode.INVALID_TOKEN);
@@ -93,7 +94,6 @@ public class JwtTokenProvider {
     }
 
     // 응답 DTO에 넣을 토큰 타입 문자열을 통일한다
-    // 현재는 Bearer만 사용하므로 입력 헤더와 관계없이 같은 값을 반환한다
     public String resolveTokenType(String authorizationHeader) {
         if (authorizationHeader != null && authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
             return SecurityConstants.BEARER_PREFIX.trim();

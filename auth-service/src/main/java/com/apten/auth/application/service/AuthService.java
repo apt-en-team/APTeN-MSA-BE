@@ -129,9 +129,28 @@ public class AuthService {
 
     // 로그아웃 서비스
     @Transactional
+// 로그아웃 서비스
     public AuthLogoutPostRes logout(String authorizationHeader) {
-        // TODO: Refresh Token 무효화 처리
-        // TODO: Access Token 블랙리스트 등록 처리
+        // Authorization 헤더에서 토큰 추출
+        String accessToken = jwtTokenProvider.resolveToken(authorizationHeader);
+
+        // JWT 파싱해서 만료 시각 계산
+        Long userId = jwtTokenProvider.getUserId(accessToken);
+
+        // AT 남은 유효시간 계산 — 블랙리스트 TTL로 사용
+        // AT가 만료되면 Gateway에서 이미 차단되므로 남은 시간만큼만 저장
+        long remainMs = jwtTokenProvider.getExpiration(accessToken).getTime() - System.currentTimeMillis();
+        if (remainMs > 0) {
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "logout",
+                    Duration.ofMillis(remainMs)
+            );
+        }
+
+        // Redis에서 RefreshToken 삭제
+        redisTemplate.delete("refresh:" + userId);
+
         return AuthLogoutPostRes.builder()
                 .message("로그아웃 완료")
                 .build();
