@@ -73,7 +73,7 @@ public class ApartmentComplexService {
                 .code(code)
                 .name(req.getName())
                 .address(req.getAddress())
-                .addressDetail(req.getDetailAddress())
+                .addressDetail(req.getAddressDetail())
                 .zipCode(req.getZipcode())
                 .status(ApartmentComplexStatus.ACTIVE)
                 .description(req.getDescription())
@@ -131,10 +131,22 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 관리자 단지 상세 조회 서비스 API-203 mb
-    public ApartmentComplexGetDetailRes getApartmentComplexDetail(String ComplexUid) {
-        // TODO: 단지 상세 조회 로직 구현
-        return ApartmentComplexGetDetailRes.builder().build();
+    // 관리자 단지 상세 조회 서비스 API-203
+    public ApartmentComplexGetDetailRes getApartmentComplexDetail(String code) {
+        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+        return ApartmentComplexGetDetailRes.builder()
+                .apartmentComplexId(complex.getId())
+                .code(complex.getCode())
+                .name(complex.getName())
+                .address(complex.getAddress())
+                .addressDetail(complex.getAddressDetail())
+                .zipcode(complex.getZipCode())
+                .status(complex.getStatus())
+                .description(complex.getDescription())
+                .createdAt(complex.getCreatedAt())
+                .updatedAt(complex.getUpdatedAt())
+                .build();
     }
 
     // 단지 수정 서비스 API-204
@@ -148,7 +160,7 @@ public class ApartmentComplexService {
         apartmentComplex.update(
                 req.getName(),
                 req.getAddress(),
-                req.getDetailAddress(),
+                req.getAddressDetail(),
                 req.getZipcode(),
                 apartmentComplex.getStatus(),
                 null

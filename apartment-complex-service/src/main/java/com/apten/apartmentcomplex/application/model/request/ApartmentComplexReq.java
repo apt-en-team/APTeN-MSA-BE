@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 public class ApartmentComplexReq {
     private String name;
     private String address;
-    private String detailAddress;
+    private String addressDetail;
     private String zipcode;
     private ApartmentComplexStatus status;
     private String description;

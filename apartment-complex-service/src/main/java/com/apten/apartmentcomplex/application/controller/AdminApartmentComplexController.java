@@ -52,13 +52,13 @@ public class AdminApartmentComplexController {
     }
 
     // 관리자 단지 상세 조회 API-203
-    @GetMapping("/{ComplexUid}")
+    @GetMapping("/{code}")
     public ResultResponse<ApartmentComplexGetDetailRes> getApartmentComplexDetail(
-            @PathVariable String ComplexUid
+            @PathVariable String code
     ) {
         return ResultResponse.success(
                 "단지 상세 조회 성공",
-                apartmentComplexService.getApartmentComplexDetail(ComplexUid)
+                apartmentComplexService.getApartmentComplexDetail(code)
         );
     }
 
