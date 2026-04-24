@@ -38,7 +38,7 @@ public class AdminApartmentComplexController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ApartmentComplexPostRes> createApartmentComplex(@RequestBody ApartmentComplexReq req) {
-        log.info("------------OK");
+        log.info("------------테스트필요");
         return ResultResponse.success("단지 등록 성공", apartmentComplexService.createApartmentComplex(req));
     }
 
@@ -47,6 +47,7 @@ public class AdminApartmentComplexController {
     public ResultResponse<ApartmentComplexGetPageRes> getApartmentComplexList(
             @ModelAttribute ApartmentComplexSearchReq req
     ) {
+        log.info("------------테스트필요");
         return ResultResponse.success("단지 목록 조회 성공", apartmentComplexService.getApartmentComplexList(req));
     }
 

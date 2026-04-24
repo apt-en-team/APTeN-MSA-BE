@@ -3,14 +3,9 @@ package com.apten.apartmentcomplex.application.service;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
-import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetDetailRes;
-import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetPageRes;
-import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPatchRes;
-import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPostRes;
-import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPublicRes;
+import com.apten.apartmentcomplex.application.model.response.*;
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
-import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
@@ -22,6 +17,8 @@ import java.util.List;
 import com.apten.common.exception.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -94,10 +91,44 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 관리자 단지 목록 조회 서비스 API-202 mb
+    // 관리자 단지 목록 조회 서비스 API-202
+    @Transactional(readOnly = true)
     public ApartmentComplexGetPageRes getApartmentComplexList(ApartmentComplexSearchReq req) {
-        // TODO: 단지 목록 조회 로직 구현
-        return ApartmentComplexGetPageRes.empty(req.getPage(), req.getSize());
+        // 요청값이 없을 때 기본 페이지와 사이즈를 설정한다.
+        int page = req.getPage();
+        int size = req.getSize();
+
+        // JPA 페이징 처리를 위한 PageRequest를 생성한다.
+        PageRequest pageRequest = PageRequest.of(page, size);
+
+        // 키워드 조건을 적용해 단지 목록을 페이지 단위로 조회한다.
+        Page<ApartmentComplex> result = apartmentComplexRepository.findPageByKeyword(
+                req.getKeyword(),
+                pageRequest
+        );
+
+        // 조회된 엔티티 목록을 API 응답 DTO 목록으로 변환한다.
+        List<ApartmentComplexGetRes> content = result.getContent()
+                .stream()
+                .map(complex -> ApartmentComplexGetRes.builder()
+                        .code(complex.getCode())
+                        .name(complex.getName())
+                        .address(complex.getAddress())
+                        .status(complex.getStatus())
+                        .description(complex.getDescription())
+                        .createdAt(complex.getCreatedAt())
+                        .build())
+                .toList();
+
+        // 페이지 메타데이터와 목록 데이터를 함께 응답한다.
+        return ApartmentComplexGetPageRes.builder()
+                .content(content)
+                .page(result.getNumber())
+                .size(result.getSize())
+                .totalElements(result.getTotalElements())
+                .totalPages(result.getTotalPages())
+                .hasNext(result.hasNext())
+                .build();
     }
 
     // 관리자 단지 상세 조회 서비스 API-203 mb

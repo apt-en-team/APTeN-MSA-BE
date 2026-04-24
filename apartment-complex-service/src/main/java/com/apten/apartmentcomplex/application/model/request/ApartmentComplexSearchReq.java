@@ -23,6 +23,6 @@ public class ApartmentComplexSearchReq {
 
     // 목록 조회 기본 크기를 맞춘다
     public int getSize() {
-        return size != null ? size : 20;
+        return size != null ? size : 10;
     }
 }
