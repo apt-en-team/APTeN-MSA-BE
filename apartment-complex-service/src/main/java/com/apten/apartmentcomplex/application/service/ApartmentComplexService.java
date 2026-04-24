@@ -5,8 +5,12 @@ import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSear
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
 import com.apten.apartmentcomplex.application.model.response.*;
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
+import com.apten.apartmentcomplex.domain.entity.ComplexAdmin;
+import com.apten.apartmentcomplex.domain.entity.UserCache;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
+import com.apten.apartmentcomplex.domain.repository.ComplexAdminRepository;
+import com.apten.apartmentcomplex.domain.repository.UserCacheRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.apartmentcomplex.infrastructure.mapper.ApartmentComplexMapper;
@@ -31,6 +35,8 @@ public class ApartmentComplexService {
     private final ApartmentComplexRepository apartmentComplexRepository;
     private final ObjectProvider<ApartmentComplexMapper> apartmentComplexMapper;
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
+    private final UserCacheRepository userCacheRepository;
+    private final ComplexAdminRepository complexAdminRepository;
 
     //최소정보 체크
     private void validateCreateApartmentComplexReq(ApartmentComplexReq req) {
@@ -153,37 +159,54 @@ public class ApartmentComplexService {
     @Transactional
     public ApartmentComplexPatchRes updateApartmentComplex(String code, ApartmentComplexReq req) {
         // API의 단지 code로 보고 수정 대상 단지를 조회한다
-        ApartmentComplex apartmentComplex = apartmentComplexRepository.findByCode(code)
+        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
         // 단지 원본 정보를 갱신하되 상태 변경 로직은 별도 API가 생길 때 분리한다
-        apartmentComplex.update(
+        complex.update(
                 req.getName(),
                 req.getAddress(),
                 req.getAddressDetail(),
                 req.getZipcode(),
-                apartmentComplex.getStatus(),
+                complex.getStatus(),
                 req.getDescription()
         );
 
         // Kafka 직접 발행 대신 수정 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
-        apartmentComplexOutboxService.saveUpdatedEvent(apartmentComplex);
+        apartmentComplexOutboxService.saveUpdatedEvent(complex);
 
         return ApartmentComplexPatchRes.builder()
                 .code(code)
-                .name(apartmentComplex.getName())
-                .updatedAt(apartmentComplex.getUpdatedAt())
+                .name(complex.getName())
+                .updatedAt(complex.getUpdatedAt())
                 .build();
     }
 
     // 관리자 단지 소속 지정 서비스 API-205
-    public ComplexAdminPostRes assignAdminToComplex(String ComplexUid, ComplexAdminPostReq req) {
-        // TODO: 관리자 단지 소속 지정 로직 구현
+    public ComplexAdminPostRes assignAdminToComplex(String code, ComplexAdminPostReq req) {
+        //단지검색
+        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+
+        //유저검색
+        UserCache userCache = userCacheRepository.findById(req.getUserId())
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.USER_NOT_FOUND));
+
+        ComplexAdmin admin = new ComplexAdmin();
+        admin.setComplexId(complex.getId());
+        admin.setAdminUserId(userCache.getId());
+        admin.setAdminName(userCache.getName());
+        admin.setAdminRole(req.getAdminRole());
+        admin.setIsActive(true);
+        admin.setAssignedAt(LocalDateTime.now());
+
+        complexAdminRepository.save(admin);
+
         return ComplexAdminPostRes.builder()
-                .apartmentComplexUid(ComplexUid)
-                .userUid(req.getUserUid())
-                .adminRole(req.getAdminRole())
-                .assignedAt(LocalDateTime.now())
+                .code(code)
+                .name(admin.getAdminName())
+                .adminRole(admin.getAdminRole())
+                .assignedAt(admin.getAssignedAt())
                 .build();
     }
 

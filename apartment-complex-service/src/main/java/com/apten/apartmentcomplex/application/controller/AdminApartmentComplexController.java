@@ -75,15 +75,15 @@ public class AdminApartmentComplexController {
     }
 
     // 관리자 단지 소속 지정 API-205
-    @PostMapping("/{ComplexUid}/admins")
+    @PostMapping("/{code}/admins")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ComplexAdminPostRes> assignAdminToComplex(
-            @PathVariable String ComplexUid,
+            @PathVariable String code,
             @RequestBody ComplexAdminPostReq req
     ) {
         return ResultResponse.success(
                 "단지 관리자 지정 성공",
-                apartmentComplexService.assignAdminToComplex(ComplexUid, req)
+                apartmentComplexService.assignAdminToComplex(code, req)
         );
     }
 }

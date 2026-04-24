@@ -10,8 +10,8 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ComplexAdminPostRes {
-    private final String apartmentComplexUid;
-    private final String userUid;
+    private final String code;
+    private final String name;
     private final ComplexAdminRole adminRole;
     private final LocalDateTime assignedAt;
 }

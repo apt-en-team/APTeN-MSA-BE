@@ -8,10 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+
+import lombok.*;
 
 // 단지 관리자 소속 정보를 저장하는 엔티티
 // 관리자 계정과 단지 운영 역할을 연결할 때 사용한다
@@ -19,6 +17,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "complex_admin")
 @Getter
 @Builder
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class ComplexAdmin extends BaseEntity {

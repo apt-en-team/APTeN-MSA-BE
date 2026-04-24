@@ -13,6 +13,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ComplexAdminPostReq {
-    private String userUid;
+    private String userId;
     private ComplexAdminRole adminRole;
 }
