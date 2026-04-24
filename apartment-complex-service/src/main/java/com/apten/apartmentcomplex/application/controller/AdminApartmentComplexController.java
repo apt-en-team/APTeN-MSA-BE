@@ -63,14 +63,14 @@ public class AdminApartmentComplexController {
     }
 
     // 단지 수정 API-204
-    @PatchMapping("/{ComplexUid}")
+    @PatchMapping("/{code}")
     public ResultResponse<ApartmentComplexPatchRes> updateApartmentComplex(
-            @PathVariable String ComplexUid,
+            @PathVariable String code,
             @RequestBody ApartmentComplexReq req
     ) {
         return ResultResponse.success(
                 "단지 수정 성공",
-                apartmentComplexService.updateApartmentComplex(ComplexUid, req)
+                apartmentComplexService.updateApartmentComplex(code, req)
         );
     }
 

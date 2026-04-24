@@ -151,9 +151,9 @@ public class ApartmentComplexService {
 
     // 단지 수정 서비스 API-204
     @Transactional
-    public ApartmentComplexPatchRes updateApartmentComplex(String ComplexUid, ApartmentComplexReq req) {
-        // API의 단지 UID를 엔티티 code로 보고 수정 대상 단지를 조회한다
-        ApartmentComplex apartmentComplex = apartmentComplexRepository.findByCode(ComplexUid)
+    public ApartmentComplexPatchRes updateApartmentComplex(String code, ApartmentComplexReq req) {
+        // API의 단지 code로 보고 수정 대상 단지를 조회한다
+        ApartmentComplex apartmentComplex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
         // 단지 원본 정보를 갱신하되 상태 변경 로직은 별도 API가 생길 때 분리한다
@@ -163,16 +163,16 @@ public class ApartmentComplexService {
                 req.getAddressDetail(),
                 req.getZipcode(),
                 apartmentComplex.getStatus(),
-                null
+                req.getDescription()
         );
 
         // Kafka 직접 발행 대신 수정 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
         apartmentComplexOutboxService.saveUpdatedEvent(apartmentComplex);
 
         return ApartmentComplexPatchRes.builder()
-                .apartmentComplexUid(ComplexUid)
+                .code(code)
                 .name(apartmentComplex.getName())
-                .updatedAt(LocalDateTime.now())
+                .updatedAt(apartmentComplex.getUpdatedAt())
                 .build();
     }
 
