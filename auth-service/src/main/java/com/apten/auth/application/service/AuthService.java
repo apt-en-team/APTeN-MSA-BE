@@ -257,11 +257,60 @@ public class AuthService {
     }
 
     // 토큰 재발급 서비스
+    @Transactional
     public AuthTokenRefreshPostRes refreshToken(AuthTokenRefreshPostReq request) {
-        // TODO: Refresh Token 검증 및 재발급 로직 구현
+        String refreshToken = request.getRefreshToken();
+
+        // RT 유효성 검증 — 만료 또는 위조 시 예외
+        jwtTokenProvider.validateToken(refreshToken);
+
+        // RT에서 userId 추출 — RT에는 role claim 없음
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+
+        // Redis에서 저장된 RT 조회
+        String storedRT = redisTemplate.opsForValue().get("refresh:" + userId);
+
+        // Redis에 없으면 로그아웃된 상태
+        if (storedRT == null) {
+            throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        // 요청 RT와 Redis RT 불일치 — 토큰 탈취 의심
+        if (!storedRT.equals(refreshToken)) {
+            // 기존 RT 무효화
+            redisTemplate.delete("refresh:" + userId);
+            throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        // DB에서 최신 User 조회 — 재발급 시점의 최신 role, status 반영
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        // 계정 상태 확인
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
+        }
+
+        // 최신 정보로 새 AT 발급
+        com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+        UserContext userContext = UserContext.builder()
+                .userId(userId)
+                .userRole(commonRole)
+                .build();
+        String newAccessToken = jwtTokenProvider.issueAccessToken(userContext);
+
+        // Refresh Token Rotation — 새 RT 발급 후 Redis 갱신
+        // 매번 새 RT를 발급해 기존 RT 재사용 공격 방지
+        String newRefreshToken = jwtTokenProvider.issueRefreshToken(userId);
+        redisTemplate.opsForValue().set(
+                "refresh:" + userId,
+                newRefreshToken,
+                Duration.ofDays(14)
+        );
+
         return AuthTokenRefreshPostRes.builder()
-                .accessToken("refreshed-access-token")
-                .refreshToken(request.getRefreshToken())
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 
