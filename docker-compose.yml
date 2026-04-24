@@ -23,5 +23,15 @@ services:
     volumes:
       - kafka-data:/bitnami/kafka
 
+  redis:
+    image: redis:7-alpine
+    container_name: apten-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes # 재시작해도 데이터 유지
+    volumes:
+      - redis-data:/data
+
 volumes:
   kafka-data:
+  redis-data:

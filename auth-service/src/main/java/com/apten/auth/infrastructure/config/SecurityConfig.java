@@ -7,20 +7,20 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-// auth-service가 어떤 경로를 열어두고 어떤 로그인 방식을 연결할지 정하는 보안 설정
-// OAuth2 로그인 성공 후 SuccessHandler로 흐름이 이어지도록 연결하는 시작 지점이다
+// auth-service 보안 설정 — 공개 경로 허용 및 OAuth2 로그인 연결
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // OAuth2 로그인 성공 후 JWT 발급 단계로 넘기는 핸들러
+    // OAuth2 로그인 성공 후 JWT 발급을 담당하는 핸들러
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
-    // 인증 없이 열어둘 경로와 OAuth2 로그인 진입 방식을 한 번에 설정한다
-    // 보호 경로에 접근하면 인증이 필요하고 로그인 성공 시 SuccessHandler가 호출된다
     @Bean
+    // 공개 경로 (/api/auth/**, /oauth2/**, /login/**) 인증 없이 허용
+    // 나머지 경로는 인증 필요, OAuth2 로그인 성공 시 oAuth2SuccessHandler 호출
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -34,5 +34,12 @@ public class SecurityConfig {
                 .oauth2Client(Customizer.withDefaults());
 
         return http.build();
+    }
+
+    @Bean
+    // BCrypt 단방향 해시 암호화 — salt 적용으로 같은 비밀번호도 매번 다른 해시값 생성
+    // 이메일 로그인 시 입력 비밀번호와 DB 해시값 비교에 사용
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

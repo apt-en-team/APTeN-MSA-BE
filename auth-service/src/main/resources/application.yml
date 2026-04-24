@@ -18,6 +18,10 @@ spring:
   kafka:
     consumer:
       group-id: auth-service-group
+  data:
+    redis:
+      host: localhost # Redis 호스트
+      port: 6379 # Redis 포트
 
 constants:
   api:
