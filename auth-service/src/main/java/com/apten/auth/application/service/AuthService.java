@@ -129,7 +129,6 @@ public class AuthService {
 
     // 로그아웃 서비스
     @Transactional
-// 로그아웃 서비스
     public AuthLogoutPostRes logout(String authorizationHeader) {
         // Authorization 헤더에서 토큰 추출
         String accessToken = jwtTokenProvider.resolveToken(authorizationHeader);

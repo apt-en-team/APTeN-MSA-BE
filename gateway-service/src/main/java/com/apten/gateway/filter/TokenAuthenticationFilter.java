@@ -13,6 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -39,6 +41,9 @@ public class TokenAuthenticationFilter implements WebFilter {
     // 공개 경로와 JWT 비밀키를 읽기 위한 설정 객체
     private final GatewayAuthProperties gatewayAuthProperties;
 
+    // 로그아웃된 AT 블랙리스트 확인용 Redis 클라이언트
+    private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
+
     // 제외 경로 패턴 매칭에 사용하는 유틸
     private final AntPathMatcher antPathMatcher = new AntPathMatcher();
 
@@ -61,24 +66,34 @@ public class TokenAuthenticationFilter implements WebFilter {
         }
 
         UserRole userRole = resolveUserRole(role);
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userId,
-                token,
-                List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name()))
-        );
 
-        // gateway를 통과한 뒤 각 서비스가 바로 읽을 수 있도록 공통 헤더를 요청에 추가한다
-        ServerHttpRequest mutatedRequest = exchange.getRequest()
-                .mutate()
-                .header(HeaderConstants.X_USER_ID, userId)
-                .header(HeaderConstants.X_USER_ROLE, userRole.name())
-                .build();
+        // 로그아웃된 토큰인지 Redis 블랙리스트 확인 — 있으면 401 반환
+        return reactiveRedisTemplate.hasKey("blacklist:" + token)
+                .flatMap(isBlacklisted -> {
+                    if (Boolean.TRUE.equals(isBlacklisted)) {
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    }
 
-        SecurityContextImpl securityContext = new SecurityContextImpl(authentication);
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            userId,
+                            token,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name()))
+                    );
 
-        // Security 컨텍스트에도 현재 사용자 정보를 남겨 이후 보안 체인이 인증 완료 상태로 이어지게 한다
-        return chain.filter(exchange.mutate().request(mutatedRequest).build())
-                .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
+                    // gateway를 통과한 뒤 각 서비스가 바로 읽을 수 있도록 공통 헤더를 요청에 추가한다
+                    ServerHttpRequest mutatedRequest = exchange.getRequest()
+                            .mutate()
+                            .header(HeaderConstants.X_USER_ID, userId)
+                            .header(HeaderConstants.X_USER_ROLE, userRole.name())
+                            .build();
+
+                    SecurityContextImpl securityContext = new SecurityContextImpl(authentication);
+
+                    // Security 컨텍스트에도 현재 사용자 정보를 남겨 이후 보안 체인이 인증 완료 상태로 이어지게 한다
+                    return chain.filter(exchange.mutate().request(mutatedRequest).build())
+                            .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
+                });
     }
 
     // 현재 요청 경로가 인증 없이 통과 가능한 공개 경로인지 확인한다

@@ -5,6 +5,10 @@ spring:
     import:
       - optional:classpath:application-common.yml
       - optional:classpath:application-auth.yml
+  data:
+    redis:
+      host: localhost # Redis 호스트
+      port: 6379 # Redis 포트
   cloud:
     gateway:
       routes:
