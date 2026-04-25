@@ -23,7 +23,10 @@ public class AuthRegisterPostReq {
 
     // 이메일
     @NotBlank(message = "이메일을 입력해주세요.")
-    @Email(message = "올바른 이메일 형식이 아닙니다.")
+    @Pattern(
+            regexp = "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$",
+            message = "올바른 이메일 형식이 아닙니다."
+    )
     private String email;
 
     // 비밀번호 — 8자 이상, 영문+숫자+특수문자 필수 (FR-011)
