@@ -1,0 +1,33 @@
+package com.apten.common.kafka.payload;
+
+import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+// vehicle policy cache를 채우는 최소 필드만 담는 이벤트 payload이다.
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class VehiclePolicyEventPayload {
+
+    // 정책이 속한 원본 단지 식별자이다.
+    private Long apartmentComplexId;
+
+    // 세대당 최대 차량 허용 대수이다.
+    private Integer maxVehicleCountPerHousehold;
+
+    // 무료 허용 차량 대수이다.
+    private Integer freeVehicleCount;
+
+    // 추가 차량 월 요금이다.
+    private BigDecimal extraVehicleFee;
+
+    // 방문차량 무료 분이다.
+    private Integer visitorFreeMinutes;
+
+    // 현재 정책 활성 여부이다.
+    private Boolean isActive;
+}

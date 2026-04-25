@@ -1,11 +1,19 @@
 package com.apten.apartmentcomplex.infrastructure.kafka;
 
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
+import com.apten.apartmentcomplex.domain.entity.ComplexPolicy;
+import com.apten.apartmentcomplex.domain.entity.FacilityPolicy;
+import com.apten.apartmentcomplex.domain.entity.VehiclePolicy;
+import com.apten.apartmentcomplex.domain.entity.VisitorPolicy;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
 import com.apten.common.kafka.KafkaTopics;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
+import com.apten.common.kafka.payload.ComplexPolicyEventPayload;
+import com.apten.common.kafka.payload.FacilityPolicyEventPayload;
+import com.apten.common.kafka.payload.VehiclePolicyEventPayload;
+import com.apten.common.kafka.payload.VisitorPolicyEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -22,7 +30,6 @@ public class ApartmentComplexOutboxService {
 
     // Outbox 엔티티를 저장해 relay가 나중에 Kafka로 전송할 수 있게 한다.
     private final OutboxRepository outboxRepository;
-
     // 공통 이벤트 envelope와 payload를 JSON 문자열로 바꿀 때 사용한다.
     private final ObjectMapper objectMapper;
 
@@ -39,6 +46,69 @@ public class ApartmentComplexOutboxService {
     // 단지 상태가 INACTIVE로 바뀌는 흐름에서 비활성화 이벤트를 Outbox에 적재한다.
     public void saveDeactivatedEvent(ApartmentComplex apartmentComplex) {
         saveEvent(EventType.APARTMENT_COMPLEX_DEACTIVATED, apartmentComplex);
+    }
+
+    // 기본 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
+    public void saveComplexPolicyUpdatedEvent(ComplexPolicy policy) {
+        // 기본 정책 캐시에 필요한 필드만 payload로 만든다.
+        ComplexPolicyEventPayload payload = ComplexPolicyEventPayload.builder()
+                .apartmentComplexId(policy.getComplexId())
+                .baseFee(policy.getBaseFee())
+                .paymentDueDay(policy.getPaymentDueDay())
+                .lateFeeRate(policy.getLateFeeRate())
+                .lateFeeUnit(policy.getLateFeeUnit())
+                .isActive(policy.getIsActive())
+                .build();
+
+        // 공통 envelope를 감싸 relay가 그대로 Kafka로 보낼 JSON 문자열을 저장한다.
+        savePolicyEvent(KafkaTopics.COMPLEX_POLICY, EventType.COMPLEX_POLICY_UPDATED, policy.getComplexId(), payload);
+    }
+
+    // 차량 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
+    public void saveVehiclePolicyUpdatedEvent(VehiclePolicy policy) {
+        // 현재 차량 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
+        VehiclePolicyEventPayload payload = VehiclePolicyEventPayload.builder()
+                .apartmentComplexId(policy.getComplexId())
+                .maxVehicleCountPerHousehold(policy.getCarCount())
+                .freeVehicleCount(0)
+                .extraVehicleFee(policy.getMonthlyFee())
+                .visitorFreeMinutes(0)
+                .isActive(policy.getIsActive())
+                .build();
+
+        // 공통 envelope를 감싸 relay가 그대로 Kafka로 보낼 JSON 문자열을 저장한다.
+        savePolicyEvent(KafkaTopics.VEHICLE_POLICY, EventType.VEHICLE_POLICY_UPDATED, policy.getComplexId(), payload);
+    }
+
+    // 시설 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
+    public void saveFacilityPolicyUpdatedEvent(FacilityPolicy policy) {
+        // 현재 시설 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
+        FacilityPolicyEventPayload payload = FacilityPolicyEventPayload.builder()
+                .apartmentComplexId(policy.getComplexId())
+                .reservationSlotMin(policy.getSlotMin())
+                .facilityCancelDeadlineHours(0)
+                .gxWaitingEnabled(false)
+                .isActive(policy.getIsActive())
+                .build();
+
+        // 공통 envelope를 감싸 relay가 그대로 Kafka로 보낼 JSON 문자열을 저장한다.
+        savePolicyEvent(KafkaTopics.FACILITY_POLICY, EventType.FACILITY_POLICY_UPDATED, policy.getComplexId(), payload);
+    }
+
+    // 방문차량 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
+    public void saveVisitorPolicyUpdatedEvent(VisitorPolicy policy) {
+        // 현재 방문차량 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
+        VisitorPolicyEventPayload payload = VisitorPolicyEventPayload.builder()
+                .apartmentComplexId(policy.getComplexId())
+                .freeMinutes(policy.getFreeMinutes())
+                .extraFeePerUnit(policy.getHourFee())
+                .extraFeeUnitMinutes(60)
+                .dailyMaxFee(policy.getHourFee())
+                .isActive(policy.getIsActive())
+                .build();
+
+        // 공통 envelope를 감싸 relay가 그대로 Kafka로 보낼 JSON 문자열을 저장한다.
+        savePolicyEvent(KafkaTopics.VISITOR_POLICY, EventType.VISITOR_POLICY_UPDATED, policy.getComplexId(), payload);
     }
 
     // 단지 이벤트 payload와 envelope를 만들고 Outbox 저장까지 한 번에 처리한다.
@@ -75,6 +145,33 @@ public class ApartmentComplexOutboxService {
         outboxRepository.save(outbox);
     }
 
+    // 정책 이벤트 payload를 공통 envelope로 감싼 뒤 Outbox에 저장한다.
+    private <T> void savePolicyEvent(String topic, EventType eventType, Long aggregateId, T payload) {
+        // 기존 Kafka consumer가 읽던 공통 envelope 구조를 유지한다.
+        EventEnvelope<T> eventEnvelope = EventEnvelope.<T>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(eventType)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("apartment-complex-service")
+                .payload(payload)
+                .build();
+
+        // relay가 JSON 문자열을 그대로 Kafka에 보낼 수 있도록 payload를 문자열로 저장한다.
+        String payloadJson = writePayload(eventEnvelope);
+
+        // 정책도 원본 단지 PK를 aggregateId로 사용해서 같은 단지 기준으로 이벤트 키를 맞춘다.
+        Outbox outbox = Outbox.builder()
+                .topic(topic)
+                .aggregateId(aggregateId)
+                .eventType(eventType.name())
+                .payload(payloadJson)
+                .build();
+
+        // 정책 원본 저장과 같은 트랜잭션 안에서 Outbox row를 남긴다.
+        outboxRepository.save(outbox);
+    }
+
     // 비활성화 이벤트는 명시적으로 INACTIVE 상태를 payload에 담아 소비 서비스가 상태를 맞추게 한다.
     private String resolveStatus(EventType eventType, ApartmentComplex apartmentComplex) {
         if (eventType == EventType.APARTMENT_COMPLEX_DEACTIVATED) {
@@ -84,7 +181,7 @@ public class ApartmentComplexOutboxService {
     }
 
     // JSON 직렬화 실패는 Outbox 누락으로 이어지므로 예외를 던져 원본 저장도 함께 롤백되게 한다.
-    private String writePayload(EventEnvelope<ApartmentComplexEventPayload> eventEnvelope) {
+    private String writePayload(Object eventEnvelope) {
         try {
             return objectMapper.writeValueAsString(eventEnvelope);
         } catch (JsonProcessingException exception) {
