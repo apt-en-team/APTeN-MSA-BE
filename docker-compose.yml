@@ -2,6 +2,7 @@ services:
   kafka:
     image: bitnami/kafka:3.7
     container_name: apten-kafka
+    restart: unless-stopped  # Docker Desktop 시작 시 자동 실행
     ports:
       - "9092:9092"
     environment:
@@ -26,6 +27,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: apten-redis
+    restart: unless-stopped  # Docker Desktop 시작 시 자동 실행
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes # 재시작해도 데이터 유지
