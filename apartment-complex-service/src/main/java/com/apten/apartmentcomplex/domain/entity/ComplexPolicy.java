@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.domain.entity;
 
+import com.apten.apartmentcomplex.application.model.request.ComplexPolicyPutReq;
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
@@ -47,19 +48,19 @@ public class ComplexPolicy extends BaseEntity {
 
     // 매월 납부기한일
     @Column(name = "payment_due_day", nullable = false)
-    private Integer paymentDueDay;
+    private Integer paymentDueDay = 25;
 
     // 월 기준 연체료율
     @Column(name = "late_fee_rate", nullable = false, precision = 5, scale = 2)
-    private BigDecimal lateFeeRate;
+    private BigDecimal lateFeeRate = BigDecimal.ZERO;
 
     // 연체료 기준
     @Column(name = "late_fee_unit", nullable = false, length = 20)
-    private String lateFeeUnit;
+    private String lateFeeUnit = "MONTHLY";
 
     // 정책 활성 여부
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
 
     // 적용 시작일
     @Column(name = "start_date")
@@ -70,21 +71,17 @@ public class ComplexPolicy extends BaseEntity {
     private LocalDate endDate;
 
     // 기본 정책 값을 갱신할 때 사용
-    public void apply(
-            BigDecimal baseFee,
-            Integer paymentDueDay,
-            BigDecimal lateFeeRate,
-            String lateFeeUnit,
-            Boolean isActive,
-            LocalDate startDate,
-            LocalDate endDate
-    ) {
-        this.baseFee = baseFee;
-        this.paymentDueDay = paymentDueDay;
-        this.lateFeeRate = lateFeeRate;
-        this.lateFeeUnit = lateFeeUnit;
-        this.isActive = isActive;
-        this.startDate = startDate;
-        this.endDate = endDate;
+    public void apply( ComplexPolicyPutReq req) {
+        if (req.getBaseFee() != null) {
+            this.baseFee = req.getBaseFee();
+        }
+        if (req.getPaymentDueDay() != null) {
+            this.paymentDueDay = req.getPaymentDueDay();
+        }
+        if (req.getLateFeeRate() != null) {
+            this.lateFeeRate = req.getLateFeeRate();
+        }
+        this.startDate = LocalDate.now();
     }
+
 }

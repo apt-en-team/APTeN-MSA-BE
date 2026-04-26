@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ComplexPolicyEventPayload {
 
+    // 정책 id
+    private Long complexPolicyId;
+
     // 정책이 속한 원본 단지 식별자
     private Long apartmentComplexId;
 

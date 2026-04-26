@@ -54,6 +54,7 @@ public class ApartmentComplexOutboxService {
         ApartmentComplexEventPayload payload = ApartmentComplexEventPayload.builder()
                 .apartmentComplexId(apartmentComplex.getId())
                 .name(apartmentComplex.getName())
+                .address(apartmentComplex.getAddress())
                 .status(resolveStatus(eventType, apartmentComplex))
                 .build();
 
@@ -73,6 +74,7 @@ public class ApartmentComplexOutboxService {
     public void saveComplexPolicyUpdatedEvent(ComplexPolicy policy) {
         // 기본 정책 캐시에 필요한 필드만 payload로 만든다.
         ComplexPolicyEventPayload payload = ComplexPolicyEventPayload.builder()
+                .complexPolicyId(policy.getId())
                 .apartmentComplexId(policy.getComplexId())
                 .baseFee(policy.getBaseFee())
                 .paymentDueDay(policy.getPaymentDueDay())
@@ -89,11 +91,11 @@ public class ApartmentComplexOutboxService {
     public void saveVehiclePolicyUpdatedEvent(VehiclePolicy policy) {
         // 현재 차량 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
         VehiclePolicyEventPayload payload = VehiclePolicyEventPayload.builder()
+                .vehiclePolicyId(policy.getId())
                 .apartmentComplexId(policy.getComplexId())
-                .maxVehicleCountPerHousehold(policy.getCarCount())
-                .freeVehicleCount(0)
-                .extraVehicleFee(policy.getMonthlyFee())
-                .visitorFreeMinutes(0)
+                .carCount(policy.getCarCount())
+                .monthlyFee(policy.getMonthlyFee())
+                .isLimitRule(policy.getIsLimitRule())
                 .isActive(policy.getIsActive())
                 .build();
 
@@ -105,10 +107,13 @@ public class ApartmentComplexOutboxService {
     public void saveFacilityPolicyUpdatedEvent(FacilityPolicy policy) {
         // 현재 시설 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
         FacilityPolicyEventPayload payload = FacilityPolicyEventPayload.builder()
+                .facilityPolicyId(policy.getId())
                 .apartmentComplexId(policy.getComplexId())
-                .reservationSlotMin(policy.getSlotMin())
-                .facilityCancelDeadlineHours(0)
-                .gxWaitingEnabled(false)
+                .facilityTypeCode(policy.getFacilityTypeCode())
+                .baseFee(policy.getBaseFee())
+                .slotMin(policy.getSlotMin())
+                .cancelDeadlineHours(policy.getCancelDeadlineHours())
+                .gxWaitingEnable(policy.getGxWaitingEnable())
                 .isActive(policy.getIsActive())
                 .build();
 

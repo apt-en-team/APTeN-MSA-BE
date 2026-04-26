@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.domain.entity;
 
+import com.apten.apartmentcomplex.application.model.request.FacilityPolicyPutReq;
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
@@ -46,21 +47,40 @@ public class FacilityPolicy extends BaseEntity {
 
     // 기본 요금
     @Column(name = "base_fee", nullable = false)
-    private BigDecimal baseFee;
+    private BigDecimal baseFee = BigDecimal.ZERO;
 
     // 예약 단위 분
-    @Column(name = "slot_min", nullable = false)
-    private Integer slotMin;
+    @Column(name = "slot_min")
+    private Integer slotMin = null;
+
+    // 취소 마감 시간
+    @Column(name = "cancel_deadline_hours", nullable = false)
+    private Integer cancelDeadlineHours = 2;
+
+    // GX대기 허용 여부 (일반시설은 기본값 falsa. gx일 경우만 true로 표기)
+    @Column(name = "gx_waiting_enabled", nullable = false)
+    private Boolean gxWaitingEnable = false;
 
     // 정책 활성 여부
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
 
-    // 시설 정책 값을 갱신할 때 사용한다
-    public void apply(String facilityTypeCode, BigDecimal baseFee, Integer slotMin, Boolean isActive) {
-        this.facilityTypeCode = facilityTypeCode;
-        this.baseFee = baseFee;
-        this.slotMin = slotMin;
-        this.isActive = isActive;
+    public void apply(FacilityPolicyPutReq req) {
+        if (req.getFacilityTypeCode() != null) {
+            this.facilityTypeCode = req.getFacilityTypeCode();
+        }
+        if (req.getBaseFee() != null) {
+            this.baseFee = req.getBaseFee();
+        }
+        if (req.getSlotMin() != null) {
+            this.slotMin = req.getSlotMin();
+        }
+        if (req.getCancelDeadlineHours() != null) {
+            this.cancelDeadlineHours = req.getCancelDeadlineHours();
+        }
+        if (req.getGxWaitingEnabled() != null) {
+            this.gxWaitingEnable = req.getGxWaitingEnabled();
+        }
     }
+
 }
