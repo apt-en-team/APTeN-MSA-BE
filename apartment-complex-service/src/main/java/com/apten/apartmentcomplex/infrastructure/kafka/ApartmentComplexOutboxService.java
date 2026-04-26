@@ -61,6 +61,14 @@ public class ApartmentComplexOutboxService {
         saveOutboxEvent(KafkaTopics.APARTMENT_COMPLEX, eventType, apartmentComplex.getId(), payload);
     }
 
+    // 비활성화 이벤트는 명시적으로 INACTIVE 상태를 payload에 담아 소비 서비스가 상태를 맞추게 한다.
+    private String resolveStatus(EventType eventType, ApartmentComplex apartmentComplex) {
+        if (eventType == EventType.APARTMENT_COMPLEX_DEACTIVATED) {
+            return ApartmentComplexStatus.INACTIVE.name();
+        }
+        return apartmentComplex.getStatus().name();
+    }
+
     // 기본 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
     public void saveComplexPolicyUpdatedEvent(ComplexPolicy policy) {
         // 기본 정책 캐시에 필요한 필드만 payload로 만든다.
@@ -149,14 +157,6 @@ public class ApartmentComplexOutboxService {
 
         // 원본 엔티티 저장과 같은 트랜잭션 안에서 Outbox row를 남긴다.
         outboxRepository.save(outbox);
-    }
-
-    // 비활성화 이벤트는 명시적으로 INACTIVE 상태를 payload에 담아 소비 서비스가 상태를 맞추게 한다.
-    private String resolveStatus(EventType eventType, ApartmentComplex apartmentComplex) {
-        if (eventType == EventType.APARTMENT_COMPLEX_DEACTIVATED) {
-            return ApartmentComplexStatus.INACTIVE.name();
-        }
-        return apartmentComplex.getStatus().name();
     }
 
     // JSON 직렬화 실패는 Outbox 누락으로 이어지므로 예외를 던져 원본 저장도 함께 롤백되게 한다.

@@ -12,17 +12,23 @@ import com.apten.apartmentcomplex.application.model.response.VisitorPolicyPutRes
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
 import com.apten.apartmentcomplex.domain.entity.ComplexPolicy;
+import com.apten.apartmentcomplex.domain.entity.VehiclePolicy;
 import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
 import com.apten.apartmentcomplex.domain.repository.ComplexPolicyRepository;
+import com.apten.apartmentcomplex.domain.repository.VehiclePolicyRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 // 단지 정책 응용 서비스
 // 기본 정책과 차량, 시설, 방문차량 정책 시그니처를 이 서비스에 모아둔다
@@ -33,6 +39,7 @@ public class ComplexPolicyService {
     private final ApartmentComplexRepository apartmentComplexRepository;
     private final ComplexPolicyRepository complexPolicyRepository;
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
+    private final VehiclePolicyRepository vehiclePolicyRepository;
 
     // 단지 code로 단지를 조회한다
     private ApartmentComplex getComplexByCode(String code) {
@@ -47,7 +54,28 @@ public class ComplexPolicyService {
         }
     }
 
+    private void validateVehiclePolicyReq(VehiclePolicyPutReq req) {
+        if (req == null || req.getPolicies() == null || req.getPolicies().isEmpty()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        Set<Integer> carCounts = new HashSet<>();
+
+        for (VehiclePolicyPutReq.VehiclePolicyItem item : req.getPolicies()) {
+            if (item.getCarCount() == null || item.getCarCount() <= 0) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+
+            validatePositiveOrZero(item.getMonthlyFee());
+
+            if (!carCounts.add(item.getCarCount())) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+        }
+    }
+
     // 기본 정책 설정 서비스 API-206
+    @Transactional
     public ComplexPolicyPutRes updateBasicPolicy(String code, ComplexPolicyPutReq req) {
         // 단지 존재 여부 확인
         ApartmentComplex apartmentComplex = getComplexByCode(code);
@@ -101,14 +129,45 @@ public class ComplexPolicyService {
     }
 
     // 차량 정책 설정 서비스 API-207
+    @Transactional
     public VehiclePolicyPutRes updateVehiclePolicy(String code, VehiclePolicyPutReq req) {
-        // TODO: 차량 정책 설정 로직 구현
+        // 단지 존재 여부를 확인한다.
+        ApartmentComplex apartmentComplex = getComplexByCode(code);
+
+        // 요청값을 검증한다.
+        validateVehiclePolicyReq(req);
+
+        // 기존 차량 정책을 전체 삭제한다.
+        vehiclePolicyRepository.deleteByComplexId(apartmentComplex.getId());
+
+        // 요청받은 차량 대수별 요금 정책을 새로 생성한다.
+        List<VehiclePolicy> policies = req.getPolicies().stream()
+                .map(item -> VehiclePolicy.builder()
+                        .complexId(apartmentComplex.getId())
+                        .carCount(item.getCarCount())
+                        .monthlyFee(item.getMonthlyFee())
+                        .isLimitRule(true)
+                        .isActive(true)
+                        .build())
+                .toList();
+
+        // 새 차량 정책 목록을 저장한다.
+        List<VehiclePolicy> savedPolicies = vehiclePolicyRepository.saveAll(policies);
+
+        // 차량 정책 변경 이벤트를 Outbox에 적재한다.
+        savedPolicies.forEach(apartmentComplexOutboxService::saveVehiclePolicyUpdatedEvent);
+
+        // 저장 결과를 응답 DTO로 변환한다.
+        List<VehiclePolicyPutRes.VehiclePolicyItem> responsePolicies = savedPolicies.stream()
+                .map(policy -> VehiclePolicyPutRes.VehiclePolicyItem.builder()
+                        .carCount(policy.getCarCount())
+                        .monthlyFee(policy.getMonthlyFee())
+                        .build())
+                .toList();
+
         return VehiclePolicyPutRes.builder()
-                .apartmentComplexUid(code)
-                .maxVehicleCountPerHousehold(req.getMaxVehicleCountPerHousehold())
-                .freeVehicleCount(req.getFreeVehicleCount())
-                .extraVehicleFee(req.getExtraVehicleFee())
-                .visitorFreeMinutes(req.getVisitorFreeMinutes())
+                .apartmentComplexUid(apartmentComplex.getCode())
+                .policies(responsePolicies)
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
