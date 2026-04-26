@@ -3,10 +3,8 @@ package com.apten.apartmentcomplex.domain.entity;
 import com.apten.apartmentcomplex.domain.enums.ComplexAdminRole;
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 import lombok.*;
@@ -14,7 +12,17 @@ import lombok.*;
 // 단지 관리자 소속 정보를 저장하는 엔티티
 // 관리자 계정과 단지 운영 역할을 연결할 때 사용한다
 @Entity
-@Table(name = "complex_admin")
+@Table(
+        name = "complex_admin",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_complex_admin_user", columnNames = {"complex_id", "admin_user_id"})
+        },
+        indexes = {
+                @Index(name = "idx_complex_admin_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_complex_admin_user_id", columnList = "admin_user_id"),
+                @Index(name = "idx_complex_admin_role", columnList = "admin_role")
+        }
+)
 @Getter
 @Builder
 @Setter

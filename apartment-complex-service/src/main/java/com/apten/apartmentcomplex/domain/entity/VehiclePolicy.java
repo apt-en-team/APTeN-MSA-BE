@@ -2,10 +2,8 @@ package com.apten.apartmentcomplex.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +13,17 @@ import lombok.NoArgsConstructor;
 // 단지 차량 정책을 저장하는 엔티티
 // 세대당 차량 허용 기준과 월 요금 계산 기준을 담는다
 @Entity
-@Table(name = "vehicle_policy")
+@Table(
+        name = "vehicle_policy",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_vehicle_policy_complex_car_count", columnNames = {"complex_id", "car_count"})
+        },
+        indexes = {
+                @Index(name = "idx_vehicle_policy_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_vehicle_policy_car_count", columnList = "car_count"),
+                @Index(name = "idx_vehicle_policy_is_active", columnList = "is_active")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor

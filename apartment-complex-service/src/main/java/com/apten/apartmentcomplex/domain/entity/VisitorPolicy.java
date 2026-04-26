@@ -2,10 +2,8 @@ package com.apten.apartmentcomplex.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +13,16 @@ import lombok.NoArgsConstructor;
 // 방문 차량 정책을 저장하는 엔티티
 // 무료 시간과 초과 요금 계산 기준을 이 테이블이 가진다
 @Entity
-@Table(name = "visitor_policy")
+@Table(
+        name = "visitor_policy",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_visitor_policy_complex_id", columnNames = "complex_id")
+        },
+        indexes = {
+                @Index(name = "idx_visitor_policy_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_visitor_policy_is_active", columnList = "is_active")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor

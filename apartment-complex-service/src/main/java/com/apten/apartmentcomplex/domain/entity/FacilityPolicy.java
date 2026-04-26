@@ -2,10 +2,8 @@ package com.apten.apartmentcomplex.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +13,17 @@ import lombok.NoArgsConstructor;
 // 시설 정책을 저장하는 엔티티
 // 시설 유형별 기본 요금과 예약 단위를 관리한다
 @Entity
-@Table(name = "facility_policy")
+@Table(
+        name = "facility_policy",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_facility_policy_complex_type", columnNames = {"complex_id", "facility_type_code"})
+        },
+        indexes = {
+                @Index(name = "idx_facility_policy_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_facility_policy_type", columnList = "facility_type_code"),
+                @Index(name = "idx_facility_policy_is_active", columnList = "is_active")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor

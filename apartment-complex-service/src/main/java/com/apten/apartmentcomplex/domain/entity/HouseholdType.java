@@ -2,10 +2,7 @@ package com.apten.apartmentcomplex.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,7 +11,16 @@ import lombok.NoArgsConstructor;
 // 단지별 세대 유형을 저장하는 엔티티
 // 세대 등록 시 선택할 평형 타입 마스터를 표현한다
 @Entity
-@Table(name = "household_type")
+@Table(
+        name = "household_type",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_household_type_complex_type_name", columnNames = {"complex_id", "type_name"})
+        },
+        indexes = {
+                @Index(name = "idx_household_type_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_household_type_type_name", columnList = "type_name")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor

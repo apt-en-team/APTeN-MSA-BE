@@ -2,10 +2,8 @@ package com.apten.apartmentcomplex.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
@@ -17,7 +15,16 @@ import org.apache.kafka.common.protocol.types.Field;
 // 단지 기본 운영 정책을 저장하는 엔티티
 // 기본 관리비, 납부기한, 연체료 정책을 이 테이블이 가진다
 @Entity
-@Table(name = "complex_policy")
+@Table(
+        name = "complex_policy",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_complex_policy_complex_id", columnNames = "complex_id")
+        },
+        indexes = {
+                @Index(name = "idx_complex_policy_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_complex_policy_is_active", columnList = "is_active")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
