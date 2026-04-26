@@ -21,57 +21,57 @@ import org.springframework.web.bind.annotation.RestController;
 // 단지 기본 정책과 차량, 시설, 방문차량 정책을 이 컨트롤러가 받는다
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/admin/apartment-complexes/{apartmentComplexUid}/policies")
+@RequestMapping("/api/admin/apartment-complexes/{code}/policies")
 public class AdminComplexPolicyController {
 
     // 정책 응용 서비스
     private final ComplexPolicyService complexPolicyService;
 
-    // 기본 정책 설정 API
+    // 기본 정책 설정 API-206
     @PutMapping("/basic")
     public ResultResponse<ComplexPolicyPutRes> updateBasicPolicy(
-            @PathVariable String apartmentComplexUid,
-            @RequestBody ComplexPolicyPutReq request
+            @PathVariable String code,
+            @RequestBody ComplexPolicyPutReq req
     ) {
         return ResultResponse.success(
                 "기본 정책 설정 성공",
-                complexPolicyService.updateBasicPolicy(apartmentComplexUid, request)
+                complexPolicyService.updateBasicPolicy(code, req)
         );
     }
 
-    // 차량 정책 설정 API
+    // 차량 정책 설정 API-207
     @PutMapping("/vehicle")
     public ResultResponse<VehiclePolicyPutRes> updateVehiclePolicy(
-            @PathVariable String apartmentComplexUid,
-            @RequestBody VehiclePolicyPutReq request
+            @PathVariable String code,
+            @RequestBody VehiclePolicyPutReq req
     ) {
         return ResultResponse.success(
                 "차량 정책 설정 성공",
-                complexPolicyService.updateVehiclePolicy(apartmentComplexUid, request)
+                complexPolicyService.updateVehiclePolicy(code, req)
         );
     }
 
-    // 시설 정책 설정 API
+    // 시설 정책 설정 API-208
     @PutMapping("/facility")
     public ResultResponse<FacilityPolicyPutRes> updateFacilityPolicy(
-            @PathVariable String apartmentComplexUid,
-            @RequestBody FacilityPolicyPutReq request
+            @PathVariable String code,
+            @RequestBody FacilityPolicyPutReq req
     ) {
         return ResultResponse.success(
                 "시설 정책 설정 성공",
-                complexPolicyService.updateFacilityPolicy(apartmentComplexUid, request)
+                complexPolicyService.updateFacilityPolicy(code, req)
         );
     }
 
-    // 방문차량 정책 설정 API
+    // 방문차량 정책 설정 API-209
     @PutMapping("/visitor-vehicle")
     public ResultResponse<VisitorPolicyPutRes> updateVisitorPolicy(
-            @PathVariable String apartmentComplexUid,
-            @RequestBody VisitorPolicyPutReq request
+            @PathVariable String code,
+            @RequestBody VisitorPolicyPutReq req
     ) {
         return ResultResponse.success(
                 "방문차량 정책 설정 성공",
-                complexPolicyService.updateVisitorPolicy(apartmentComplexUid, request)
+                complexPolicyService.updateVisitorPolicy(code, req)
         );
     }
 }

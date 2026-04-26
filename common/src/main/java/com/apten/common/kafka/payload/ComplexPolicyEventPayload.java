@@ -13,21 +13,21 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ComplexPolicyEventPayload {
 
-    // 정책이 속한 원본 단지 식별자이다.
+    // 정책이 속한 원본 단지 식별자
     private Long apartmentComplexId;
 
-    // 기본 관리비 금액이다.
+    // 기본 관리비 금액
     private BigDecimal baseFee;
 
-    // 매월 납부 마감 일자이다.
+    // 매월 납부 마감 일자
     private Integer paymentDueDay;
 
-    // 연체료 비율이다.
+    // 연체료 비율
     private BigDecimal lateFeeRate;
 
-    // 연체료 계산 기준 단위이다.
+    // 연체료 계산 기준 단위
     private String lateFeeUnit;
 
-    // 현재 정책 활성 여부이다.
+    // 현재 정책 활성 여부
     private Boolean isActive;
 }

@@ -12,18 +12,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityPolicyEventPayload {
 
-    // 정책이 속한 원본 단지 식별자이다.
+    // 정책이 속한 원본 단지 식별자
     private Long apartmentComplexId;
 
-    // 예약 단위 분이다.
+    // 예약 단위 분
     private Integer reservationSlotMin;
 
-    // 예약 취소 마감 시간이다.
+    // 예약 취소 마감 시간
     private Integer facilityCancelDeadlineHours;
 
-    // GX 대기 기능 사용 여부이다.
+    // GX 대기 기능 사용 여부
     private Boolean gxWaitingEnabled;
 
-    // 현재 정책 활성 여부이다.
+    // 현재 정책 활성 여부
     private Boolean isActive;
 }

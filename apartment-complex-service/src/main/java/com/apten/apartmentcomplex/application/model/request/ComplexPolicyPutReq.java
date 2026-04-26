@@ -13,8 +13,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ComplexPolicyPutReq {
-    private BigDecimal defaultMaintenanceFee;
-    private Integer defaultReservationSlotMin;
-    private String lateFeePolicy;
-    private String memo;
+    // 기본 관리비
+    private BigDecimal baseFee;
+    // 납부기한일 (매월 몇일)
+    private Integer paymentDueDay;
+    // 연체료율 (월 기준 %)
+    private BigDecimal lateFeeRate;
 }

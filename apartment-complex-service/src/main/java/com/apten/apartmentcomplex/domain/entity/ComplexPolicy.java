@@ -12,9 +12,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.apache.kafka.common.protocol.types.Field;
 
 // 단지 기본 운영 정책을 저장하는 엔티티
-// 기본 관리비와 예약 기본 단위를 이 테이블이 가진다
+// 기본 관리비, 납부기한, 연체료 정책을 이 테이블이 가진다
 @Entity
 @Table(name = "complex_policy")
 @Getter
@@ -34,29 +35,47 @@ public class ComplexPolicy extends BaseEntity {
     private Long complexId;
 
     // 기본 관리비
-    @Column(name = "base_fee", nullable = false)
+    @Column(name = "base_fee", nullable = false, precision = 12, scale = 2)
     private BigDecimal baseFee;
 
-    // 기본 예약 단위
-    @Column(name = "default_slot_min", nullable = false)
-    private Integer defaultSlotMin;
+    // 매월 납부기한일
+    @Column(name = "payment_due_day", nullable = false)
+    private Integer paymentDueDay;
+
+    // 월 기준 연체료율
+    @Column(name = "late_fee_rate", nullable = false, precision = 5, scale = 2)
+    private BigDecimal lateFeeRate;
+
+    // 연체료 기준
+    @Column(name = "late_fee_unit", nullable = false, length = 20)
+    private String lateFeeUnit;
 
     // 정책 활성 여부
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
 
     // 적용 시작일
-    @Column(name = "start_date", nullable = false)
+    @Column(name = "start_date")
     private LocalDate startDate;
 
     // 적용 종료일
     @Column(name = "end_date")
     private LocalDate endDate;
 
-    // 기본 정책 값을 갱신할 때 사용한다
-    public void apply(BigDecimal baseFee, Integer defaultSlotMin, Boolean isActive, LocalDate startDate, LocalDate endDate) {
+    // 기본 정책 값을 갱신할 때 사용
+    public void apply(
+            BigDecimal baseFee,
+            Integer paymentDueDay,
+            BigDecimal lateFeeRate,
+            String lateFeeUnit,
+            Boolean isActive,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
         this.baseFee = baseFee;
-        this.defaultSlotMin = defaultSlotMin;
+        this.paymentDueDay = paymentDueDay;
+        this.lateFeeRate = lateFeeRate;
+        this.lateFeeUnit = lateFeeUnit;
         this.isActive = isActive;
         this.startDate = startDate;
         this.endDate = endDate;

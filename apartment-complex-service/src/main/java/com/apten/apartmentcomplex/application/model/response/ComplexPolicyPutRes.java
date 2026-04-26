@@ -10,8 +10,14 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ComplexPolicyPutRes {
-    private final String apartmentComplexUid;
-    private final BigDecimal defaultMaintenanceFee;
-    private final Integer defaultReservationSlotMin;
+    // 단지 코드
+    private final String complexId;
+    // 기본 관리비
+    private final BigDecimal baseFee;
+    // 납부기한일
+    private final Integer paymentDueDay;
+    // 연체료율
+    private final BigDecimal lateFeeRate;
+    // 수정일시
     private final LocalDateTime updatedAt;
 }
