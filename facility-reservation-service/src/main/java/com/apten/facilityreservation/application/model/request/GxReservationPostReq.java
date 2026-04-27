@@ -5,11 +5,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// GX 예약 신청 요청 DTO
+// GX 예약 신청 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class GxReservationPostReq {
-    private String gxProgramUid;
+
+    // 프로그램 ID이다.
+    private Long programId;
 }

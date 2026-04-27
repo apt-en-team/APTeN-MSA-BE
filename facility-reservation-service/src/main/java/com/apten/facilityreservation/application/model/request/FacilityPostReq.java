@@ -1,24 +1,47 @@
 package com.apten.facilityreservation.application.model.request;
 
+import com.apten.facilityreservation.domain.enums.ReservationType;
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 시설 등록 요청 DTO
+// 시설 등록 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FacilityPostReq {
-    private String facilityTypeUid;
+
+    // 소속 단지 ID이다.
+    private Long complexId;
+
+    // 시설 타입 ID이다.
+    private Long typeId;
+
+    // 시설명이다.
     private String name;
+
+    // 시설 설명이다.
     private String description;
-    private String reservationType;
+
+    // 예약 방식이다.
+    private ReservationType reservationType;
+
+    // 정원형 최대 인원이다.
     private Integer maxCount;
-    private Integer slotMin;
+
+    // 운영 시작 시간이다.
     private LocalTime openTime;
+
+    // 운영 종료 시간이다.
     private LocalTime closeTime;
-    private Boolean isActive;
+
+    // 시설 override 예약 단위이다.
+    private Integer slotMin;
+
+    // 시설 override 기본 요금이다.
+    private BigDecimal baseFee;
 }

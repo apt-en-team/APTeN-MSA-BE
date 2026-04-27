@@ -1,142 +1,161 @@
 package com.apten.facilityreservation.application.service;
 
 import com.apten.facilityreservation.application.model.request.AdminReservationCancelReq;
-import com.apten.facilityreservation.application.model.request.AdminReservationSearchReq;
-import com.apten.facilityreservation.application.model.request.FacilityStatusSearchReq;
-import com.apten.facilityreservation.application.model.request.GolfStatusSearchReq;
-import com.apten.facilityreservation.application.model.request.GymStatusSearchReq;
-import com.apten.facilityreservation.application.model.request.MyReservationSearchReq;
-import com.apten.facilityreservation.application.model.request.ReservationAvailableTimeSearchReq;
+import com.apten.facilityreservation.application.model.request.AdminReservationListReq;
+import com.apten.facilityreservation.application.model.request.AvailableTimeListReq;
+import com.apten.facilityreservation.application.model.request.MyReservationListReq;
+import com.apten.facilityreservation.application.model.request.ReservationCancelReq;
 import com.apten.facilityreservation.application.model.request.ReservationPostReq;
-import com.apten.facilityreservation.application.model.request.ReservationSeatHoldPostReq;
-import com.apten.facilityreservation.application.model.request.ReservationSeatSearchReq;
-import com.apten.facilityreservation.application.model.request.StudyRoomStatusSearchReq;
+import com.apten.facilityreservation.application.model.request.SeatHoldPostReq;
 import com.apten.facilityreservation.application.model.response.AdminReservationCancelRes;
-import com.apten.facilityreservation.application.model.response.AdminReservationGetPageRes;
-import com.apten.facilityreservation.application.model.response.FacilityStatusRes;
-import com.apten.facilityreservation.application.model.response.GolfStatusRes;
-import com.apten.facilityreservation.application.model.response.GymStatusRes;
-import com.apten.facilityreservation.application.model.response.MyReservationGetPageRes;
-import com.apten.facilityreservation.application.model.response.ReservationAvailableTimeRes;
+import com.apten.facilityreservation.application.model.response.AdminReservationDetailRes;
+import com.apten.facilityreservation.application.model.response.AdminReservationListRes;
+import com.apten.facilityreservation.application.model.response.AvailableTimeListRes;
+import com.apten.facilityreservation.application.model.response.MyReservationDetailRes;
+import com.apten.facilityreservation.application.model.response.MyReservationListRes;
+import com.apten.facilityreservation.application.model.response.PageResponse;
 import com.apten.facilityreservation.application.model.response.ReservationCancelRes;
-import com.apten.facilityreservation.application.model.response.ReservationGetDetailRes;
+import com.apten.facilityreservation.application.model.response.ReservationCompleteRes;
 import com.apten.facilityreservation.application.model.response.ReservationPostRes;
-import com.apten.facilityreservation.application.model.response.ReservationSeatHoldDeleteRes;
-import com.apten.facilityreservation.application.model.response.ReservationSeatHoldPostRes;
-import com.apten.facilityreservation.application.model.response.ReservationSeatRes;
-import com.apten.facilityreservation.application.model.response.StudyRoomSeatStatusRes;
+import com.apten.facilityreservation.application.model.response.TempHoldExpireRes;
+import com.apten.facilityreservation.application.model.response.SeatHoldPostRes;
+import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
+import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
-// 일반 예약 응용 서비스
-// 좌석 선점과 예약 생성, 내 예약과 관리자 예약 현황 시그니처를 이 서비스에 모아둔다
+// 일반 시설 예약과 좌석 선점 관련 API 시그니처를 담당하는 서비스이다.
 @Service
 public class ReservationService {
 
-    public ReservationPostRes createReservation(ReservationPostReq request) {
-        // TODO: 일반 예약 생성 로직 구현
-        // TODO: facility와 facility_type, facility_policy를 함께 조회해 실제 예약 정책 값을 계산한다.
-        // TODO: facility.slotMin과 facility.baseFee가 있으면 시설 override를 우선 적용한다.
-        // TODO: 정원 초과 동시성 제어 처리
-        // TODO: 예약 상태 변경 이벤트 발행
-        return ReservationPostRes.builder()
-                .facilityUid(request.getFacilityUid())
-                .reservationDate(request.getReservationDate())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .seatNo(request.getSeatNo())
-                .quantity(request.getQuantity())
-                .status("CONFIRMED")
-                .createdAt(LocalDateTime.now())
-                .build();
-    }
-
-    public List<ReservationAvailableTimeRes> getAvailableTimeList(ReservationAvailableTimeSearchReq request) {
-        // TODO: 예약 가능 시간 조회 로직 구현
+    // 예약 가능 시간 목록을 조회한다.
+    public List<AvailableTimeListRes> getAvailableTimeList(AvailableTimeListReq req) {
+        //TODO 시설 활성 상태 확인
+        //TODO 운영 시간과 slotMin 기준 시간대 생성
+        //TODO facility_block_time 차단 시간 제외
+        //TODO CONFIRMED 예약 제외
+        //TODO HOLDING 상태 TEMP_HOLD 제외
+        //TODO SEAT/COUNT 방식별 잔여 좌석 또는 잔여 정원 계산
         return List.of();
     }
 
-    public List<ReservationSeatRes> getSeatStatusList(ReservationSeatSearchReq request) {
-        // TODO: 좌석 상태 조회 로직 구현
-        return List.of();
-    }
-
-    public ReservationSeatHoldPostRes createSeatHold(ReservationSeatHoldPostReq request) {
-        // TODO: 좌석 임시선점 로직 구현
-        // TODO: 좌석 임시선점 만료 스케줄러 처리
-        return ReservationSeatHoldPostRes.builder()
-                .facilityUid(request.getFacilityUid())
-                .seatNo(request.getSeatNo())
-                .status("TEMP_HOLD")
+    // 좌석 임시 선점을 생성한다.
+    public SeatHoldPostRes createSeatHold(SeatHoldPostReq req) {
+        //TODO 좌석형 시설인지 확인
+        //TODO 좌석 활성 상태 확인
+        //TODO 예약 가능 시간 여부 확인
+        //TODO 기존 CONFIRMED 예약 존재 여부 확인
+        //TODO 기존 HOLDING TEMP_HOLD 존재 여부 확인
+        //TODO reservation_temp_hold를 HOLDING 상태로 저장
+        //TODO expiresAt을 현재 시각 + 15분으로 설정
+        //TODO UNIQUE 제약 충돌 시 SEAT_TEMP_HOLD_EXISTS 반환
+        return SeatHoldPostRes.builder()
+                .holdId(0L)
+                .facilityId(req.getFacilityId())
+                .seatId(req.getSeatId())
+                .reservationDate(req.getReservationDate())
+                .startTime(req.getStartTime())
+                .endTime(req.getEndTime())
+                .status(ReservationHoldStatus.HOLDING)
                 .expiresAt(LocalDateTime.now().plusMinutes(15))
                 .build();
     }
 
-    public ReservationSeatHoldDeleteRes releaseSeatHold(String holdToken) {
-        // TODO: 좌석 임시선점 해제 로직 구현
-        return ReservationSeatHoldDeleteRes.builder()
-                .message("좌석 임시선점 해제 완료")
-                .releasedAt(LocalDateTime.now())
+    // 만료된 좌석 임시 선점을 자동 해제한다.
+    public TempHoldExpireRes expireSeatHolds() {
+        //TODO expiresAt이 지난 HOLDING 선점 조회
+        //TODO holdStatus를 EXPIRED로 변경
+        //TODO 만료 처리 건수 반환
+        return TempHoldExpireRes.builder()
+                .expiredCount(0)
+                .processedAt(LocalDateTime.now())
                 .build();
     }
 
-    public MyReservationGetPageRes getMyReservationList(MyReservationSearchReq request) {
-        // TODO: 내 예약 목록 조회 로직 구현
-        return MyReservationGetPageRes.empty(request.getPage(), request.getSize());
+    // 예약 생성을 처리한다.
+    public ReservationPostRes createReservation(ReservationPostReq req) {
+        //TODO facility 활성 상태 확인
+        //TODO 운영 시간/차단 시간/예약 단위 검증
+        //TODO 동일 사용자 동일 시간 중복 예약 검증
+        //TODO 좌석형이면 유효한 HOLDING tempHold 확인
+        //TODO 좌석형이면 tempHold를 CONFIRMED로 변경
+        //TODO COUNT형이면 maxCount 기준 잔여 정원 비관적 락 또는 트랜잭션 검증
+        //TODO reservation을 CONFIRMED로 저장
+        //TODO 필요 시 예약 상태 변경 이벤트 outbox 적재
+        return ReservationPostRes.builder()
+                .reservationId(0L)
+                .facilityId(req.getFacilityId())
+                .reservationDate(req.getReservationDate())
+                .startTime(req.getStartTime())
+                .endTime(req.getEndTime())
+                .status(ReservationStatus.CONFIRMED)
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 
-    public ReservationGetDetailRes getReservationDetail(String reservationUid) {
-        // TODO: 예약 상세 조회 로직 구현
-        return ReservationGetDetailRes.builder().build();
+    // 내 예약 목록을 조회한다.
+    public PageResponse<MyReservationListRes> getMyReservationList(MyReservationListReq req) {
+        //TODO 로그인 사용자 기준 내 예약 목록 조회
+        return PageResponse.empty(req.getPage(), req.getSize());
     }
 
-    public ReservationCancelRes cancelReservation(String reservationUid) {
-        // TODO: 예약 취소 가능 시간 검증 후 취소 처리
-        // TODO: 취소 가능 시간은 facility_policy.cancel_deadline_hours를 기준으로 계산한다.
-        // TODO: 예약 상태 변경 이벤트 발행
+    // 내 예약 상세를 조회한다.
+    public MyReservationDetailRes getMyReservationDetail(Long reservationId) {
+        //TODO 예약 소유자 검증
+        //TODO 예약 상세 조회
+        return MyReservationDetailRes.builder().reservationId(reservationId).build();
+    }
+
+    // 내 예약을 취소한다.
+    public ReservationCancelRes cancelReservation(Long reservationId, ReservationCancelReq req) {
+        //TODO 예약 소유자 검증
+        //TODO cancelDeadlineHours 기준 취소 가능 시간 검증
+        //TODO reservation 상태를 CANCELLED로 변경
+        //TODO cancelReason, cancelledAt 저장
+        //TODO 예약 취소 알림 이벤트 outbox 적재
         return ReservationCancelRes.builder()
-                .reservationUid(reservationUid)
-                .status("CANCELLED")
+                .reservationId(reservationId)
+                .status(ReservationStatus.CANCELLED)
                 .cancelledAt(LocalDateTime.now())
                 .build();
     }
 
-    public AdminReservationGetPageRes getAdminReservationList(AdminReservationSearchReq request) {
-        // TODO: 관리자 예약 목록 조회 로직 구현
-        return AdminReservationGetPageRes.empty(request.getPage(), request.getSize());
+    // 관리자 예약 목록을 조회한다.
+    public PageResponse<AdminReservationListRes> getAdminReservationList(AdminReservationListReq req) {
+        //TODO complexId 기준 관리자 예약 목록 조회
+        return PageResponse.empty(req.getPage(), req.getSize());
     }
 
-    public AdminReservationCancelRes cancelReservationByAdmin(String reservationUid, AdminReservationCancelReq request) {
-        // TODO: 관리자 예약 강제 취소 로직 구현
-        // TODO: 예약 상태 변경 이벤트 발행
+    // 관리자 예약 상세를 조회한다.
+    public AdminReservationDetailRes getAdminReservationDetail(Long reservationId) {
+        //TODO reservationId 기준 관리자 예약 상세 조회
+        return AdminReservationDetailRes.builder().reservationId(reservationId).build();
+    }
+
+    // 관리자가 예약을 강제 취소한다.
+    public AdminReservationCancelRes cancelReservationByAdmin(Long reservationId, AdminReservationCancelReq req) {
+        //TODO 예약 존재 여부 확인
+        //TODO reservation 상태를 CANCELLED로 변경
+        //TODO cancelReason, cancelledAt 저장
+        //TODO 예약 취소 알림 이벤트 outbox 적재
         return AdminReservationCancelRes.builder()
-                .reservationUid(reservationUid)
-                .status("CANCELLED")
+                .reservationId(reservationId)
+                .status(ReservationStatus.CANCELLED)
+                .reason(req.getReason())
                 .cancelledAt(LocalDateTime.now())
-                .reason(request.getReason())
                 .build();
     }
 
-    public FacilityStatusRes getFacilityStatus(FacilityStatusSearchReq request) {
-        // TODO: 시설별 예약 현황 조회 로직 구현
-        return FacilityStatusRes.builder().facilityTypeUid(request.getFacilityTypeUid()).targetDate(request.getTargetDate()).items(List.of()).build();
+    // 시간이 지난 예약을 완료 처리한다.
+    public ReservationCompleteRes completeReservations() {
+        //TODO endTime이 지난 CONFIRMED 예약 조회
+        //TODO COMPLETED 상태로 변경
+        //TODO completedAt 저장
+        //TODO 시설 이용 비용 산정 대상이 되도록 처리
+        return ReservationCompleteRes.builder()
+                .completedCount(0)
+                .processedAt(LocalDateTime.now())
+                .build();
     }
-
-    public StudyRoomSeatStatusRes getStudyRoomStatus(StudyRoomStatusSearchReq request) {
-        // TODO: 독서실 좌석 현황 조회 로직 구현
-        return StudyRoomSeatStatusRes.builder().targetDate(request.getTargetDate()).startTime(request.getStartTime()).seats(List.of()).build();
-    }
-
-    public GolfStatusRes getGolfStatus(GolfStatusSearchReq request) {
-        // TODO: 골프 좌석 현황 조회 로직 구현
-        return GolfStatusRes.builder().targetDate(request.getTargetDate()).slots(List.of()).build();
-    }
-
-    public GymStatusRes getGymStatus(GymStatusSearchReq request) {
-        // TODO: 헬스장 이용 현황 조회 로직 구현
-        return GymStatusRes.builder().targetDate(request.getTargetDate()).reservedCount(0).users(List.of()).build();
-    }
-
-    // TODO: 이용 종료 예약 COMPLETED 처리
 }

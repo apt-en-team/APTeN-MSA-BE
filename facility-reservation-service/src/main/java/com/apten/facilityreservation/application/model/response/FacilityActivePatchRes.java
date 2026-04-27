@@ -1,18 +1,20 @@
 package com.apten.facilityreservation.application.model.response;
 
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-// 시설 활성 상태 변경 응답 DTO
+// 시설 활성 상태 변경 응답 DTO이다.
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class FacilityActivePatchRes {
-    private String facilityUid;
+
+    // 시설 ID이다.
+    private Long facilityId;
+
+    // 활성 여부이다.
     private Boolean isActive;
+
+    // 수정 시각이다.
     private LocalDateTime updatedAt;
 }

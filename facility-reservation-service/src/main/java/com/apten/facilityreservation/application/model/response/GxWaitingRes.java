@@ -1,19 +1,23 @@
 package com.apten.facilityreservation.application.model.response;
 
-import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
+import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-// GX 승인 대기 단건 응답 DTO
+// GX 대기 순번 조회 응답 DTO이다.
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class GxWaitingRes {
-    private String gxReservationUid;
-    private String residentName;
-    private Integer waitingNumber;
-    private LocalDateTime createdAt;
+
+    // GX 예약 ID이다.
+    private Long gxReservationId;
+
+    // 프로그램 ID이다.
+    private Long programId;
+
+    // 대기 순번이다.
+    private Integer waitNo;
+
+    // 상태이다.
+    private GxReservationStatus status;
 }
