@@ -1,19 +1,20 @@
 package com.apten.facilityreservation.application.model.response;
 
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-// GX 프로그램 등록 응답 DTO
+// GX 프로그램 등록 응답 DTO이다.
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class GxProgramPostRes {
-    private Long gxProgramId;
-    private String gxProgramUid;
-    private String programName;
+
+    // 프로그램 ID이다.
+    private Long programId;
+
+    // 프로그램명이다.
+    private String name;
+
+    // 생성 시각이다.
     private LocalDateTime createdAt;
 }

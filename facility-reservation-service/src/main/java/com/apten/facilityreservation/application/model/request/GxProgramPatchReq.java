@@ -7,17 +7,37 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// GX 프로그램 수정 요청 DTO
+// GX 프로그램 수정 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class GxProgramPatchReq {
-    private String programName;
-    private LocalDate reservationDate;
+
+    // 프로그램명이다.
+    private String name;
+
+    // 설명이다.
+    private String description;
+
+    // 시작일이다.
+    private LocalDate startDate;
+
+    // 종료일이다.
+    private LocalDate endDate;
+
+    // 시작 시각이다.
     private LocalTime startTime;
+
+    // 종료 시각이다.
     private LocalTime endTime;
+
+    // 운영 요일이다.
+    private String daysOfWeek;
+
+    // 최대 인원이다.
     private Integer maxCount;
+
+    // 최소 인원이다.
     private Integer minCount;
-    private Boolean isOpen;
 }

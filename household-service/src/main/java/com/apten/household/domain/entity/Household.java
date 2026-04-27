@@ -5,8 +5,6 @@ import com.apten.household.domain.enums.HouseholdStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -38,6 +36,7 @@ public class Household extends BaseEntity {
     // 세대 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
     // 단지 ID
@@ -57,9 +56,9 @@ public class Household extends BaseEntity {
     private Long typeId;
 
     // 세대 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private HouseholdStatus status;
+    private HouseholdStatus status = HouseholdStatus.VACANT;
 
     // 세대 기본 정보를 수정한다
     public void update(Long complexId, String building, String unit, Long typeId) {

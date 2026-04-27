@@ -15,13 +15,14 @@ public class AdminRegularVisitorVehicleController {
 
     private final RegularVisitorVehicleService regularVisitorVehicleService;
 
-    @DeleteMapping("/api/admin/regular-visitor-vehicles/{regularVisitorVehicleUid}")
+    //고정 방문차량 강제 삭제 API-325
+    @DeleteMapping("/api/admin/regular-visitor-vehicles/{regularVisitorVehicleId}")
     public ResultResponse<AdminRegularVisitorVehicleDeleteRes> deleteRegularVisitorVehicleByAdmin(
-            @PathVariable String regularVisitorVehicleUid
+            @PathVariable Long regularVisitorVehicleId
     ) {
         return ResultResponse.success(
                 "고정 방문차량 강제 삭제 성공",
-                regularVisitorVehicleService.deleteRegularVisitorVehicleByAdmin(regularVisitorVehicleUid)
+                regularVisitorVehicleService.deleteRegularVisitorVehicleByAdmin(regularVisitorVehicleId)
         );
     }
 }

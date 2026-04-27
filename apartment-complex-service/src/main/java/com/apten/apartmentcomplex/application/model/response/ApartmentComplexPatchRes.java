@@ -9,7 +9,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ApartmentComplexPatchRes {
-    private final String apartmentComplexUid;
+    private final String code;
     private final String name;
     private final LocalDateTime updatedAt;
 }

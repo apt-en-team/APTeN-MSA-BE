@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -20,6 +21,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableReactiveMethodSecurity
 @RequiredArgsConstructor
+@EnableWebFluxSecurity
 public class WebSecurityConfiguration {
 
     // 보호 경로에서 JWT를 읽고 사용자 헤더를 붙이는 필터
@@ -35,7 +37,7 @@ public class WebSecurityConfiguration {
     // 보호 경로 요청은 TokenAuthenticationFilter를 거친 뒤에만 downstream 서비스로 전달된다
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        ServerHttpSecurity.AuthorizeExchangeSpec authorizeExchangeSpec = http
+        return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
@@ -44,14 +46,14 @@ public class WebSecurityConfiguration {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeExchange();
+                .authorizeExchange(exchange -> {
+                    gatewayAuthProperties.getExcludedPaths()
+                            .forEach(path -> exchange.pathMatchers(path).permitAll());
 
-        gatewayAuthProperties.getExcludedPaths().forEach(path -> authorizeExchangeSpec.pathMatchers(path).permitAll());
-
-        return authorizeExchangeSpec
-                .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                .anyExchange().authenticated()
-                .and()
+                    exchange
+                            .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                            .anyExchange().authenticated();
+                })
                 .addFilterAt(tokenAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
@@ -69,7 +71,7 @@ public class WebSecurityConfiguration {
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization", "X-User-Id", "X-User-Role"));
+        configuration.setExposedHeaders(List.of("Authorization", "X-User-Id", "X-User-Role", "X-Complex-Id"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

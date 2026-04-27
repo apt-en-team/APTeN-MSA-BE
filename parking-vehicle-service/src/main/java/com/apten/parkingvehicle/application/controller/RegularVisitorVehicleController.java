@@ -1,11 +1,14 @@
 package com.apten.parkingvehicle.application.controller;
 
 import com.apten.common.response.ResultResponse;
-import com.apten.parkingvehicle.application.model.request.RegularVisitorVehiclePostReq;
-import com.apten.parkingvehicle.application.model.request.RegularVisitorVehicleSearchReq;
+import com.apten.parkingvehicle.application.model.request.RegularVisitorVehicleCreateReq;
+import com.apten.parkingvehicle.application.model.request.RegularVisitorVehicleListReq;
+import com.apten.parkingvehicle.application.model.request.RegularVisitorVehiclePatchReq;
+import com.apten.parkingvehicle.application.model.response.PageResponse;
+import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleDeleteRes;
-import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleGetPageRes;
-import com.apten.parkingvehicle.application.model.response.RegularVisitorVehiclePostRes;
+import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.RegularVisitorVehiclePatchRes;
 import com.apten.parkingvehicle.application.service.RegularVisitorVehicleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,17 +28,19 @@ public class RegularVisitorVehicleController {
 
     private final RegularVisitorVehicleService regularVisitorVehicleService;
 
+    //고정 방문차량 등록 API-322
     @PostMapping("/api/regular-visitor-vehicles")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<RegularVisitorVehiclePostRes> createRegularVisitorVehicle(
-            @RequestBody RegularVisitorVehiclePostReq request
+    public ResultResponse<RegularVisitorVehicleCreateRes> createRegularVisitorVehicle(
+            @RequestBody RegularVisitorVehicleCreateReq request
     ) {
         return ResultResponse.success("고정 방문차량 등록 성공", regularVisitorVehicleService.createRegularVisitorVehicle(request));
     }
 
+    //고정 방문차량 조회 API-323
     @GetMapping("/api/regular-visitor-vehicles")
-    public ResultResponse<RegularVisitorVehicleGetPageRes> getMyRegularVisitorVehicleList(
-            @ModelAttribute RegularVisitorVehicleSearchReq request
+    public ResultResponse<PageResponse<RegularVisitorVehicleListRes>> getMyRegularVisitorVehicleList(
+            @ModelAttribute RegularVisitorVehicleListReq request
     ) {
         return ResultResponse.success(
                 "고정 방문차량 목록 조회 성공",
@@ -43,13 +48,26 @@ public class RegularVisitorVehicleController {
         );
     }
 
-    @DeleteMapping("/api/regular-visitor-vehicles/{regularVisitorVehicleUid}")
+    //고정 방문차량 수정 API-337
+    @org.springframework.web.bind.annotation.PatchMapping("/api/regular-visitor-vehicles/{regularVisitorVehicleId}")
+    public ResultResponse<RegularVisitorVehiclePatchRes> updateRegularVisitorVehicle(
+            @PathVariable Long regularVisitorVehicleId,
+            @RequestBody RegularVisitorVehiclePatchReq request
+    ) {
+        return ResultResponse.success(
+                "고정 방문차량 수정 성공",
+                regularVisitorVehicleService.updateRegularVisitorVehicle(regularVisitorVehicleId, request)
+        );
+    }
+
+    //고정 방문차량 삭제 API-324
+    @DeleteMapping("/api/regular-visitor-vehicles/{regularVisitorVehicleId}")
     public ResultResponse<RegularVisitorVehicleDeleteRes> deleteRegularVisitorVehicle(
-            @PathVariable String regularVisitorVehicleUid
+            @PathVariable Long regularVisitorVehicleId
     ) {
         return ResultResponse.success(
                 "고정 방문차량 삭제 성공",
-                regularVisitorVehicleService.deleteRegularVisitorVehicle(regularVisitorVehicleUid)
+                regularVisitorVehicleService.deleteRegularVisitorVehicle(regularVisitorVehicleId)
         );
     }
 }

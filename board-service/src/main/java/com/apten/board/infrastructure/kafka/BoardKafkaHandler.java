@@ -25,36 +25,52 @@ public class BoardKafkaHandler {
     // user 이벤트를 받아 user cache를 갱신한다
     @KafkaListener(topics = KafkaTopics.USER, groupId = "board-service-user-cache")
     public void consumeUserEvent(EventEnvelope<UserEventPayload> eventEnvelope) {
-        log.info("Consumed user event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
-        boardReferenceCacheService.upsertUserCache(eventEnvelope.getPayload());
+        try {
+            log.info("Consumed user event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
+            boardReferenceCacheService.upsertUserCache(eventEnvelope.getPayload());
+        } catch (Exception exception) {
+            log.error("Failed to handle user cache event. eventId={}", eventEnvelope.getEventId(), exception);
+        }
     }
 
     // apartment complex 이벤트를 받아 단지 cache를 갱신한다
     @KafkaListener(topics = KafkaTopics.APARTMENT_COMPLEX, groupId = "board-service-apartment-complex-cache")
     public void consumeApartmentComplexEvent(EventEnvelope<ApartmentComplexEventPayload> eventEnvelope) {
-        log.info(
-                "Consumed apartment complex event. eventType={}, eventId={}",
-                eventEnvelope.getEventType(),
-                eventEnvelope.getEventId()
-        );
-        boardReferenceCacheService.upsertApartmentComplexCache(eventEnvelope.getPayload());
+        try {
+            log.info(
+                    "Consumed apartment complex event. eventType={}, eventId={}",
+                    eventEnvelope.getEventType(),
+                    eventEnvelope.getEventId()
+            );
+            boardReferenceCacheService.upsertApartmentComplexCache(eventEnvelope.getPayload());
+        } catch (Exception exception) {
+            log.error("Failed to handle apartment complex cache event. eventId={}", eventEnvelope.getEventId(), exception);
+        }
     }
 
     // household 이벤트를 받아 세대 cache를 갱신한다
     @KafkaListener(topics = KafkaTopics.HOUSEHOLD, groupId = "board-service-household-cache")
     public void consumeHouseholdEvent(EventEnvelope<HouseholdEventPayload> eventEnvelope) {
-        log.info("Consumed household event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
-        boardReferenceCacheService.upsertHouseholdCache(eventEnvelope.getPayload());
+        try {
+            log.info("Consumed household event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
+            boardReferenceCacheService.upsertHouseholdCache(eventEnvelope.getPayload());
+        } catch (Exception exception) {
+            log.error("Failed to handle household cache event. eventId={}", eventEnvelope.getEventId(), exception);
+        }
     }
 
     // household member 이벤트를 받아 세대 구성원 cache를 갱신한다
     @KafkaListener(topics = KafkaTopics.HOUSEHOLD_MEMBER, groupId = "board-service-household-member-cache")
     public void consumeHouseholdMemberEvent(EventEnvelope<HouseholdMemberEventPayload> eventEnvelope) {
-        log.info(
-                "Consumed household member event. eventType={}, eventId={}",
-                eventEnvelope.getEventType(),
-                eventEnvelope.getEventId()
-        );
-        boardReferenceCacheService.upsertHouseholdMemberCache(eventEnvelope.getPayload());
+        try {
+            log.info(
+                    "Consumed household member event. eventType={}, eventId={}",
+                    eventEnvelope.getEventType(),
+                    eventEnvelope.getEventId()
+            );
+            boardReferenceCacheService.upsertHouseholdMemberCache(eventEnvelope.getPayload());
+        } catch (Exception exception) {
+            log.error("Failed to handle household member cache event. eventId={}", eventEnvelope.getEventId(), exception);
+        }
     }
 }

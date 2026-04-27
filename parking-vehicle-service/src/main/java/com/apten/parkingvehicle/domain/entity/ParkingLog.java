@@ -1,13 +1,12 @@
 package com.apten.parkingvehicle.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
-import com.apten.parkingvehicle.domain.enums.EntryType;
+import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -17,7 +16,19 @@ import lombok.NoArgsConstructor;
 
 // 차량 입출차 이력을 저장하는 엔티티
 @Entity
-@Table(name = "parking_log")
+@Table(
+        name = "parking_log",
+        indexes = {
+                @Index(name = "idx_parking_log_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_parking_log_floor_id", columnList = "floor_id"),
+                @Index(name = "idx_parking_log_vehicle_id", columnList = "vehicle_id"),
+                @Index(name = "idx_parking_log_visitor_vehicle_id", columnList = "visitor_vehicle_id"),
+                @Index(name = "idx_parking_log_regular_visitor_vehicle_id", columnList = "regular_visitor_vehicle_id"),
+                @Index(name = "idx_parking_log_license_plate", columnList = "license_plate"),
+                @Index(name = "idx_parking_log_entry_type", columnList = "entry_type"),
+                @Index(name = "idx_parking_log_logged_at", columnList = "logged_at")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -59,9 +70,8 @@ public class ParkingLog extends BaseEntity {
     private String licensePlate;
 
     // 입출차 구분
-    @Enumerated(EnumType.STRING)
     @Column(name = "entry_type", nullable = false, length = 10)
-    private EntryType entryType;
+    private ParkingEntryType entryType;
 
     // 기록 일시
     @Column(name = "logged_at", nullable = false)

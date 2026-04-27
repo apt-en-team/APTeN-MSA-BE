@@ -5,12 +5,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// GX 일괄 승인 요청 DTO
+// GX 일괄 승인 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class GxBulkApproveReq {
-    private String gxProgramUid;
+
+    // 승인할 대상 수이다.
     private Integer approveCount;
 }

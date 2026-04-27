@@ -6,9 +6,8 @@ import com.apten.parkingvehicle.domain.enums.UserCacheRole;
 import com.apten.parkingvehicle.domain.enums.UserCacheStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +16,14 @@ import lombok.NoArgsConstructor;
 
 // 주차 차량 서비스에서 사용하는 사용자 캐시 엔티티
 @Entity
-@Table(name = "user_cache")
+@Table(
+        name = "user_cache",
+        indexes = {
+                @Index(name = "idx_user_cache_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_user_cache_role", columnList = "role"),
+                @Index(name = "idx_user_cache_status", columnList = "status")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -38,14 +44,14 @@ public class UserCache extends BaseEntity {
     private String name;
 
     // 사용자 권한
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "role", nullable = false, length = 20)
-    private UserCacheRole role;
+    private UserCacheRole role = UserCacheRole.USER;
 
     // 사용자 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private UserCacheStatus status;
+    private UserCacheStatus status = UserCacheStatus.ACTIVE;
 
     // 사용자 이벤트로 캐시 내용을 갱신한다
     public void apply(UserEventPayload payload) {

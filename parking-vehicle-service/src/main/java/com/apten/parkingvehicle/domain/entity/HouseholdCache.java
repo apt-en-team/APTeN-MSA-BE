@@ -2,13 +2,13 @@ package com.apten.parkingvehicle.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
-import com.apten.parkingvehicle.domain.enums.HouseholdStatus;
+import com.apten.parkingvehicle.domain.enums.HouseholdCacheStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +16,16 @@ import lombok.NoArgsConstructor;
 
 // 차량 등록 검증과 조회에 사용하는 세대 캐시 엔티티
 @Entity
-@Table(name = "household_cache")
+@Table(
+        name = "household_cache",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_household_cache_complex_building_unit", columnNames = {"complex_id", "building", "unit"})
+        },
+        indexes = {
+                @Index(name = "idx_household_cache_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_household_cache_status", columnList = "status")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -41,9 +50,9 @@ public class HouseholdCache extends BaseEntity {
     private String unit;
 
     // 세대 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private HouseholdStatus status;
+    private HouseholdCacheStatus status = HouseholdCacheStatus.OCCUPIED;
 
     // 세대주 사용자 ID
     @Column(name = "head_user_id")
@@ -55,6 +64,11 @@ public class HouseholdCache extends BaseEntity {
         this.complexId = payload.getApartmentComplexId();
         this.building = payload.getBuildingNo();
         this.unit = payload.getUnitNo();
-        this.status = payload.getStatus() != null ? HouseholdStatus.valueOf(payload.getStatus()) : null;
+        this.status = payload.getStatus() != null ? HouseholdCacheStatus.valueOf(payload.getStatus()) : null;
+    }
+
+    // 세대주 사용자 식별자를 갱신한다.
+    public void updateHeadUserId(Long headUserId) {
+        this.headUserId = headUserId;
     }
 }

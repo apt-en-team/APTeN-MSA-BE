@@ -1,19 +1,20 @@
 package com.apten.facilityreservation.application.model.response;
 
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-// GX 일괄 승인 응답 DTO
+// GX 일괄 승인 응답 DTO이다.
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class GxBulkApproveRes {
-    private String gxProgramUid;
+
+    // 프로그램 ID이다.
+    private Long programId;
+
+    // 승인 건수이다.
     private Integer approvedCount;
-    private Integer rejectedCount;
+
+    // 처리 시각이다.
     private LocalDateTime processedAt;
 }

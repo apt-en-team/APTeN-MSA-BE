@@ -3,10 +3,7 @@ package com.apten.apartmentcomplex.domain.entity;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,7 +12,15 @@ import lombok.NoArgsConstructor;
 // 단지 원본 테이블을 표현하는 엔티티
 // 단지 기본 정보는 이 서비스가 직접 관리한다
 @Entity
-@Table(name = "complex")
+@Table(
+        name = "complex",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_complex_code", columnNames = "code")
+        },
+        indexes = {
+                @Index(name = "idx_complex_status", columnList = "status")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -56,20 +61,23 @@ public class ApartmentComplex extends BaseEntity {
     @Column(name = "description")
     private String description;
 
-    // 단지 기본 정보를 수정할 때 사용한다
+    // 단지 기본 정보를 수정할 때 사용한다.
     public void update(
             String name,
             String address,
             String addressDetail,
             String zipCode,
-            ApartmentComplexStatus status,
             String description
     ) {
         this.name = name;
         this.address = address;
         this.addressDetail = addressDetail;
         this.zipCode = zipCode;
-        this.status = status;
         this.description = description;
+    }
+
+    // 단지 활성 상태를 별도 API에서 변경할 때 사용한다.
+    public void changeStatus(ApartmentComplexStatus status) {
+        this.status = status;
     }
 }

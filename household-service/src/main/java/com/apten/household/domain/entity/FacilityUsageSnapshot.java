@@ -4,8 +4,6 @@ import com.apten.common.entity.BaseEntity;
 import com.apten.household.domain.enums.FacilityUsageStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -63,13 +61,14 @@ public class FacilityUsageSnapshot extends BaseEntity {
     private LocalDate usageDate;
 
     // 이용 금액
+    @Builder.Default
     @Column(name = "usage_fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal usageFee;
+    private BigDecimal usageFee = BigDecimal.ZERO;
 
     // 이용 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private FacilityUsageStatus status;
+    private FacilityUsageStatus status = FacilityUsageStatus.COMPLETED;
 
     // 시설 이용 스냅샷 내용을 갱신한다
     public void apply(

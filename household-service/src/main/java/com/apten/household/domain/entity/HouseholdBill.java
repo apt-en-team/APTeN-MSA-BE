@@ -5,8 +5,6 @@ import com.apten.household.domain.enums.HouseholdBillStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -40,6 +38,7 @@ public class HouseholdBill extends BaseEntity {
     // 청구 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
     // 세대 ID
@@ -59,29 +58,34 @@ public class HouseholdBill extends BaseEntity {
     private Integer billMonth;
 
     // 기본 관리비
+    @Builder.Default
     @Column(name = "base_fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal baseFee;
+    private BigDecimal baseFee = BigDecimal.ZERO;
 
     // 차량 비용
+    @Builder.Default
     @Column(name = "vehicle_fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal vehicleFee;
+    private BigDecimal vehicleFee = BigDecimal.ZERO;
 
     // 시설 비용
+    @Builder.Default
     @Column(name = "facility_fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal facilityFee;
+    private BigDecimal facilityFee = BigDecimal.ZERO;
 
     // 방문차량 비용
+    @Builder.Default
     @Column(name = "visitor_fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal visitorFee;
+    private BigDecimal visitorFee = BigDecimal.ZERO;
 
     // 총 청구 금액
+    @Builder.Default
     @Column(name = "total_fee", nullable = false, precision = 12, scale = 2)
-    private BigDecimal totalFee;
+    private BigDecimal totalFee = BigDecimal.ZERO;
 
     // 청구 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private HouseholdBillStatus status;
+    private HouseholdBillStatus status = HouseholdBillStatus.DRAFT;
 
     // 확정 시각
     @Column(name = "confirmed_at")

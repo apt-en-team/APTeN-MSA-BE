@@ -1,19 +1,21 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.GxProgramStatus;
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-// GX 프로그램 취소 응답 DTO
+// GX 프로그램 취소 응답 DTO이다.
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class GxProgramCancelRes {
-    private String gxProgramUid;
-    private String status;
+
+    // 프로그램 ID이다.
+    private Long programId;
+
+    // 상태이다.
+    private GxProgramStatus status;
+
+    // 취소 시각이다.
     private LocalDateTime cancelledAt;
-    private String reason;
 }
