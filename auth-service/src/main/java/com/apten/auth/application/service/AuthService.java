@@ -104,6 +104,7 @@ public class AuthService {
         UserContext userContext = UserContext.builder()
                 .userId(user.getId())
                 .userRole(commonRole)
+                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
                 .build();
 
         // JWT 발급
@@ -291,10 +292,12 @@ public class AuthService {
         }
 
         // 최신 정보로 새 AT 발급
+        // 최신 정보로 새 AT 발급
         com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
         UserContext userContext = UserContext.builder()
                 .userId(userId)
                 .userRole(commonRole)
+                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
                 .build();
         String newAccessToken = jwtTokenProvider.issueAccessToken(userContext);
 

@@ -14,8 +14,11 @@ public enum UserRole implements EnumMapperType {
     // 일반 입주민 사용자 권한이다.
     USER("01", "입주민"),
 
-    // 관리자 사용자 권한이다.
-    ADMIN("02", "관리자");
+    // 단지 관리자 사용자 권한이다.
+    ADMIN("02", "특정 단지 관리자"),
+
+    // 플랫폼 전체 운영자 사용자 권한이다.
+    MASTER("03", "플랫폼 전체 운영자");
 
     // DB에 저장할 사용자 권한 code이다.
     private final String code;
@@ -25,7 +28,11 @@ public enum UserRole implements EnumMapperType {
 
     // 공통 사용자 컨텍스트용 역할로 변환한다.
     public com.apten.common.security.UserRole toCommonUserRole() {
-        return this == ADMIN ? com.apten.common.security.UserRole.ADMIN : com.apten.common.security.UserRole.RESIDENT;
+        return switch (this) {
+            case ADMIN -> com.apten.common.security.UserRole.ADMIN;
+            case MASTER -> com.apten.common.security.UserRole.MASTER;
+            default -> com.apten.common.security.UserRole.USER;
+        };
     }
 
     // JPA가 DB 문자열 code와 UserRole enum을 자동 변환한다.

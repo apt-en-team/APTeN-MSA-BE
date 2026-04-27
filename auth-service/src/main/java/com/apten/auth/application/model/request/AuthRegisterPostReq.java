@@ -29,7 +29,7 @@ public class AuthRegisterPostReq {
     )
     private String email;
 
-    // 비밀번호 — 8자 이상, 영문+숫자+특수문자 필수 (FR-011)
+    // 비밀번호 — 8자 이상, 영문+숫자+특수문자 필수
     @NotBlank(message = "비밀번호를 입력해주세요.")
     @Pattern(
             regexp = "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$",

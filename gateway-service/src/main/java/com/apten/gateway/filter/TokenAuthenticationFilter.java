@@ -38,6 +38,9 @@ public class TokenAuthenticationFilter implements WebFilter {
     // auth-service가 access token 안에 넣어 주는 사용자 역할 claim 키
     private static final String ROLE_CLAIM = "role";
 
+    // auth-service가 access token 안에 넣어 주는 단지 ID claim 키
+    private static final String COMPLEX_ID_CLAIM = "complexId";
+
     // 공개 경로와 JWT 비밀키를 읽기 위한 설정 객체
     private final GatewayAuthProperties gatewayAuthProperties;
 
@@ -67,6 +70,9 @@ public class TokenAuthenticationFilter implements WebFilter {
 
         UserRole userRole = resolveUserRole(role);
 
+        // JWT claim에서 단지 ID를 꺼낸다 — MASTER는 null일 수 있다
+        Long complexId = claims.get(COMPLEX_ID_CLAIM, Long.class);
+
         // 로그아웃된 토큰인지 Redis 블랙리스트 확인 — 있으면 401 반환
         return reactiveRedisTemplate.hasKey("blacklist:" + token)
                 .flatMap(isBlacklisted -> {
@@ -82,16 +88,20 @@ public class TokenAuthenticationFilter implements WebFilter {
                     );
 
                     // gateway를 통과한 뒤 각 서비스가 바로 읽을 수 있도록 공통 헤더를 요청에 추가한다
-                    ServerHttpRequest mutatedRequest = exchange.getRequest()
+                    ServerHttpRequest.Builder requestBuilder = exchange.getRequest()
                             .mutate()
                             .header(HeaderConstants.X_USER_ID, userId)
-                            .header(HeaderConstants.X_USER_ROLE, userRole.name())
-                            .build();
+                            .header(HeaderConstants.X_USER_ROLE, userRole.name());
+
+                    // 단지 ID가 있을 때만 헤더에 추가한다 (MASTER는 null이므로 추가하지 않는다)
+                    if (complexId != null) {
+                        requestBuilder.header(HeaderConstants.X_COMPLEX_ID, String.valueOf(complexId));
+                    }
 
                     SecurityContextImpl securityContext = new SecurityContextImpl(authentication);
 
                     // Security 컨텍스트에도 현재 사용자 정보를 남겨 이후 보안 체인이 인증 완료 상태로 이어지게 한다
-                    return chain.filter(exchange.mutate().request(mutatedRequest).build())
+                    return chain.filter(exchange.mutate().request(requestBuilder.build()).build())
                             .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
                 });
     }

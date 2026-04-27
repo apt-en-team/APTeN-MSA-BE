@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class User extends BaseEntity {
 
-    // 로그인 실패 최대 허용 횟수 (FR-010)
+    // 로그인 실패 최대 허용 횟수
     private static final int MAX_LOGIN_FAIL_COUNT = 5;
 
     // 회원 내부 PK

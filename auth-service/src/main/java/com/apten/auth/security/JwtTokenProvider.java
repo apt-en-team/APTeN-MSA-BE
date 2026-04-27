@@ -24,6 +24,9 @@ public class JwtTokenProvider {
     // 사용자 역할을 JWT 안에 넣을 때 사용할 claim 키
     private static final String ROLE_CLAIM = "role";
 
+    // 사용자가 속한 단지 ID를 JWT 안에 넣을 때 사용할 claim 키
+    private static final String COMPLEX_ID_CLAIM = "complexId";
+
     // 서명과 검증에 사용할 비밀키
     private final SecretKey secretKey;
 
@@ -44,14 +47,14 @@ public class JwtTokenProvider {
         this.refreshTokenExpirationMillis = refreshTokenExpirationMillis;
     }
 
-    // 로그인 사용자의 ID와 역할을 담은 access token을 발급한다
+    // 로그인 사용자의 ID, 역할, 단지 ID를 담은 access token을 발급한다
     public String issueAccessToken(UserContext userContext) {
-        return issueToken(userContext.getUserId(), userContext.getUserRole(), accessTokenExpirationMillis);
+        return issueToken(userContext.getUserId(), userContext.getUserRole(), userContext.getComplexId(), accessTokenExpirationMillis);
     }
 
     // 재발급 흐름에서 사용할 refresh token을 만든다
     public String issueRefreshToken(Long userId) {
-        return issueToken(userId, null, refreshTokenExpirationMillis);
+        return issueToken(userId, null, null, refreshTokenExpirationMillis);
     }
 
     // 외부에서 전달받은 JWT가 만료되었는지 또는 위조되었는지 확인한다
@@ -80,6 +83,11 @@ public class JwtTokenProvider {
         return UserRole.valueOf(role);
     }
 
+    // JWT claim에 담긴 단지 ID를 읽어 단지 기준 데이터 접근 제어에 사용한다
+    public Long getComplexId(String token) {
+        return parseClaims(token).get(COMPLEX_ID_CLAIM, Long.class);
+    }
+
     // JWT 만료 시각 반환 — 로그아웃 시 블랙리스트 TTL 계산에 사용
     public Date getExpiration(String token) {
         return parseClaims(token).getExpiration();
@@ -102,8 +110,8 @@ public class JwtTokenProvider {
     }
 
     // 공통 로직으로 access token과 refresh token을 모두 만든다
-    // 사용자 역할은 access token에만 넣고 refresh token에는 넣지 않는다
-    private String issueToken(Long userId, UserRole userRole, long expirationMillis) {
+    // 역할과 단지 ID는 access token에만 넣고 refresh token에는 넣지 않는다
+    private String issueToken(Long userId, UserRole userRole, Long complexId, long expirationMillis) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMillis);
 
@@ -115,6 +123,11 @@ public class JwtTokenProvider {
 
         if (userRole != null) {
             builder.claim(ROLE_CLAIM, userRole.name());
+        }
+
+        // 단지 ID가 있을 때만 claim에 추가한다 (MASTER는 null일 수 있다)
+        if (complexId != null) {
+            builder.claim(COMPLEX_ID_CLAIM, complexId);
         }
 
         return builder.compact();
