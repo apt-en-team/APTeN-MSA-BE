@@ -8,6 +8,7 @@ import com.apten.parkingvehicle.application.model.response.LicensePlateCheckRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.VehicleDeleteRes;
+import com.apten.parkingvehicle.application.model.response.VehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.VehiclePatchRes;
 import com.apten.parkingvehicle.application.service.VehicleService;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,12 @@ public class VehicleController {
             @ModelAttribute VehicleListReq request
     ) {
         return ResultResponse.success("내 차량 목록 조회 성공", vehicleService.getMyVehicleList(request));
+    }
+
+    //내 차량 상세 조회 API-335
+    @GetMapping("/api/vehicles/{vehicleId}")
+    public ResultResponse<VehicleDetailRes> getMyVehicleDetail(@PathVariable Long vehicleId) {
+        return ResultResponse.success("내 차량 상세 조회 성공", vehicleService.getMyVehicleDetail(vehicleId));
     }
 
     //차량번호 중복 확인 API-308

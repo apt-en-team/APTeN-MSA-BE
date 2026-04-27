@@ -6,12 +6,14 @@ import com.apten.household.application.model.request.HouseholdHeadPatchReq;
 import com.apten.household.application.model.request.HouseholdListReq;
 import com.apten.household.application.model.request.HouseholdMemberPatchReq;
 import com.apten.household.application.model.request.HouseholdMemberPostReq;
+import com.apten.household.application.model.request.HouseholdPatchReq;
 import com.apten.household.application.model.request.HouseholdStatusPatchReq;
 import com.apten.household.application.model.response.HouseholdCreateRes;
 import com.apten.household.application.model.response.HouseholdDetailRes;
 import com.apten.household.application.model.response.HouseholdHeadPatchRes;
 import com.apten.household.application.model.response.HouseholdHistoryRes;
 import com.apten.household.application.model.response.HouseholdListRes;
+import com.apten.household.application.model.response.HouseholdPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberDeleteRes;
 import com.apten.household.application.model.response.HouseholdMemberListRes;
 import com.apten.household.application.model.response.HouseholdMemberPatchRes;
@@ -60,6 +62,15 @@ public class AdminHouseholdController {
     @GetMapping("/households/{householdId}")
     public ResultResponse<HouseholdDetailRes> getHouseholdDetail(@PathVariable Long householdId) {
         return ResultResponse.success("세대 상세 조회 성공", householdService.getHouseholdDetail(householdId));
+    }
+
+    //세대 정보 수정 API-422
+    @PatchMapping("/households/{householdId}")
+    public ResultResponse<HouseholdPatchRes> updateHousehold(
+            @PathVariable Long householdId,
+            @RequestBody HouseholdPatchReq request
+    ) {
+        return ResultResponse.success("세대 정보 수정 성공", householdService.updateHousehold(householdId, request));
     }
 
     //세대 상태 변경 API-404

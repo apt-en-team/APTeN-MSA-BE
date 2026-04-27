@@ -5,12 +5,14 @@ import com.apten.parkingvehicle.application.model.request.VehicleCreateReq;
 import com.apten.parkingvehicle.application.model.request.VehicleListReq;
 import com.apten.parkingvehicle.application.model.request.VehiclePatchReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleListRes;
 import com.apten.parkingvehicle.application.model.response.LicensePlateCheckRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleApproveRes;
 import com.apten.parkingvehicle.application.model.response.VehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.VehicleDeleteRes;
+import com.apten.parkingvehicle.application.model.response.VehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.VehicleListRes;
 import com.apten.parkingvehicle.application.model.response.VehiclePatchRes;
 import com.apten.parkingvehicle.application.model.response.VehicleRejectRes;
@@ -77,6 +79,21 @@ public class VehicleService {
         return PageResponse.empty(request.getPage(), request.getSize());
     }
 
+    // 내 차량 상세를 조회한다.
+    public VehicleDetailRes getMyVehicleDetail(Long vehicleId) {
+        //TODO 로그인 사용자 확인
+        //TODO 차량 존재 여부 확인
+        //TODO 차량 소유자 검증
+        return VehicleDetailRes.builder()
+                .vehicleId(vehicleId)
+                .vehicleType(VehicleType.CAR)
+                .status(VehicleStatus.PENDING)
+                .isPrimary(false)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
     // 차량번호 중복 여부를 확인한다.
     public LicensePlateCheckRes checkDuplicateLicensePlate(String licensePlate) {
         //TODO 로그인 사용자 또는 관리자 컨텍스트에서 complexId 확인
@@ -121,5 +138,20 @@ public class VehicleService {
         //TODO 단지 기준 차량 목록 조회
         //TODO 동, 호, 상태, 키워드 필터 적용
         return PageResponse.empty(request.getPage(), request.getSize());
+    }
+
+    // 관리자 차량 상세를 조회한다.
+    public AdminVehicleDetailRes getAdminVehicleDetail(Long vehicleId) {
+        //TODO 관리자 소속 단지 확인
+        //TODO 차량 존재 여부 확인
+        //TODO 세대/입주민 정보 조합 조회
+        return AdminVehicleDetailRes.builder()
+                .vehicleId(vehicleId)
+                .vehicleType(VehicleType.CAR)
+                .status(VehicleStatus.PENDING)
+                .isPrimary(false)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 }

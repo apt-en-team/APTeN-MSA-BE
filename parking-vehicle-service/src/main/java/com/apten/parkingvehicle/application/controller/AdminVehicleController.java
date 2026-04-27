@@ -3,6 +3,7 @@ package com.apten.parkingvehicle.application.controller;
 import com.apten.common.response.ResultResponse;
 import com.apten.parkingvehicle.application.model.request.AdminVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleListRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleApproveRes;
@@ -42,5 +43,11 @@ public class AdminVehicleController {
     @GetMapping("/api/admin/vehicles")
     public ResultResponse<PageResponse<AdminVehicleListRes>> getAdminVehicleList(@ModelAttribute AdminVehicleListReq request) {
         return ResultResponse.success("전체 차량 목록 조회 성공", vehicleService.getAdminVehicleList(request));
+    }
+
+    //관리자 차량 상세 조회 API-336
+    @GetMapping("/api/admin/vehicles/{vehicleId}")
+    public ResultResponse<AdminVehicleDetailRes> getAdminVehicleDetail(@PathVariable Long vehicleId) {
+        return ResultResponse.success("관리자 차량 상세 조회 성공", vehicleService.getAdminVehicleDetail(vehicleId));
     }
 }

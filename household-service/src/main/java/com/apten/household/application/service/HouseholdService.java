@@ -5,17 +5,20 @@ import com.apten.household.application.model.request.HouseholdHeadPatchReq;
 import com.apten.household.application.model.request.HouseholdListReq;
 import com.apten.household.application.model.request.HouseholdMemberPatchReq;
 import com.apten.household.application.model.request.HouseholdMemberPostReq;
+import com.apten.household.application.model.request.HouseholdPatchReq;
 import com.apten.household.application.model.request.HouseholdStatusPatchReq;
 import com.apten.household.application.model.response.HouseholdCreateRes;
 import com.apten.household.application.model.response.HouseholdDetailRes;
 import com.apten.household.application.model.response.HouseholdHeadPatchRes;
 import com.apten.household.application.model.response.HouseholdHistoryRes;
 import com.apten.household.application.model.response.HouseholdListRes;
+import com.apten.household.application.model.response.HouseholdPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberDeleteRes;
 import com.apten.household.application.model.response.HouseholdMemberListRes;
 import com.apten.household.application.model.response.HouseholdMemberPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberPostRes;
 import com.apten.household.application.model.response.HouseholdStatusPatchRes;
+import com.apten.household.application.model.response.MyHouseholdRes;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +62,21 @@ public class HouseholdService {
         //TODO 세대원 목록 조회
         //TODO 최근 청구 요약 조회
         return HouseholdDetailRes.builder().householdId(householdId).build();
+    }
+
+    // 세대 정보 수정 서비스이다.
+    public HouseholdPatchRes updateHousehold(Long householdId, HouseholdPatchReq request) {
+        //TODO 세대 존재 여부 확인
+        //TODO building, unit, typeId, status 유효성 검증
+        //TODO 세대 기본 정보 수정
+        return HouseholdPatchRes.builder()
+                .householdId(householdId)
+                .building(request.getBuilding())
+                .unit(request.getUnit())
+                .typeId(request.getTypeId())
+                .status(request.getStatus())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 
     // 세대 상태 변경 서비스이다.
@@ -137,6 +155,16 @@ public class HouseholdService {
                 .householdId(householdId)
                 .headUserId(request.getUserId())
                 .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 내 세대 정보 조회 서비스이다.
+    public MyHouseholdRes getMyHousehold() {
+        //TODO 로그인 사용자 기준 활성 세대원 조회
+        //TODO 세대 기본 정보 조회
+        //TODO 세대원 이름과 연락처를 user_cache에서 조합
+        return MyHouseholdRes.builder()
+                .members(List.of())
                 .build();
     }
 }

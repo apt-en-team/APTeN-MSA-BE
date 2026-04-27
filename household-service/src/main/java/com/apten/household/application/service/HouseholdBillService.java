@@ -1,15 +1,20 @@
 package com.apten.household.application.service;
 
+import com.apten.household.application.model.request.AdminHouseholdBillListReq;
 import com.apten.household.application.model.request.FacilityFeeReflectReq;
 import com.apten.household.application.model.request.MyBillListReq;
 import com.apten.household.application.model.request.VehicleFeeReflectReq;
 import com.apten.household.application.model.request.VisitorFeeReflectReq;
+import com.apten.household.application.model.response.AdminHouseholdBillDetailRes;
+import com.apten.household.application.model.response.AdminHouseholdBillListRes;
 import com.apten.household.application.model.response.BillConfirmRes;
 import com.apten.household.application.model.response.FacilityFeeReflectRes;
 import com.apten.household.application.model.response.MyBillListRes;
 import com.apten.household.application.model.response.VehicleFeeReflectRes;
 import com.apten.household.application.model.response.VisitorFeeReflectRes;
+import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -86,6 +91,44 @@ public class HouseholdBillService {
                 .billId(billId)
                 .status(HouseholdBillStatus.CONFIRMED)
                 .confirmedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 관리자 관리비 목록 조회 서비스이다.
+    public AdminHouseholdBillListRes getAdminBills(AdminHouseholdBillListReq request) {
+        //TODO billYear, billMonth, status, building, unit 조건으로 관리비 목록 조회
+        //TODO 페이지 메타데이터 계산
+        return AdminHouseholdBillListRes.builder()
+                .content(List.of())
+                .page(request.getPage())
+                .size(request.getSize())
+                .totalElements(0L)
+                .totalPages(0)
+                .hasNext(false)
+                .build();
+    }
+
+    // 관리자 관리비 상세 조회 서비스이다.
+    public AdminHouseholdBillDetailRes getAdminBillDetail(Long billId) {
+        //TODO billId 기준 관리비 헤더 조회
+        //TODO 세대 동호수와 청구 항목 목록 조회
+        return AdminHouseholdBillDetailRes.builder()
+                .billId(billId)
+                .baseFee(BigDecimal.ZERO)
+                .vehicleFee(BigDecimal.ZERO)
+                .facilityFee(BigDecimal.ZERO)
+                .visitorFee(BigDecimal.ZERO)
+                .totalFee(BigDecimal.ZERO)
+                .status(HouseholdBillStatus.DRAFT)
+                .items(List.of(
+                        AdminHouseholdBillDetailRes.Item.builder()
+                                .itemType(HouseholdBillItemType.BASE_FEE)
+                                .itemName("기본관리비")
+                                .amount(BigDecimal.ZERO)
+                                .calcMemo(null)
+                                .build()
+                ))
+                .confirmedAt(null)
                 .build();
     }
 
