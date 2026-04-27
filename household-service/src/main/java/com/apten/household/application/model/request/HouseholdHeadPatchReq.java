@@ -11,5 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HouseholdHeadPatchReq {
-    private String newHeadUserUid;
+
+    // 새로 세대주로 지정할 사용자 ID이다.
+    private Long userId;
 }

@@ -19,6 +19,7 @@ spring:
     consumer:
       group-id: auth-service-group
 
+
 constants:
   api:
     prefix: /api/auth

@@ -8,8 +8,13 @@ import lombok.Getter;
 @Getter
 @Builder
 public class HouseholdMatchApproveRes {
-    private String matchRequestUid;
-    private String userUid;
-    private String status;
-    private LocalDateTime approvedAt;
+
+    // 매칭 요청 ID이다.
+    private Long matchRequestId;
+
+    // 처리 상태이다.
+    private String matchStatus;
+
+    // 처리 시각이다.
+    private LocalDateTime processedAt;
 }

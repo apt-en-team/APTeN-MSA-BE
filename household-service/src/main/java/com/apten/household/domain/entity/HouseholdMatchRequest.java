@@ -6,8 +6,6 @@ import com.apten.household.domain.enums.HouseholdMatchStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -38,6 +36,7 @@ public class HouseholdMatchRequest extends BaseEntity {
     // 매칭 요청 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
     // 사용자 ID
@@ -73,14 +72,14 @@ public class HouseholdMatchRequest extends BaseEntity {
     private Long matchedHouseholdId;
 
     // 처리 방식
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "process_type", nullable = false, length = 20)
-    private HouseholdMatchProcessType processType;
+    private HouseholdMatchProcessType processType = HouseholdMatchProcessType.MANUAL;
 
     // 처리 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "match_status", nullable = false, length = 20)
-    private HouseholdMatchStatus matchStatus;
+    private HouseholdMatchStatus matchStatus = HouseholdMatchStatus.PENDING;
 
     // 처리 시각
     @Column(name = "processed_at")

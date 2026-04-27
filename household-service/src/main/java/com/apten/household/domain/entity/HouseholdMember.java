@@ -5,8 +5,6 @@ import com.apten.household.domain.enums.HouseholdMemberRole;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -26,7 +24,7 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "household_member",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_household_member_user_id", columnNames = "user_id")
+                @UniqueConstraint(name = "uk_household_member_user_household", columnNames = {"user_id", "household_id"})
         },
         indexes = {
                 @Index(name = "idx_household_member_household_id", columnList = "household_id"),
@@ -39,6 +37,7 @@ public class HouseholdMember extends BaseEntity {
     // 세대원 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
     // 세대 ID
@@ -50,13 +49,14 @@ public class HouseholdMember extends BaseEntity {
     private Long userId;
 
     // 세대원 역할
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "role", nullable = false, length = 20)
-    private HouseholdMemberRole role;
+    private HouseholdMemberRole role = HouseholdMemberRole.MEMBER;
 
     // 활성 여부
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
 
     // 세대원 정보를 수정한다
     public void update(HouseholdMemberRole role, Boolean isActive) {

@@ -5,8 +5,6 @@ import com.apten.household.domain.enums.HouseholdStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -35,6 +33,7 @@ public class HouseholdHistory extends BaseEntity {
     // 이력 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
     // 세대 ID
@@ -42,12 +41,10 @@ public class HouseholdHistory extends BaseEntity {
     private Long householdId;
 
     // 이전 상태
-    @Enumerated(EnumType.STRING)
     @Column(name = "from_status", length = 20)
     private HouseholdStatus fromStatus;
 
     // 변경 상태
-    @Enumerated(EnumType.STRING)
     @Column(name = "to_status", nullable = false, length = 20)
     private HouseholdStatus toStatus;
 

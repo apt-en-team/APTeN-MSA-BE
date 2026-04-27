@@ -8,8 +8,13 @@ import lombok.Getter;
 @Getter
 @Builder
 public class HouseholdHeadPatchRes {
-    private String householdUid;
-    private String previousHeadUserUid;
-    private String newHeadUserUid;
+
+    // 세대 ID이다.
+    private Long householdId;
+
+    // 새 세대주 사용자 ID이다.
+    private Long headUserId;
+
+    // 변경 시각이다.
     private LocalDateTime updatedAt;
 }

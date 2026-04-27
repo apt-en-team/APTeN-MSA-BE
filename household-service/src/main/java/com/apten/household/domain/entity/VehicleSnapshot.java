@@ -4,8 +4,6 @@ import com.apten.common.entity.BaseEntity;
 import com.apten.household.domain.enums.VehicleSnapshotStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -52,13 +50,14 @@ public class VehicleSnapshot extends BaseEntity {
     private String licensePlate;
 
     // 차량 승인 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private VehicleSnapshotStatus status;
+    private VehicleSnapshotStatus status = VehicleSnapshotStatus.APPROVED;
 
     // 삭제 여부
+    @Builder.Default
     @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted;
+    private Boolean isDeleted = false;
 
     // 차량 스냅샷 내용을 갱신한다
     public void apply(

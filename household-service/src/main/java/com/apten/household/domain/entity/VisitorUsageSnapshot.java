@@ -56,12 +56,14 @@ public class VisitorUsageSnapshot extends BaseEntity {
     private Integer usageMonth;
 
     // 총 이용 분
+    @Builder.Default
     @Column(name = "total_minutes", nullable = false)
-    private Integer totalMinutes;
+    private Integer totalMinutes = 0;
 
     // 총 이용 시간
+    @Builder.Default
     @Column(name = "total_hours", nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalHours;
+    private BigDecimal totalHours = BigDecimal.ZERO;
 
     // 방문차량 이용 스냅샷 내용을 갱신한다
     public void apply(
