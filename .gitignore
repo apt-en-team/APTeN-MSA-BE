@@ -1,3 +1,6 @@
+# 환경변수 파일
+.env
+
 # Gradle
 .gradle/
 build/

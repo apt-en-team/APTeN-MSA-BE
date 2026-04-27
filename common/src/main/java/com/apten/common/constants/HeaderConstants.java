@@ -14,6 +14,6 @@ public final class HeaderConstants {
     // gateway가 현재 로그인 사용자 역할을 실어 보낼 때 사용하는 헤더
     public static final String X_USER_ROLE = "X-User-Role";
 
-    // gateway가 현재 로그인 사용자의 소속 단지 ID를 실어 보낼 때 사용하는 헤더
+    // gateway가 현재 로그인 사용자가 속한 단지 ID를 실어 보낼 때 사용하는 헤더
     public static final String X_COMPLEX_ID = "X-Complex-Id";
 }

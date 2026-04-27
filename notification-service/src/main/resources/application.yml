@@ -11,9 +11,9 @@ spring:
       - optional:classpath:application-kafka.yml
   datasource:
     driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
-    url: jdbc:log4jdbc:mysql://localhost:3306/apten_notification?createDatabaseIfNotExist=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-    username: root
-    password: qaws7579
+    url: ${NOTIFICATION_DB_URL}
+    username: ${NOTIFICATION_DB_USERNAME}
+    password: ${NOTIFICATION_DB_PASSWORD}
   kafka:
     consumer:
       group-id: notification-service-group

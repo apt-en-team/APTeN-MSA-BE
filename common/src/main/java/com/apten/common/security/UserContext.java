@@ -15,6 +15,6 @@ public class UserContext {
     // 현재 요청에 적용할 사용자 역할
     private final UserRole userRole;
 
-    // 현재 로그인 사용자가 소속된 단지 ID
+    // 현재 사용자가 속한 단지 ID (MASTER는 null일 수 있다)
     private final Long complexId;
 }

@@ -1,4 +1,6 @@
 spring:
+  main:
+    web-application-type: reactive  # Gateway는 WebFlux 기반 — 리액티브 모드 강제 설정
   application:
     name: gateway-service
   autoconfigure:
@@ -10,6 +12,10 @@ spring:
     import:
       - optional:classpath:application-common.yml
       - optional:classpath:application-auth.yml
+  data:
+    redis:
+      host: localhost # Redis 호스트
+      port: 6379 # Redis 포트
   cloud:
     gateway:
       routes:

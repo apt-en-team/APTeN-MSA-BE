@@ -22,6 +22,9 @@ public class UserPrincipal implements OAuth2User {
     // 외부 응답용 사용자 UID
     private final String userUid;
 
+    // JWT에 실릴 단지 ID
+    private final Long complexId;
+
     // 후속 처리에서 참조할 기본 이메일 정보
     private final String email;
 

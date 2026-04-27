@@ -25,19 +25,25 @@ import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.UserRepository;
+import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
+import com.apten.auth.infrastructure.sms.CoolsmsClient;
 import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
+import com.apten.common.exception.BusinessException;
 import com.apten.common.security.UserContext;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 인증 응용 서비스
-// 로그인과 회원가입, 토큰, 비밀번호, SMS 인증 시그니처를 이 서비스에 모아둔다
+// 인증 응용 서비스 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -57,23 +63,95 @@ public class AuthService {
     // 사용자 원본 변경 이벤트를 Kafka 직접 발행 대신 Outbox에 저장하는 서비스
     private final AuthOutboxService authOutboxService;
 
+    // SMS 인증코드 및 토큰 임시 저장소
+    private final RedisTemplate<String, String> redisTemplate;
+
+    // Coolsms 문자 발송 클라이언트
+    private final CoolsmsClient coolsmsClient;
+
+    // 비밀번호 단방향 암호화
+    private final BCryptPasswordEncoder passwordEncoder;
+
     // 이메일 로그인 서비스
+    @Transactional
     public AuthLoginPostRes login(AuthLoginPostReq request) {
-        // TODO: 이메일 로그인 로직 구현
+        // 이메일로 회원 조회
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_CREDENTIALS));
+
+        // 계정 잠금 상태 확인 — 5회 실패 시 잠금 처리된 계정
+        if (user.getStatus() == UserStatus.LOCKED) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_LOCKED);
+        }
+
+        // 계정 활성화 상태 확인 — PENDING, REJECTED, DELETED 계정 차단
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
+        }
+
+        // 비밀번호 검증 실패 시 실패 횟수 증가 (5회 시 자동 잠금)
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            user.incrementLoginFailCount();
+            throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // 로그인 성공 — 실패 횟수 초기화 + 마지막 로그인 시각 갱신
+        user.resetLoginFailCount();
+
+        // auth.UserRole → common.UserRole 변환
+        // auth에는 USER가 있고 common에는 RESIDENT — JWT claim은 common 기준
+        com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+        UserContext userContext = UserContext.builder()
+                .userId(user.getId())
+                .userRole(commonRole)
+                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
+                .build();
+
+        // JWT 발급
+        String accessToken = jwtTokenProvider.issueAccessToken(userContext);
+        String refreshToken = jwtTokenProvider.issueRefreshToken(user.getId());
+
+        // Redis에 RefreshToken 저장 — key: refresh:{userId}, TTL: 14일
+        redisTemplate.opsForValue().set(
+                "refresh:" + user.getId(),
+                refreshToken,
+                Duration.ofDays(14)
+        );
+
         return AuthLoginPostRes.builder()
-                .accessToken("access-token")
-                .refreshToken("refresh-token")
-                .userId(1L)
-                .name(request.getEmail())
-                .role(UserRole.USER.getValue())
-                .status(UserStatus.ACTIVE.getValue())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .userId(user.getId())
+                .userUid(String.valueOf(user.getId()))
+                .name(user.getName())
+                .role(user.getRole().getValue())
+                .status(user.getStatus().getValue())
                 .build();
     }
 
     // 로그아웃 서비스
-    public AuthLogoutPostRes logout() {
-        // TODO: Refresh Token 무효화 처리
-        // TODO: Access Token 블랙리스트 등록 처리
+    @Transactional
+    public AuthLogoutPostRes logout(String authorizationHeader) {
+        // Authorization 헤더에서 토큰 추출
+        String accessToken = jwtTokenProvider.resolveToken(authorizationHeader);
+
+        // JWT 파싱해서 만료 시각 계산
+        Long userId = jwtTokenProvider.getUserId(accessToken);
+
+        // AT 남은 유효시간 계산 — 블랙리스트 TTL로 사용
+        // AT가 만료되면 Gateway에서 이미 차단되므로 남은 시간만큼만 저장
+        long remainMs = jwtTokenProvider.getExpiration(accessToken).getTime() - System.currentTimeMillis();
+        if (remainMs > 0) {
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + accessToken,
+                    "logout",
+                    Duration.ofMillis(remainMs)
+            );
+        }
+
+        // Redis에서 RefreshToken 삭제
+        redisTemplate.delete("refresh:" + userId);
+
         return AuthLogoutPostRes.builder()
                 .message("로그아웃 완료")
                 .build();
@@ -82,11 +160,36 @@ public class AuthService {
     // 이메일 회원가입 서비스
     @Transactional
     public AuthRegisterPostRes register(AuthRegisterPostReq request) {
-        // 회원 원본을 먼저 저장해 aggregateId로 사용할 Long PK를 확보한다
+        // SMS 인증코드 검증 — Redis에 저장된 코드와 요청 코드 비교
+        String storedCode = redisTemplate.opsForValue()
+                .get("sms:" + request.getPhone());
+
+        // Redis에 없으면 TTL 만료 — 인증코드 유효시간 초과
+        if (storedCode == null) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_EXPIRED);
+        }
+
+        // 입력값과 저장값 불일치
+        if (!storedCode.equals(request.getAuthCode())) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
+        }
+
+        // 인증 성공 후 즉시 삭제 — 재사용 방지
+        redisTemplate.delete("sms:" + request.getPhone());
+
+        // 이메일 중복 확인
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new BusinessException(AuthErrorCode.DUPLICATE_EMAIL);
+        }
+
+        // 비밀번호 BCrypt 암호화
+        String passwordHash = passwordEncoder.encode(request.getPassword());
+
+        // 회원 원본 저장 — aggregateId로 사용할 Long PK 확보
         User user = User.builder()
                 .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
-                .passwordHash(null)
+                .passwordHash(passwordHash)
                 .name(request.getName())
                 .phone(request.getPhone())
                 .birthDate(request.getBirthDate())
@@ -95,17 +198,16 @@ public class AuthService {
                 .role(UserRole.USER)
                 .status(UserStatus.PENDING)
                 .signupType(SignupType.EMAIL)
-                .isPhoneVerified(false)
+                .isPhoneVerified(true)  // SMS 인증 완료
                 .isEmailVerified(false)
                 .loginFailCount(0)
                 .isDeleted(false)
                 .build();
         User savedUser = userRepository.save(user);
 
-        // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남긴다
+        // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남김
         authOutboxService.saveCreatedEvent(savedUser);
 
-        // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
         return AuthRegisterPostRes.builder()
                 .apartmentComplexUid(request.getApartmentComplexUid())
                 .userId(savedUser.getId())
@@ -121,7 +223,7 @@ public class AuthService {
     // 소셜 회원가입 서비스
     @Transactional
     public AuthSocialSignupPostRes socialSignup(AuthSocialSignupPostReq request) {
-        // 소셜 가입도 user 원본을 먼저 저장해 Outbox aggregateId로 사용할 PK를 확보한다
+        // 소셜 가입도 user 원본을 먼저 저장해 Outbox aggregateId로 사용할 PK를 확보
         User user = User.builder()
                 .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
@@ -141,10 +243,9 @@ public class AuthService {
                 .build();
         User savedUser = userRepository.save(user);
 
-        // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
+        // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
         authOutboxService.saveCreatedEvent(savedUser);
 
-        // TODO: 회원가입 요청 이벤트는 세대 매칭 명세 확정 후 별도 Outbox 이벤트로 분리
         return AuthSocialSignupPostRes.builder()
                 .userId(savedUser.getId())
                 .userUid(String.valueOf(savedUser.getId()))
@@ -157,11 +258,62 @@ public class AuthService {
     }
 
     // 토큰 재발급 서비스
+    @Transactional
     public AuthTokenRefreshPostRes refreshToken(AuthTokenRefreshPostReq request) {
-        // TODO: Refresh Token 검증 및 재발급 로직 구현
+        String refreshToken = request.getRefreshToken();
+
+        // RT 유효성 검증 — 만료 또는 위조 시 예외
+        jwtTokenProvider.validateToken(refreshToken);
+
+        // RT에서 userId 추출 — RT에는 role claim 없음
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+
+        // Redis에서 저장된 RT 조회
+        String storedRT = redisTemplate.opsForValue().get("refresh:" + userId);
+
+        // Redis에 없으면 로그아웃된 상태
+        if (storedRT == null) {
+            throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        // 요청 RT와 Redis RT 불일치 — 토큰 탈취 의심
+        if (!storedRT.equals(refreshToken)) {
+            // 기존 RT 무효화
+            redisTemplate.delete("refresh:" + userId);
+            throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        // DB에서 최신 User 조회 — 재발급 시점의 최신 role, status 반영
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        // 계정 상태 확인
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
+        }
+
+        // 최신 정보로 새 AT 발급
+        // 최신 정보로 새 AT 발급
+        com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+        UserContext userContext = UserContext.builder()
+                .userId(userId)
+                .userRole(commonRole)
+                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
+                .build();
+        String newAccessToken = jwtTokenProvider.issueAccessToken(userContext);
+
+        // Refresh Token Rotation — 새 RT 발급 후 Redis 갱신
+        // 매번 새 RT를 발급해 기존 RT 재사용 공격 방지
+        String newRefreshToken = jwtTokenProvider.issueRefreshToken(userId);
+        redisTemplate.opsForValue().set(
+                "refresh:" + userId,
+                newRefreshToken,
+                Duration.ofDays(14)
+        );
+
         return AuthTokenRefreshPostRes.builder()
-                .accessToken("refreshed-access-token")
-                .refreshToken(request.getRefreshToken())
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 
@@ -183,15 +335,43 @@ public class AuthService {
 
     // SMS 인증번호 발송 서비스
     public AuthSmsSendPostRes sendSmsCode(AuthSmsSendPostReq request) {
-        // TODO: SMS 인증번호 발송 로직 구현
+        // 6자리 랜덤 인증코드 생성
+        String code = String.format("%06d",
+                ThreadLocalRandom.current().nextInt(0, 1_000_000));
+
+        // Redis 저장 — key: sms:{phone}, TTL: 5분 후 자동 삭제
+        redisTemplate.opsForValue().set(
+                "sms:" + request.getPhone(),
+                code,
+                Duration.ofMinutes(5)
+        );
+
+        // Coolsms로 실제 문자 발송
+        coolsmsClient.send(request.getPhone(), code);
+
         return AuthSmsSendPostRes.builder()
                 .message("SMS 인증번호 발송 완료")
                 .build();
     }
 
-    // SMS 인증번호 검증 서비스
+    // SMS 인증번호 검증 서비스 — 회원가입 외 단독 인증에 사용
     public AuthSmsVerifyPostRes verifySmsCode(AuthSmsVerifyPostReq request) {
-        // TODO: SMS 인증번호 검증 로직 구현
+        String storedCode = redisTemplate.opsForValue()
+                .get("sms:" + request.getPhone());
+
+        // Redis에 없으면 TTL 만료 — 인증코드 유효시간 초과
+        if (storedCode == null) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_EXPIRED);
+        }
+
+        // 입력값과 저장값 불일치
+        if (!storedCode.equals(request.getCode())) {
+            throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
+        }
+
+        // 인증 성공 후 즉시 삭제 — 재사용 방지
+        redisTemplate.delete("sms:" + request.getPhone());
+
         return AuthSmsVerifyPostRes.builder()
                 .verified(true)
                 .build();
@@ -199,17 +379,26 @@ public class AuthService {
 
     // 이메일 중복 확인 서비스
     public AuthCheckEmailRes checkEmailDuplicate(AuthCheckEmailReq request) {
-        // TODO: 이메일 중복 확인 로직 구현
+        boolean isDuplicate = userRepository.findByEmail(request.getEmail()).isPresent();
         return AuthCheckEmailRes.builder()
-                .isDuplicate(false)
+                .isDuplicate(isDuplicate)
                 .build();
     }
 
     // OAuth2 성공 핸들러가 호출하는 JWT 응답 생성 서비스
+    @Transactional
     public AuthLoginPostRes issueTokenResponse(UserPrincipal userPrincipal) {
         UserContext userContext = authUserMapper.toUserContext(userPrincipal);
         String accessToken = jwtTokenProvider.issueAccessToken(userContext);
         String refreshToken = jwtTokenProvider.issueRefreshToken(userPrincipal.getUserId());
+
+        // Redis에 RefreshToken 저장 — key: refresh:{userId}, TTL: 14일
+        redisTemplate.opsForValue().set(
+                "refresh:" + userPrincipal.getUserId(),
+                refreshToken,
+                Duration.ofDays(14)
+        );
+
         return authUserMapper.toLoginResponse(accessToken, refreshToken, userPrincipal);
     }
 
@@ -217,7 +406,7 @@ public class AuthService {
     // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
     // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
 
-    // 단지 UID와 Long 원본 ID 매핑이 들어오기 전까지 숫자 UID만 이벤트용 complexId로 변환한다
+    // 단지 UID를 Long으로 변환 — 매핑 확정 전까지 숫자 UID만 허용
     private Long resolveComplexId(String apartmentComplexUid) {
         try {
             return Long.valueOf(apartmentComplexUid);

@@ -21,6 +21,7 @@ public class AuthUserMapper {
                 .displayName(user.getName())
                 .role(user.getRole().toCommonUserRole())
                 .status(user.getStatus().getValue())
+                .complexId(user.getComplexId())
                 .nameAttributeKey(nameAttributeKey)
                 .attributes(attributes)
                 .build();
@@ -43,6 +44,7 @@ public class AuthUserMapper {
         return UserContext.builder()
                 .userId(userPrincipal.getUserId())
                 .userRole(userPrincipal.getRole())
+                .complexId(userPrincipal.getComplexId())
                 .build();
     }
 
