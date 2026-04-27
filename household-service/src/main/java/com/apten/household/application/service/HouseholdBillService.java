@@ -49,13 +49,30 @@ public class HouseholdBillService {
 
     // 방문차량 비용 반영 서비스이다.
     public VisitorFeeReflectRes reflectVisitorFee(VisitorFeeReflectReq request) {
-        //TODO visitor_usage_snapshot 집계 결과 조회
-        //TODO household_bill과 household_bill_item 반영
+        //TODO 방문차량 비용 반영 이벤트 또는 내부 API 요청 수신
+        //TODO Parking 서비스에서 산정한 방문차량 이용시간과 비용을 수신
+        //TODO complexId, billYear, billMonth 기준 유효성 검증
+        //TODO householdId별 visitor_usage_snapshot 기존 데이터 조회
+        //TODO 기존 데이터가 있으면 totalMinutes, totalHours, freeMinutes, extraMinutes, visitorFee 갱신
+        //TODO 기존 데이터가 없으면 visitor_usage_snapshot 신규 생성
+        //TODO visitor_usage_snapshot에 월별 방문차량 비용 결과 upsert
+        //TODO household_bill의 visitorFee와 totalFee에 반영
+        //TODO 처리 완료 건수와 반영 시간을 응답
         return VisitorFeeReflectRes.builder()
                 .complexId(request.getComplexId())
                 .billYear(request.getBillYear())
                 .billMonth(request.getBillMonth())
-                .affectedHouseholdCount(0)
+                .items(request.getItems() == null ? List.of() : request.getItems().stream()
+                        .map(item -> VisitorFeeReflectRes.Item.builder()
+                                .householdId(item.getHouseholdId())
+                                .totalMinutes(item.getTotalMinutes())
+                                .totalHours(item.getTotalHours())
+                                .freeMinutes(item.getFreeMinutes())
+                                .extraMinutes(item.getExtraMinutes())
+                                .visitorFee(item.getVisitorFee())
+                                .build())
+                        .toList())
+                .affectedHouseholdCount(request.getItems() == null ? 0 : request.getItems().size())
                 .reflectedAt(LocalDateTime.now())
                 .build();
     }
