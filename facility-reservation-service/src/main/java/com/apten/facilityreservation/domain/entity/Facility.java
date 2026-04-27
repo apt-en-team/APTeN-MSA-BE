@@ -17,8 +17,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 예약 대상 시설 엔티티
-// 예약 방식과 운영 시간, 기본 요금을 이 테이블이 관리한다
+// 예약 대상 시설 엔티티이다.
+// 시설 타입 기본 정책 위에 개별 시설 override 값을 얹는 구조를 사용한다.
 @Entity
 @Table(name = "facility")
 @Getter
@@ -66,12 +66,14 @@ public class Facility extends BaseEntity {
     @Column(name = "close_time", nullable = false)
     private LocalTime closeTime;
 
-    // 예약 단위 분
-    @Column(name = "slot_min", nullable = false)
+    // 개별 시설 override 예약 단위이다.
+    // 값이 없으면 facility_policy.slot_min을 사용한다.
+    @Column(name = "slot_min")
     private Integer slotMin;
 
-    // 기본 요금
-    @Column(name = "base_fee", nullable = false)
+    // 개별 시설 override 기본 요금이다.
+    // 값이 없으면 facility_policy.base_fee를 사용한다.
+    @Column(name = "base_fee", precision = 12, scale = 2)
     private BigDecimal baseFee;
 
     // 활성 여부

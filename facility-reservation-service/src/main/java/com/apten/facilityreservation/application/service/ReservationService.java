@@ -36,6 +36,8 @@ public class ReservationService {
 
     public ReservationPostRes createReservation(ReservationPostReq request) {
         // TODO: 일반 예약 생성 로직 구현
+        // TODO: facility와 facility_type, facility_policy를 함께 조회해 실제 예약 정책 값을 계산한다.
+        // TODO: facility.slotMin과 facility.baseFee가 있으면 시설 override를 우선 적용한다.
         // TODO: 정원 초과 동시성 제어 처리
         // TODO: 예약 상태 변경 이벤트 발행
         return ReservationPostRes.builder()
@@ -91,6 +93,7 @@ public class ReservationService {
 
     public ReservationCancelRes cancelReservation(String reservationUid) {
         // TODO: 예약 취소 가능 시간 검증 후 취소 처리
+        // TODO: 취소 가능 시간은 facility_policy.cancel_deadline_hours를 기준으로 계산한다.
         // TODO: 예약 상태 변경 이벤트 발행
         return ReservationCancelRes.builder()
                 .reservationUid(reservationUid)

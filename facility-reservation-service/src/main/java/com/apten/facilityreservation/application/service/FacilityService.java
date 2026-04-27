@@ -41,11 +41,14 @@ public class FacilityService {
 
     public FacilityPostRes createFacility(FacilityPostReq request) {
         // TODO: 시설 등록 로직 구현
+        // TODO: facility_type.type_code와 complexId 기준으로 facility_policy를 조회한다.
+        // TODO: 시설별 override 값이 없으면 facility_policy의 기본 요금과 예약 단위를 사용한다.
         return FacilityPostRes.builder().name(request.getName()).createdAt(LocalDateTime.now()).build();
     }
 
     public FacilityPatchRes updateFacility(String facilityUid, FacilityPatchReq request) {
         // TODO: 시설 수정 로직 구현
+        // TODO: 시설별 override 값과 시설 타입 기본 정책의 우선순위를 함께 관리한다.
         return FacilityPatchRes.builder().facilityUid(facilityUid).name(request.getName()).updatedAt(LocalDateTime.now()).build();
     }
 
