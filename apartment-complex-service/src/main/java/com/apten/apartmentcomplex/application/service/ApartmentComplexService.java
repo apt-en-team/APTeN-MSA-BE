@@ -195,7 +195,7 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 관리자 단지 소속 지정 서비스 API-205이다.
+    // 관리자 단지 소속 지정 서비스 API-206이다.
     @Transactional
     public ComplexAdminPostRes assignAdminToComplex(String code, ComplexAdminPostReq req) {
         // 단지 코드로 배정 대상을 먼저 찾는다.
@@ -313,10 +313,18 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 공개 단지 목록 조회 서비스 API-214 mb
+    // 공개 단지 목록 조회 서비스 API-209이다.
+    @Transactional(readOnly = true)
     public List<ApartmentComplexPublicRes> getAvailableApartmentComplexes(String keyword) {
-        // TODO: 가입 화면용 공개 단지 목록 조회 로직 구현
-        return List.of();
+        // 회원가입과 단지 선택 화면에는 활성 단지만 노출한다.
+        return apartmentComplexRepository.findPublicListByKeyword(keyword, ApartmentComplexStatus.ACTIVE)
+                .stream()
+                .map(complex -> ApartmentComplexPublicRes.builder()
+                        .code(complex.getCode())
+                        .name(complex.getName())
+                        .address(complex.getAddress())
+                        .build())
+                .toList();
     }
 
     // user_cache의 플랫폼 권한과 상태를 보고 단지 배정 가능한 ADMIN인지 검증한다.

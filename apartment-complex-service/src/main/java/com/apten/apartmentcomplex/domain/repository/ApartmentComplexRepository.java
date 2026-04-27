@@ -1,8 +1,9 @@
 package com.apten.apartmentcomplex.domain.repository;
 
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
+import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
+import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -35,5 +36,20 @@ public interface ApartmentComplexRepository extends JpaRepository<ApartmentCompl
     Page<ApartmentComplex> findPageByKeyword(
             @Param("keyword") String keyword,
             Pageable pageable
+    );
+
+    // 공개 단지 목록에서 활성 단지만 조회하고 키워드 검색을 함께 적용한다.
+    @Query("""
+            SELECT c
+            FROM ApartmentComplex c
+            WHERE c.status = :status
+              AND (:keyword IS NULL OR :keyword = ''
+                   OR c.name LIKE CONCAT('%', :keyword, '%')
+                   OR c.address LIKE CONCAT('%', :keyword, '%'))
+            ORDER BY c.name ASC, c.id DESC
+            """)
+    List<ApartmentComplex> findPublicListByKeyword(
+            @Param("keyword") String keyword,
+            @Param("status") ApartmentComplexStatus status
     );
 }
