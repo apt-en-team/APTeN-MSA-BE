@@ -2,17 +2,23 @@ package com.apten.apartmentcomplex.application.controller;
 
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
+import com.apten.apartmentcomplex.application.model.request.ApartmentComplexStatusPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetDetailRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetPageRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPostRes;
+import com.apten.apartmentcomplex.application.model.response.ApartmentComplexStatusPatchRes;
+import com.apten.apartmentcomplex.application.model.response.ComplexAdminDeleteRes;
+import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.application.service.ApartmentComplexService;
 import com.apten.common.response.ResultResponse;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,8 +29,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-// 관리자 단지 API 진입점 권한 MASTER만 접근 가능함
-// 단지 등록, 조회, 수정, 관리자 소속 지정을 이 컨트롤러가 받는다
+// 관리자 단지 API 진입점이다.
+// 단지 등록과 조회, 수정, 상태 변경, 관리자 배정/해제/조회 요청을 이 컨트롤러가 받는다.
 @RestController
 @Slf4j
 @RequiredArgsConstructor
@@ -74,6 +80,18 @@ public class AdminApartmentComplexController {
         );
     }
 
+    // 단지 상태 변경 API이다.
+    @PatchMapping("/{code}/status")
+    public ResultResponse<ApartmentComplexStatusPatchRes> changeApartmentComplexStatus(
+            @PathVariable String code,
+            @RequestBody ApartmentComplexStatusPatchReq req
+    ) {
+        return ResultResponse.success(
+                "단지 상태 변경 성공",
+                apartmentComplexService.changeApartmentComplexStatus(code, req)
+        );
+    }
+
     // 관리자 단지 소속 지정 API-205
     @PostMapping("/{code}/admins")
     @ResponseStatus(HttpStatus.CREATED)
@@ -84,6 +102,27 @@ public class AdminApartmentComplexController {
         return ResultResponse.success(
                 "단지 관리자 지정 성공",
                 apartmentComplexService.assignAdminToComplex(code, req)
+        );
+    }
+
+    // 단지 관리자 목록 조회 API이다.
+    @GetMapping("/{code}/admins")
+    public ResultResponse<List<ComplexAdminGetRes>> getComplexAdminList(@PathVariable String code) {
+        return ResultResponse.success(
+                "단지 관리자 목록 조회 성공",
+                apartmentComplexService.getComplexAdminList(code)
+        );
+    }
+
+    // 단지 관리자 소속 해제 API이다.
+    @DeleteMapping("/{code}/admins/{userId}")
+    public ResultResponse<ComplexAdminDeleteRes> unassignAdminFromComplex(
+            @PathVariable String code,
+            @PathVariable Long userId
+    ) {
+        return ResultResponse.success(
+                "단지 관리자 해제 성공",
+                apartmentComplexService.unassignAdminFromComplex(code, userId)
         );
     }
 }

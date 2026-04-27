@@ -61,20 +61,23 @@ public class ApartmentComplex extends BaseEntity {
     @Column(name = "description")
     private String description;
 
-    // 단지 기본 정보를 수정할 때 사용한다
+    // 단지 기본 정보를 수정할 때 사용한다.
     public void update(
             String name,
             String address,
             String addressDetail,
             String zipCode,
-            ApartmentComplexStatus status,
             String description
     ) {
         this.name = name;
         this.address = address;
         this.addressDetail = addressDetail;
         this.zipCode = zipCode;
-        this.status = status;
         this.description = description;
+    }
+
+    // 단지 활성 상태를 별도 API에서 변경할 때 사용한다.
+    public void changeStatus(ApartmentComplexStatus status) {
+        this.status = status;
     }
 }

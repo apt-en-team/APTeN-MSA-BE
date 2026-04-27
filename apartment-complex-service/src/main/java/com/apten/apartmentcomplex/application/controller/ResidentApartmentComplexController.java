@@ -20,7 +20,7 @@ public class ResidentApartmentComplexController {
     // 단지 응용 서비스
     private final ApartmentComplexService apartmentComplexService;
 
-    // 공개 단지 목록 조회 API
+    // 공개 단지 목록 조회 API-214
     @GetMapping
     public ResultResponse<List<ApartmentComplexPublicRes>> getAvailableApartmentComplexes(
             @RequestParam(required = false) String keyword

@@ -1,19 +1,11 @@
 package com.apten.apartmentcomplex.infrastructure.kafka;
 
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
-import com.apten.apartmentcomplex.domain.entity.ComplexPolicy;
-import com.apten.apartmentcomplex.domain.entity.FacilityPolicy;
-import com.apten.apartmentcomplex.domain.entity.VehiclePolicy;
-import com.apten.apartmentcomplex.domain.entity.VisitorPolicy;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
 import com.apten.common.kafka.KafkaTopics;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
-import com.apten.common.kafka.payload.ComplexPolicyEventPayload;
-import com.apten.common.kafka.payload.FacilityPolicyEventPayload;
-import com.apten.common.kafka.payload.VehiclePolicyEventPayload;
-import com.apten.common.kafka.payload.VisitorPolicyEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -68,73 +60,6 @@ public class ApartmentComplexOutboxService {
             return ApartmentComplexStatus.INACTIVE.name();
         }
         return apartmentComplex.getStatus().name();
-    }
-
-    // 기본 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
-    public void saveComplexPolicyUpdatedEvent(ComplexPolicy policy) {
-        // 기본 정책 캐시에 필요한 필드만 payload로 만든다.
-        ComplexPolicyEventPayload payload = ComplexPolicyEventPayload.builder()
-                .complexPolicyId(policy.getId())
-                .apartmentComplexId(policy.getComplexId())
-                .baseFee(policy.getBaseFee())
-                .paymentDueDay(policy.getPaymentDueDay())
-                .lateFeeRate(policy.getLateFeeRate())
-                .lateFeeUnit(policy.getLateFeeUnit())
-                .isActive(policy.getIsActive())
-                .build();
-
-        // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
-        saveOutboxEvent(KafkaTopics.COMPLEX_POLICY, EventType.COMPLEX_POLICY_UPDATED, policy.getComplexId(), payload);
-    }
-
-    // 차량 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
-    public void saveVehiclePolicyUpdatedEvent(VehiclePolicy policy) {
-        // 현재 차량 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
-        VehiclePolicyEventPayload payload = VehiclePolicyEventPayload.builder()
-                .vehiclePolicyId(policy.getId())
-                .apartmentComplexId(policy.getComplexId())
-                .carCount(policy.getCarCount())
-                .monthlyFee(policy.getMonthlyFee())
-                .isLimitRule(policy.getIsLimitRule())
-                .isActive(policy.getIsActive())
-                .build();
-
-        // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
-        saveOutboxEvent(KafkaTopics.VEHICLE_POLICY, EventType.VEHICLE_POLICY_UPDATED, policy.getComplexId(), payload);
-    }
-
-    // 시설 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
-    public void saveFacilityPolicyUpdatedEvent(FacilityPolicy policy) {
-        // 현재 시설 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
-        FacilityPolicyEventPayload payload = FacilityPolicyEventPayload.builder()
-                .facilityPolicyId(policy.getId())
-                .apartmentComplexId(policy.getComplexId())
-                .facilityTypeCode(policy.getFacilityTypeCode())
-                .baseFee(policy.getBaseFee())
-                .slotMin(policy.getSlotMin())
-                .cancelDeadlineHours(policy.getCancelDeadlineHours())
-                .gxWaitingEnable(policy.getGxWaitingEnable())
-                .isActive(policy.getIsActive())
-                .build();
-
-        // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
-        saveOutboxEvent(KafkaTopics.FACILITY_POLICY, EventType.FACILITY_POLICY_UPDATED, policy.getComplexId(), payload);
-    }
-
-    // 방문차량 정책 저장 직후 같은 트랜잭션에서 정책 수정 이벤트를 Outbox에 적재한다.
-    public void saveVisitorPolicyUpdatedEvent(VisitorPolicy policy) {
-        // 현재 방문차량 정책 엔티티 기준으로 캐시 동기화에 필요한 필드만 담는다.
-        VisitorPolicyEventPayload payload = VisitorPolicyEventPayload.builder()
-                .apartmentComplexId(policy.getComplexId())
-                .freeMinutes(policy.getFreeMinutes())
-                .extraFeePerUnit(policy.getHourFee())
-                .extraFeeUnitMinutes(60)
-                .dailyMaxFee(policy.getHourFee())
-                .isActive(policy.getIsActive())
-                .build();
-
-        // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
-        saveOutboxEvent(KafkaTopics.VISITOR_POLICY, EventType.VISITOR_POLICY_UPDATED, policy.getComplexId(), payload);
     }
 
     // payload를 공통 envelope로 감싸고 JSON 변환 후 Outbox row로 저장하는 공통 메서드이다.

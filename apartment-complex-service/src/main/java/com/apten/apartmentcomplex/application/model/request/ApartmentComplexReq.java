@@ -1,6 +1,5 @@
 package com.apten.apartmentcomplex.application.model.request;
 
-import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -17,6 +16,5 @@ public class ApartmentComplexReq {
     private String address;
     private String addressDetail;
     private String zipcode;
-    private ApartmentComplexStatus status;
     private String description;
 }
