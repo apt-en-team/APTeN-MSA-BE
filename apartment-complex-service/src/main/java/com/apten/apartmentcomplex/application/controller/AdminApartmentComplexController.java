@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Slf4j
 @RequiredArgsConstructor
-@RequestMapping("/api/admin/apartment-complexes")
+@RequestMapping("/api/admin/master/apartment-complexes")
 public class AdminApartmentComplexController {
 
     // 단지 응용 서비스
