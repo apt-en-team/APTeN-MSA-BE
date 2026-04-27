@@ -1,9 +1,10 @@
 package com.apten.parkingvehicle.application.controller;
 
 import com.apten.common.response.ResultResponse;
-import com.apten.parkingvehicle.application.model.request.VehicleAdminSearchReq;
+import com.apten.parkingvehicle.application.model.request.AdminVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
-import com.apten.parkingvehicle.application.model.response.VehicleAdminGetPageRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleApproveRes;
 import com.apten.parkingvehicle.application.model.response.VehicleRejectRes;
 import com.apten.parkingvehicle.application.service.VehicleService;
@@ -22,21 +23,24 @@ public class AdminVehicleController {
 
     private final VehicleService vehicleService;
 
-    @PatchMapping("/api/admin/vehicles/{vehicleUid}/approve")
-    public ResultResponse<VehicleApproveRes> approveVehicle(@PathVariable String vehicleUid) {
-        return ResultResponse.success("차량 승인 성공", vehicleService.approveVehicle(vehicleUid));
+    //차량 승인 API-304
+    @PatchMapping("/api/admin/vehicles/{vehicleId}/approve")
+    public ResultResponse<VehicleApproveRes> approveVehicle(@PathVariable Long vehicleId) {
+        return ResultResponse.success("차량 승인 성공", vehicleService.approveVehicle(vehicleId));
     }
 
-    @PatchMapping("/api/admin/vehicles/{vehicleUid}/reject")
+    //차량 거절 API-305
+    @PatchMapping("/api/admin/vehicles/{vehicleId}/reject")
     public ResultResponse<VehicleRejectRes> rejectVehicle(
-            @PathVariable String vehicleUid,
+            @PathVariable Long vehicleId,
             @RequestBody VehicleRejectReq request
     ) {
-        return ResultResponse.success("차량 거절 성공", vehicleService.rejectVehicle(vehicleUid, request));
+        return ResultResponse.success("차량 거절 성공", vehicleService.rejectVehicle(vehicleId, request));
     }
 
+    //전체 차량 조회 API-307
     @GetMapping("/api/admin/vehicles")
-    public ResultResponse<VehicleAdminGetPageRes> getAdminVehicleList(@ModelAttribute VehicleAdminSearchReq request) {
+    public ResultResponse<PageResponse<AdminVehicleListRes>> getAdminVehicleList(@ModelAttribute AdminVehicleListReq request) {
         return ResultResponse.success("전체 차량 목록 조회 성공", vehicleService.getAdminVehicleList(request));
     }
 }

@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.kafka.payload.HouseholdEventPayload;
+import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
 import com.apten.parkingvehicle.domain.entity.UserCache;
@@ -36,5 +37,17 @@ public class ParkingVehicleReferenceCacheService {
                 .orElseGet(() -> HouseholdCache.builder().id(payload.getHouseholdId()).build());
         householdCache.apply(payload);
         householdCacheRepository.save(householdCache);
+    }
+
+    // 세대원 이벤트를 받아 세대 캐시의 세대주 식별자를 동기화한다.
+    public void syncHouseholdHeadUser(HouseholdMemberEventPayload payload) {
+        //TODO 세대원 삭제와 역할 변경까지 고려한 세대주 동기화 정책 확정
+        householdCacheRepository.findById(payload.getHouseholdId())
+                .ifPresent(householdCache -> {
+                    if ("HEAD".equals(payload.getMemberRole())) {
+                        householdCache.updateHeadUserId(payload.getUserId());
+                        householdCacheRepository.save(householdCache);
+                    }
+                });
     }
 }

@@ -6,9 +6,8 @@ import com.apten.parkingvehicle.domain.enums.VehicleType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -23,6 +22,12 @@ import lombok.NoArgsConstructor;
         name = "vehicle",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_vehicle_complex_license_plate", columnNames = {"complex_id", "license_plate"})
+        },
+        indexes = {
+                @Index(name = "idx_vehicle_user_id", columnList = "user_id"),
+                @Index(name = "idx_vehicle_household_id", columnList = "household_id"),
+                @Index(name = "idx_vehicle_status", columnList = "status"),
+                @Index(name = "idx_vehicle_complex_id", columnList = "complex_id")
         }
 )
 @Getter
@@ -58,18 +63,19 @@ public class Vehicle extends BaseEntity {
     private String modelName;
 
     // 차량 종류
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "vehicle_type", nullable = false, length = 20)
-    private VehicleType vehicleType;
+    private VehicleType vehicleType = VehicleType.CAR;
 
     // 승인 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private VehicleStatus status;
+    private VehicleStatus status = VehicleStatus.PENDING;
 
     // 대표 차량 여부
+    @Builder.Default
     @Column(name = "is_primary", nullable = false)
-    private Boolean isPrimary;
+    private Boolean isPrimary = false;
 
     // 승인 일시
     @Column(name = "approved_at")
@@ -80,8 +86,9 @@ public class Vehicle extends BaseEntity {
     private String rejectReason;
 
     // 소프트 삭제 여부
+    @Builder.Default
     @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted;
+    private Boolean isDeleted = false;
 
     // 삭제 일시
     @Column(name = "deleted_at")

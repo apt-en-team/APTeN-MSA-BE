@@ -9,4 +9,7 @@ public interface VisitorPolicyRepository extends JpaRepository<VisitorPolicy, Lo
 
     // 단지 ID 기준 방문차량 정책을 조회한다.
     Optional<VisitorPolicy> findByComplexId(Long complexId);
+
+    // 단지 ID 기준 활성 방문차량 정책을 조회한다.
+    Optional<VisitorPolicy> findByComplexIdAndIsActiveTrue(Long complexId);
 }

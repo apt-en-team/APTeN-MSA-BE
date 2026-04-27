@@ -5,6 +5,7 @@ import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,7 +16,15 @@ import lombok.NoArgsConstructor;
 
 // 정기적으로 방문하는 차량 정보를 관리하는 엔티티
 @Entity
-@Table(name = "regular_visitor_vehicle")
+@Table(
+        name = "regular_visitor_vehicle",
+        indexes = {
+                @Index(name = "idx_regular_visitor_vehicle_user_id", columnList = "user_id"),
+                @Index(name = "idx_regular_visitor_vehicle_household_id", columnList = "household_id"),
+                @Index(name = "idx_regular_visitor_vehicle_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_regular_visitor_vehicle_is_active", columnList = "is_active")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -61,12 +70,14 @@ public class RegularVisitorVehicle extends BaseEntity {
     private LocalDate endDate;
 
     // 활성 여부
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
 
     // 소프트 삭제 여부
+    @Builder.Default
     @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted;
+    private Boolean isDeleted = false;
 
     // 삭제 일시
     @Column(name = "deleted_at")

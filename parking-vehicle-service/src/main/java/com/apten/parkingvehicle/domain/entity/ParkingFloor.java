@@ -5,6 +5,7 @@ import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,10 @@ import lombok.NoArgsConstructor;
         name = "parking_floor",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_parking_floor_complex_floor_name", columnNames = {"complex_id", "floor_name"})
+        },
+        indexes = {
+                @Index(name = "idx_parking_floor_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_parking_floor_is_active", columnList = "is_active")
         }
 )
 @Getter
@@ -41,10 +46,19 @@ public class ParkingFloor extends BaseEntity {
     private String floorName;
 
     // 전체 면수
+    @Builder.Default
     @Column(name = "total_slots", nullable = false)
-    private Integer totalSlots;
+    private Integer totalSlots = 0;
 
     // 활성 여부
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
+
+    // 주차층 기본 정보를 수정한다.
+    public void update(String floorName, Integer totalSlots, Boolean isActive) {
+        this.floorName = floorName;
+        this.totalSlots = totalSlots;
+        this.isActive = isActive;
+    }
 }
