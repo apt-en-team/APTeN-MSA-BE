@@ -31,7 +31,7 @@ public class AdminHouseholdTypeController {
     // 세대 유형 응용 서비스
     private final HouseholdTypeService householdTypeService;
 
-    // 세대 유형 등록 API
+    // 세대 유형 등록 API-210
     @PostMapping("/apartment-complexes/{apartmentComplexUid}/household-types")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<HouseholdTypePostRes> createHouseholdType(
@@ -44,7 +44,7 @@ public class AdminHouseholdTypeController {
         );
     }
 
-    // 세대 유형 목록 조회 API
+    // 세대 유형 목록 조회 API-211
     @GetMapping("/apartment-complexes/{apartmentComplexUid}/household-types")
     public ResultResponse<List<HouseholdTypeRes>> getHouseholdTypeList(@PathVariable String apartmentComplexUid) {
         return ResultResponse.success(
@@ -53,7 +53,7 @@ public class AdminHouseholdTypeController {
         );
     }
 
-    // 세대 유형 수정 API
+    // 세대 유형 수정 API-212
     @PatchMapping("/household-types/{householdTypeUid}")
     public ResultResponse<HouseholdTypePatchRes> updateHouseholdType(
             @PathVariable String householdTypeUid,
@@ -65,7 +65,7 @@ public class AdminHouseholdTypeController {
         );
     }
 
-    // 세대 유형 삭제 API
+    // 세대 유형 삭제 API-213
     @DeleteMapping("/household-types/{householdTypeUid}")
     public ResultResponse<HouseholdTypeDeleteRes> deleteHouseholdType(@PathVariable String householdTypeUid) {
         return ResultResponse.success(

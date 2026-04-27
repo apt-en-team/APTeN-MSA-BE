@@ -2,22 +2,19 @@ package com.apten.household.application.controller;
 
 import com.apten.common.response.ResultResponse;
 import com.apten.household.application.model.request.HouseholdBillCalcReq;
-import com.apten.household.application.model.request.HouseholdBillPolicyPutReq;
 import com.apten.household.application.model.response.HouseholdBillCalcRes;
 import com.apten.household.application.model.response.HouseholdBillConfirmRes;
-import com.apten.household.application.model.response.HouseholdBillPolicyPutRes;
 import com.apten.household.application.service.HouseholdBillService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
 
-// 관리자 세대 비용 도메인 API 진입점
-// 비용 정책 설정과 월별 비용 산정 요청을 이 컨트롤러가 받는다
+// 관리자 세대 비용 도메인 API 진입점이다.
+// 청구 계산과 확정 요청만 이 컨트롤러가 받는다.
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
@@ -25,14 +22,6 @@ public class AdminHouseholdBillController {
 
     // 세대 비용 도메인 응용 서비스
     private final HouseholdBillService householdBillService;
-
-    // 기본 관리비 정책 설정 API
-    @PutMapping("/household-bill-policies/basic")
-    public ResultResponse<HouseholdBillPolicyPutRes> updateBasicBillPolicy(
-            @RequestBody HouseholdBillPolicyPutReq request
-    ) {
-        return ResultResponse.success("기본 관리비 정책 설정 성공", householdBillService.updateBasicBillPolicy(request));
-    }
 
     // 차량 비용 산정 실행 API
     @PostMapping("/household-bills/calculate/vehicle")
