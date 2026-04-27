@@ -44,10 +44,15 @@ public class WebSecurityConfiguration {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 람다 방식
                 .authorizeExchange(auth -> {
+                    // 공개 경로는 인증 없이 통과
                     gatewayAuthProperties.getExcludedPaths()
                             .forEach(path -> auth.pathMatchers(path).permitAll());
+                    // OPTIONS 요청은 CORS preflight 이므로 인증 없이 통과
                     auth.pathMatchers(HttpMethod.OPTIONS).permitAll()
+                            // 나머지 모든 경로는 JWT 인증 필요
                             .anyExchange().authenticated();
                 })
                 .addFilterAt(tokenAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
