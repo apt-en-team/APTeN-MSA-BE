@@ -35,7 +35,7 @@ public class WebSecurityConfiguration {
     // 보호 경로 요청은 TokenAuthenticationFilter를 거친 뒤에만 downstream 서비스로 전달된다
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        ServerHttpSecurity.AuthorizeExchangeSpec authorizeExchangeSpec = http
+        return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
@@ -44,14 +44,12 @@ public class WebSecurityConfiguration {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeExchange();
-
-        gatewayAuthProperties.getExcludedPaths().forEach(path -> authorizeExchangeSpec.pathMatchers(path).permitAll());
-
-        return authorizeExchangeSpec
-                .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                .anyExchange().authenticated()
-                .and()
+                .authorizeExchange(auth -> {
+                    gatewayAuthProperties.getExcludedPaths()
+                            .forEach(path -> auth.pathMatchers(path).permitAll());
+                    auth.pathMatchers(HttpMethod.OPTIONS).permitAll()
+                            .anyExchange().authenticated();
+                })
                 .addFilterAt(tokenAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
@@ -69,7 +67,7 @@ public class WebSecurityConfiguration {
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization", "X-User-Id", "X-User-Role"));
+        configuration.setExposedHeaders(List.of("Authorization", "X-User-Id", "X-User-Role", "X-Complex-Id"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
