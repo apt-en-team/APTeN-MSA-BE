@@ -3,6 +3,7 @@ package com.apten.parkingvehicle.infrastructure.kafka;
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.KafkaTopics;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
+import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
 import com.apten.parkingvehicle.application.service.ParkingVehicleReferenceCacheService;
 import lombok.RequiredArgsConstructor;
@@ -31,5 +32,12 @@ public class ParkingVehicleKafkaHandler {
     public void consumeHouseholdEvent(EventEnvelope<HouseholdEventPayload> eventEnvelope) {
         log.info("Consumed household event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
         parkingVehicleReferenceCacheService.upsertHouseholdCache(eventEnvelope.getPayload());
+    }
+
+    // household member 이벤트를 받아 세대주 사용자 캐시를 보강한다
+    @KafkaListener(topics = KafkaTopics.HOUSEHOLD_MEMBER, groupId = "parking-vehicle-service-household-member-cache")
+    public void consumeHouseholdMemberEvent(EventEnvelope<HouseholdMemberEventPayload> eventEnvelope) {
+        log.info("Consumed household member event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
+        parkingVehicleReferenceCacheService.syncHouseholdHeadUser(eventEnvelope.getPayload());
     }
 }

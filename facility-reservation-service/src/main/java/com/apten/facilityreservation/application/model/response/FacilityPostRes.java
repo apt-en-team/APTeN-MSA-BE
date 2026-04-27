@@ -1,19 +1,23 @@
 package com.apten.facilityreservation.application.model.response;
 
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-// 시설 등록 응답 DTO
+// 시설 등록 응답 DTO이다.
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class FacilityPostRes {
+
+    // 시설 ID이다.
     private Long facilityId;
-    private String facilityUid;
+
+    // 단지 ID이다.
+    private Long complexId;
+
+    // 시설명이다.
     private String name;
+
+    // 생성 시각이다.
     private LocalDateTime createdAt;
 }

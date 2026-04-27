@@ -44,6 +44,7 @@ public class UserContextFilter extends OncePerRequestFilter {
     private UserContext resolveUserContext(HttpServletRequest request) {
         String userIdHeader = request.getHeader(HeaderConstants.X_USER_ID);
         String userRoleHeader = request.getHeader(HeaderConstants.X_USER_ROLE);
+        String complexIdHeader = request.getHeader(HeaderConstants.X_COMPLEX_ID);
 
         if (userIdHeader == null || userRoleHeader == null) {
             return null;
@@ -53,9 +54,15 @@ public class UserContextFilter extends OncePerRequestFilter {
             return UserContext.builder()
                     .userId(Long.valueOf(userIdHeader))
                     .userRole(UserRole.valueOf(userRoleHeader))
+                    .complexId(complexIdHeader == null || complexIdHeader.isBlank() ? null : Long.valueOf(complexIdHeader))
                     .build();
         } catch (IllegalArgumentException exception) {
-            log.warn("Invalid user headers. userId={}, userRole={}", userIdHeader, userRoleHeader);
+            log.warn(
+                    "Invalid user headers. userId={}, userRole={}, complexId={}",
+                    userIdHeader,
+                    userRoleHeader,
+                    complexIdHeader
+            );
             return null;
         }
     }

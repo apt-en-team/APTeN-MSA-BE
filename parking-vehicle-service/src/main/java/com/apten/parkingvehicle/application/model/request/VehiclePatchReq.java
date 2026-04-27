@@ -1,17 +1,24 @@
 package com.apten.parkingvehicle.application.model.request;
 
+import com.apten.parkingvehicle.domain.enums.VehicleType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 입주민 차량 수정 요청 DTO
+// 차량 수정 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class VehiclePatchReq {
+
+    // 차량 모델명이다.
     private String modelName;
-    private String vehicleType;
+
+    // 차량 종류이다.
+    private VehicleType vehicleType;
+
+    // 대표 차량 여부이다.
     private Boolean isPrimary;
 }

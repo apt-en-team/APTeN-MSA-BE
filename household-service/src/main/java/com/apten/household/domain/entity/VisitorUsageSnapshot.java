@@ -14,7 +14,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 세대별 월 누적 방문차량 이용시간을 저장하는 엔티티
+// 세대별 월 누적 방문차량 이용시간과 비용 산정 결과를 저장하는 엔티티
 @Entity
 @Getter
 @Builder
@@ -56,21 +56,41 @@ public class VisitorUsageSnapshot extends BaseEntity {
     private Integer usageMonth;
 
     // 총 이용 분
+    @Builder.Default
     @Column(name = "total_minutes", nullable = false)
-    private Integer totalMinutes;
+    private Integer totalMinutes = 0;
 
     // 총 이용 시간
+    @Builder.Default
     @Column(name = "total_hours", nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalHours;
+    private BigDecimal totalHours = BigDecimal.ZERO;
 
-    // 방문차량 이용 스냅샷 내용을 갱신한다
+    // 무료 이용 분
+    @Builder.Default
+    @Column(name = "free_minutes", nullable = false)
+    private Integer freeMinutes = 0;
+
+    // 초과 이용 분
+    @Builder.Default
+    @Column(name = "extra_minutes", nullable = false)
+    private Integer extraMinutes = 0;
+
+    // 월 방문차량 비용
+    @Builder.Default
+    @Column(name = "visitor_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal visitorFee = BigDecimal.ZERO;
+
+    // 방문차량 이용시간과 비용 산정 결과를 갱신한다
     public void apply(
             Long householdId,
             Long complexId,
             Integer usageYear,
             Integer usageMonth,
             Integer totalMinutes,
-            BigDecimal totalHours
+            BigDecimal totalHours,
+            Integer freeMinutes,
+            Integer extraMinutes,
+            BigDecimal visitorFee
     ) {
         this.householdId = householdId;
         this.complexId = complexId;
@@ -78,5 +98,8 @@ public class VisitorUsageSnapshot extends BaseEntity {
         this.usageMonth = usageMonth;
         this.totalMinutes = totalMinutes;
         this.totalHours = totalHours;
+        this.freeMinutes = freeMinutes;
+        this.extraMinutes = extraMinutes;
+        this.visitorFee = visitorFee;
     }
 }

@@ -9,8 +9,8 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ApartmentComplexPostRes {
-    private final Long apartmentComplexId;
-    private final String apartmentComplexUid;
+    private final Long complexId;
+    private final String code;
     private final String name;
     private final LocalDateTime createdAt;
 }

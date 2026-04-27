@@ -5,9 +5,8 @@ import com.apten.parkingvehicle.domain.enums.VisitorVehicleStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,7 +18,16 @@ import lombok.NoArgsConstructor;
 
 // 방문 예정 차량 등록과 재등록 이력을 관리하는 엔티티
 @Entity
-@Table(name = "visitor_vehicle")
+@Table(
+        name = "visitor_vehicle",
+        indexes = {
+                @Index(name = "idx_visitor_vehicle_user_id", columnList = "user_id"),
+                @Index(name = "idx_visitor_vehicle_household_id", columnList = "household_id"),
+                @Index(name = "idx_visitor_vehicle_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_visitor_vehicle_visit_date", columnList = "visit_date"),
+                @Index(name = "idx_visitor_vehicle_status", columnList = "status")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -69,17 +77,18 @@ public class VisitorVehicle extends BaseEntity {
     private LocalTime endTime;
 
     // 방문차량 상태
-    @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private VisitorVehicleStatus status;
+    private VisitorVehicleStatus status = VisitorVehicleStatus.APPROVED;
 
     // 재등록 원본 ID
     @Column(name = "source_id")
     private Long sourceId;
 
     // 소프트 삭제 여부
+    @Builder.Default
     @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted;
+    private Boolean isDeleted = false;
 
     // 삭제 일시
     @Column(name = "deleted_at")

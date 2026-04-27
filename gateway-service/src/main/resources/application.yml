@@ -3,6 +3,11 @@ spring:
     web-application-type: reactive  # Gateway는 WebFlux 기반 — 리액티브 모드 강제 설정
   application:
     name: gateway-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration
   config:
     import:
       - optional:classpath:application-common.yml

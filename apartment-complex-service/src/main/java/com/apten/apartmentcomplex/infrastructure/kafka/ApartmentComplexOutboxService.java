@@ -22,7 +22,6 @@ public class ApartmentComplexOutboxService {
 
     // Outbox 엔티티를 저장해 relay가 나중에 Kafka로 전송할 수 있게 한다.
     private final OutboxRepository outboxRepository;
-
     // 공통 이벤트 envelope와 payload를 JSON 문자열로 바꿀 때 사용한다.
     private final ObjectMapper objectMapper;
 
@@ -41,17 +40,32 @@ public class ApartmentComplexOutboxService {
         saveEvent(EventType.APARTMENT_COMPLEX_DEACTIVATED, apartmentComplex);
     }
 
-    // 단지 이벤트 payload와 envelope를 만들고 Outbox 저장까지 한 번에 처리한다.
+    // 단지 이벤트는 payload만 만들고 공통 Outbox 저장 메서드에 위임한다.
     private void saveEvent(EventType eventType, ApartmentComplex apartmentComplex) {
         // 현재 Kafka 계약의 apartment complex payload 필드만 사용한다.
         ApartmentComplexEventPayload payload = ApartmentComplexEventPayload.builder()
                 .apartmentComplexId(apartmentComplex.getId())
                 .name(apartmentComplex.getName())
+                .address(apartmentComplex.getAddress())
                 .status(resolveStatus(eventType, apartmentComplex))
                 .build();
 
+        // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
+        saveOutboxEvent(KafkaTopics.APARTMENT_COMPLEX, eventType, apartmentComplex.getId(), payload);
+    }
+
+    // 비활성화 이벤트는 명시적으로 INACTIVE 상태를 payload에 담아 소비 서비스가 상태를 맞추게 한다.
+    private String resolveStatus(EventType eventType, ApartmentComplex apartmentComplex) {
+        if (eventType == EventType.APARTMENT_COMPLEX_DEACTIVATED) {
+            return ApartmentComplexStatus.INACTIVE.name();
+        }
+        return apartmentComplex.getStatus().name();
+    }
+
+    // payload를 공통 envelope로 감싸고 JSON 변환 후 Outbox row로 저장하는 공통 메서드이다.
+    private <T> void saveOutboxEvent(String topic, EventType eventType, Long aggregateId, T payload) {
         // 기존 Kafka consumer가 읽던 공통 envelope 구조를 유지한다.
-        EventEnvelope<ApartmentComplexEventPayload> eventEnvelope = EventEnvelope.<ApartmentComplexEventPayload>builder()
+        EventEnvelope<T> eventEnvelope = EventEnvelope.<T>builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)
                 .version(1)
@@ -63,10 +77,10 @@ public class ApartmentComplexOutboxService {
         // relay가 JSON 문자열을 그대로 Kafka에 보낼 수 있도록 payload를 문자열로 저장한다.
         String payloadJson = writePayload(eventEnvelope);
 
-        // 원본 단지 PK를 aggregateId로 사용해서 같은 단지 이벤트가 같은 Kafka key를 갖게 한다.
+        // 원본 단지 PK를 aggregateId로 사용해서 같은 단지 기준으로 이벤트 키를 맞춘다.
         Outbox outbox = Outbox.builder()
-                .topic(KafkaTopics.APARTMENT_COMPLEX)
-                .aggregateId(apartmentComplex.getId())
+                .topic(topic)
+                .aggregateId(aggregateId)
                 .eventType(eventType.name())
                 .payload(payloadJson)
                 .build();
@@ -75,16 +89,8 @@ public class ApartmentComplexOutboxService {
         outboxRepository.save(outbox);
     }
 
-    // 비활성화 이벤트는 명시적으로 INACTIVE 상태를 payload에 담아 소비 서비스가 상태를 맞추게 한다.
-    private String resolveStatus(EventType eventType, ApartmentComplex apartmentComplex) {
-        if (eventType == EventType.APARTMENT_COMPLEX_DEACTIVATED) {
-            return ApartmentComplexStatus.INACTIVE.name();
-        }
-        return apartmentComplex.getStatus().name();
-    }
-
     // JSON 직렬화 실패는 Outbox 누락으로 이어지므로 예외를 던져 원본 저장도 함께 롤백되게 한다.
-    private String writePayload(EventEnvelope<ApartmentComplexEventPayload> eventEnvelope) {
+    private String writePayload(Object eventEnvelope) {
         try {
             return objectMapper.writeValueAsString(eventEnvelope);
         } catch (JsonProcessingException exception) {

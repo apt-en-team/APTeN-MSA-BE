@@ -8,9 +8,19 @@ import lombok.Getter;
 @Getter
 @Builder
 public class HouseholdMatchPostRes {
-    private String matchRequestUid;
-    private String userUid;
-    private String householdUid;
-    private String matchResult;
+
+    // 매칭 요청 ID이다.
+    private Long matchRequestId;
+
+    // 매칭된 세대 ID이다.
+    private Long matchedHouseholdId;
+
+    // 처리 방식이다.
+    private String processType;
+
+    // 매칭 상태이다.
+    private String matchStatus;
+
+    // 생성 시각이다.
     private LocalDateTime createdAt;
 }

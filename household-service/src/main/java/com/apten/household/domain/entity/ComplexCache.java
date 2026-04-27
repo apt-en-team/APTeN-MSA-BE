@@ -4,8 +4,6 @@ import com.apten.common.entity.BaseEntity;
 import com.apten.household.domain.enums.ComplexCacheStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -42,7 +40,6 @@ public class ComplexCache extends BaseEntity {
     private String address;
 
     // 단지 상태
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ComplexCacheStatus status;
 

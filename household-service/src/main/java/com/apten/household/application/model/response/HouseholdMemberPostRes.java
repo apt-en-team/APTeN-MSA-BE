@@ -1,5 +1,6 @@
 package com.apten.household.application.model.response;
 
+import com.apten.household.domain.enums.HouseholdMemberRole;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -8,9 +9,22 @@ import lombok.Getter;
 @Getter
 @Builder
 public class HouseholdMemberPostRes {
-    private String householdMemberUid;
-    private String householdUid;
-    private String userUid;
-    private String role;
+
+    // 세대원 ID이다.
+    private Long householdMemberId;
+
+    // 세대 ID이다.
+    private Long householdId;
+
+    // 사용자 ID이다.
+    private Long userId;
+
+    // 세대원 역할이다.
+    private HouseholdMemberRole role;
+
+    // 활성 여부이다.
+    private Boolean isActive;
+
+    // 생성 시각이다.
     private LocalDateTime createdAt;
 }

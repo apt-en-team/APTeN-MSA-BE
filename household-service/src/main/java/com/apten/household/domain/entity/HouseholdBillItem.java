@@ -5,8 +5,6 @@ import com.apten.household.domain.enums.HouseholdBillItemType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -34,6 +32,7 @@ public class HouseholdBillItem extends BaseEntity {
     // 상세 항목 PK
     @Id
     @Tsid
+    @Column(name = "id", nullable = false)
     private Long id;
 
     // 청구 ID
@@ -41,7 +40,6 @@ public class HouseholdBillItem extends BaseEntity {
     private Long billId;
 
     // 항목 유형
-    @Enumerated(EnumType.STRING)
     @Column(name = "item_type", nullable = false, length = 30)
     private HouseholdBillItemType itemType;
 
@@ -50,8 +48,9 @@ public class HouseholdBillItem extends BaseEntity {
     private String itemName;
 
     // 항목 금액
+    @Builder.Default
     @Column(name = "amount", nullable = false, precision = 12, scale = 2)
-    private BigDecimal amount;
+    private BigDecimal amount = BigDecimal.ZERO;
 
     // 계산 기준 메모
     @Column(name = "calc_memo", length = 255)

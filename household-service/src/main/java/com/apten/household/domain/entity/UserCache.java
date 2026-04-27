@@ -5,8 +5,6 @@ import com.apten.household.domain.enums.UserCacheRole;
 import com.apten.household.domain.enums.UserCacheStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -54,12 +52,10 @@ public class UserCache extends BaseEntity {
     private LocalDate birthDate;
 
     // 사용자 권한
-    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
     private UserCacheRole role;
 
     // 사용자 상태
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private UserCacheStatus status;
 
