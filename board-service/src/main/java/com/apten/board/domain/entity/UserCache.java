@@ -6,60 +6,63 @@ import com.apten.common.entity.BaseEntity;
 import com.apten.common.kafka.payload.UserEventPayload;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 게시판 작성자 표시용 사용자 캐시 엔티티
-// Auth Service 이벤트를 받아 작성자 정보와 권한 표시 기준을 유지한다
+// 게시판 작성자 표시와 권한 검증에 사용하는 사용자 캐시 엔티티이다.
 @Entity
+@Table(
+        name = "user_cache",
+        indexes = {
+                @Index(name = "idx_user_cache_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_user_cache_role", columnList = "role"),
+                @Index(name = "idx_user_cache_status", columnList = "status")
+        }
+)
 @Getter
+@Builder
 @NoArgsConstructor
-@Table(name = "user_cache")
+@AllArgsConstructor
 public class UserCache extends BaseEntity {
 
-    // 원본 사용자 ID를 그대로 캐시 PK로 사용한다
+    // Auth 원본 사용자 ID이다.
     @Id
     @Column(name = "id", nullable = false)
     private Long id;
 
-    // 소속 단지 ID
+    // 사용자 소속 단지 ID이다.
     @Column(name = "complex_id", nullable = false)
     private Long complexId;
 
-    // 작성자 표시용 이름
+    // 사용자 이름이다.
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
-    // 권한 표시용 역할
-    @Enumerated(EnumType.STRING)
+    // 사용자 권한이다.
+    @Builder.Default
     @Column(name = "role", nullable = false, length = 20)
-    private UserCacheRole role;
+    private UserCacheRole role = UserCacheRole.USER;
 
-    // soft delete를 포함한 상태값
-    @Enumerated(EnumType.STRING)
+    // 사용자 상태이다.
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private UserCacheStatus status;
+    private UserCacheStatus status = UserCacheStatus.ACTIVE;
 
-    @Builder
-    private UserCache(Long id, Long complexId, String name, UserCacheRole role, UserCacheStatus status) {
-        this.id = id;
-        this.complexId = complexId;
-        this.name = name;
-        this.role = role;
-        this.status = status;
-    }
-
-    // 같은 이벤트를 다시 받아도 같은 상태가 되도록 필드를 덮어쓴다
+    // 수신한 사용자 이벤트를 캐시에 반영한다.
     public void apply(UserEventPayload payload) {
         this.id = payload.getUserId();
         this.complexId = payload.getApartmentComplexId();
         this.name = payload.getName();
-        this.role = payload.getRole() == null ? null : UserCacheRole.valueOf(payload.getRole());
-        this.status = payload.getStatus() == null ? null : UserCacheStatus.valueOf(payload.getStatus());
+        if (payload.getRole() != null) {
+            this.role = UserCacheRole.valueOf(payload.getRole());
+        }
+        if (payload.getStatus() != null) {
+            this.status = UserCacheStatus.valueOf(payload.getStatus());
+        }
     }
 }

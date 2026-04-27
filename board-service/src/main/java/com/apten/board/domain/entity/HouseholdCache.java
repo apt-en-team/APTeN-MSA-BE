@@ -2,9 +2,12 @@ package com.apten.board.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,23 +16,37 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "household_cache")
+@Table(
+        name = "household_cache",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_household_cache_complex_building_unit", columnNames = {"apartment_complex_id", "building_no", "unit_no"})
+        },
+        indexes = {
+                @Index(name = "idx_household_cache_complex_id", columnList = "apartment_complex_id"),
+                @Index(name = "idx_household_cache_status", columnList = "status")
+        }
+)
 public class HouseholdCache extends BaseEntity {
 
     // 원본 세대 ID를 그대로 캐시 PK로 사용한다
     @Id
+    @Column(name = "id", nullable = false)
     private Long householdId;
 
     // 세대가 속한 단지 식별자
+    @Column(name = "apartment_complex_id", nullable = false)
     private Long apartmentComplexId;
 
     // 동 정보
+    @Column(name = "building_no", nullable = false, length = 10)
     private String buildingNo;
 
     // 호 정보
+    @Column(name = "unit_no", nullable = false, length = 10)
     private String unitNo;
 
     // soft delete를 포함한 상태값
+    @Column(name = "status", nullable = false, length = 20)
     private String status;
 
     @Builder

@@ -4,10 +4,10 @@ import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
-// 댓글 삭제 응답 DTO
+// 댓글 삭제 응답이다.
 @Getter
 @Builder
 public class CommentDeleteRes {
-    private final String message;
+    private final Long commentId;
     private final LocalDateTime deletedAt;
 }

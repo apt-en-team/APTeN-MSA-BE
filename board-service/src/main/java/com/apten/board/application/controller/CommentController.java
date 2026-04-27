@@ -1,12 +1,15 @@
 package com.apten.board.application.controller;
 
+import com.apten.board.application.model.request.CommentCreateReq;
+import com.apten.board.application.model.request.CommentListReq;
 import com.apten.board.application.model.request.CommentPatchReq;
-import com.apten.board.application.model.request.CommentPostReq;
-import com.apten.board.application.model.request.CommentSearchReq;
+import com.apten.board.application.model.request.MyCommentListReq;
+import com.apten.board.application.model.response.CommentCreateRes;
 import com.apten.board.application.model.response.CommentDeleteRes;
-import com.apten.board.application.model.response.CommentGetPageRes;
+import com.apten.board.application.model.response.CommentListRes;
 import com.apten.board.application.model.response.CommentPatchRes;
-import com.apten.board.application.model.response.CommentPostRes;
+import com.apten.board.application.model.response.MyCommentListRes;
+import com.apten.board.application.model.response.PageResponse;
 import com.apten.board.application.service.CommentService;
 import com.apten.common.response.ResultResponse;
 import lombok.RequiredArgsConstructor;
@@ -22,46 +25,52 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-// 댓글 API 진입점
-// 댓글 목록과 등록, 수정, 삭제 요청을 이 컨트롤러가 받는다
+// 댓글 API 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/boards")
 public class CommentController {
 
-    // 댓글 응용 서비스
+    // 댓글 서비스이다.
     private final CommentService commentService;
 
-    // 댓글 목록 조회 API
-    @GetMapping("/api/boards/{boardUid}/comments")
-    public ResultResponse<CommentGetPageRes> getCommentList(
-            @PathVariable String boardUid,
-            @ModelAttribute CommentSearchReq request
-    ) {
-        return ResultResponse.success("댓글 목록 조회 성공", commentService.getCommentList(boardUid, request));
-    }
-
-    // 댓글 등록 API
-    @PostMapping("/api/boards/{boardUid}/comments")
+    //댓글 작성 API-506
+    @PostMapping("/posts/{postId}/comments")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<CommentPostRes> createComment(
-            @PathVariable String boardUid,
-            @RequestBody CommentPostReq request
+    public ResultResponse<CommentCreateRes> createComment(
+            @PathVariable Long postId,
+            @RequestBody CommentCreateReq request
     ) {
-        return ResultResponse.success("댓글 등록 성공", commentService.createComment(boardUid, request));
+        return ResultResponse.success("댓글 작성 성공", commentService.createComment(postId, request));
     }
 
-    // 댓글 수정 API
-    @PatchMapping("/api/comments/{commentUid}")
+    //댓글 수정 API-507
+    @PatchMapping("/comments/{commentId}")
     public ResultResponse<CommentPatchRes> updateComment(
-            @PathVariable String commentUid,
+            @PathVariable Long commentId,
             @RequestBody CommentPatchReq request
     ) {
-        return ResultResponse.success("댓글 수정 성공", commentService.updateComment(commentUid, request));
+        return ResultResponse.success("댓글 수정 성공", commentService.updateComment(commentId, request));
     }
 
-    // 댓글 삭제 API
-    @DeleteMapping("/api/comments/{commentUid}")
-    public ResultResponse<CommentDeleteRes> deleteComment(@PathVariable String commentUid) {
-        return ResultResponse.success("댓글 삭제 성공", commentService.deleteComment(commentUid));
+    //댓글 삭제 API-508
+    @DeleteMapping("/comments/{commentId}")
+    public ResultResponse<CommentDeleteRes> deleteComment(@PathVariable Long commentId) {
+        return ResultResponse.success("댓글 삭제 성공", commentService.deleteComment(commentId));
+    }
+
+    //내 댓글 조회 API-523
+    @GetMapping("/my-comments")
+    public ResultResponse<PageResponse<MyCommentListRes>> getMyCommentList(@ModelAttribute MyCommentListReq request) {
+        return ResultResponse.success("내 댓글 조회 성공", commentService.getMyCommentList(request));
+    }
+
+    //댓글 목록 조회 API-537
+    @GetMapping("/posts/{postId}/comments")
+    public ResultResponse<PageResponse<CommentListRes>> getCommentList(
+            @PathVariable Long postId,
+            @ModelAttribute CommentListReq request
+    ) {
+        return ResultResponse.success("댓글 목록 조회 성공", commentService.getCommentList(postId, request));
     }
 }

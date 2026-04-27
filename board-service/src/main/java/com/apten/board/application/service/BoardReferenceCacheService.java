@@ -8,16 +8,19 @@ import com.apten.board.domain.repository.ApartmentComplexCacheRepository;
 import com.apten.board.domain.repository.HouseholdCacheRepository;
 import com.apten.board.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.board.domain.repository.UserCacheRepository;
+import com.apten.common.exception.BusinessException;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 // board-service에서 참조 캐시 테이블 upsert를 담당하는 서비스
 // listener는 이벤트 수신만 맡고 실제 저장은 이 계층에서 처리한다
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -61,9 +64,13 @@ public class BoardReferenceCacheService {
 
     // 제거 이벤트도 물리 삭제 대신 상태값을 포함한 upsert로 반영한다
     public void upsertHouseholdMemberCache(HouseholdMemberEventPayload payload) {
+        // 세대원 이벤트에는 complexId가 없으므로 세대 캐시에서 먼저 단지 ID를 찾는다.
+        HouseholdCache householdCache = householdCacheRepository.findById(payload.getHouseholdId())
+                .orElseThrow(() -> new BusinessException(com.apten.board.exception.BoardErrorCode.INVALID_PARAMETER));
+
         HouseholdMemberCache householdMemberCache = householdMemberCacheRepository.findById(payload.getHouseholdMemberId())
                 .orElseGet(() -> HouseholdMemberCache.builder().id(payload.getHouseholdMemberId()).build());
-        householdMemberCache.apply(payload);
+        householdMemberCache.apply(payload, householdCache.getApartmentComplexId());
         householdMemberCacheRepository.save(householdMemberCache);
     }
 }
