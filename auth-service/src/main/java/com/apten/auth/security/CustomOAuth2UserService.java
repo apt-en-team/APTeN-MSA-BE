@@ -1,9 +1,5 @@
 package com.apten.auth.security;
 
-import com.apten.auth.domain.entity.User;
-import com.apten.auth.domain.enums.SignupType;
-import com.apten.auth.domain.enums.UserRole;
-import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.UserRepository;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -14,16 +10,16 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 // 소셜 로그인 성공 후 OAuth2 공급자로부터 사용자 정보를 읽어 내부 User와 연결하는 서비스
-// 신규 소셜 사용자는 PENDING 상태로 저장하고 기존 사용자는 그대로 조회한다
+// 신규 소셜 사용자는 DB에 저장하지 않고 추가 정보 입력 페이지로 리다이렉트한다
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
-    // 이메일 기준으로 내부 사용자를 조회하거나 신규 생성에 사용
+    // 이메일 기준으로 기존 사용자를 조회하는 저장소
     private final UserRepository userRepository;
 
     @Override
-    // OAuth2 공급자 응답에서 이메일을 추출해 내부 사용자와 연결하고 UserPrincipal로 변환한다
+    // OAuth2 공급자 응답에서 이메일을 추출해 기존 사용자와 연결하거나 신규 사용자로 표시한다
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
@@ -34,40 +30,28 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String email = extractEmail(registrationId, oAuth2User.getAttributes());
         String name = extractName(registrationId, oAuth2User.getAttributes());
 
-        // 이메일로 기존 사용자 조회 — 없으면 신규 소셜 사용자로 임시 저장
-        User user = userRepository.findByEmail(email)
-                .orElseGet(() -> saveTemporarySocialUser(email, registrationId));
+        // 이메일로 기존 사용자 조회 — 없으면 신규 사용자로 표시 (DB 저장 X)
+        // 신규 사용자는 추가 정보 입력 완료 후 socialSignup()에서 저장한다
+        var user = userRepository.findByEmail(email).orElse(null);
+        boolean isNewUser = (user == null);
 
-        com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+        // 신규 사용자는 USER 역할로, 기존 사용자는 DB 역할로 설정한다
+        com.apten.common.security.UserRole commonRole = isNewUser
+                ? com.apten.common.security.UserRole.USER
+                : user.getRole().toCommonUserRole();
 
         return UserPrincipal.builder()
-                .userId(user.getId())
-                .userUid(String.valueOf(user.getId()))
+                .userId(isNewUser ? null : user.getId())
+                .userUid(isNewUser ? null : String.valueOf(user.getId()))
                 .email(email)
                 .displayName(name)
                 .role(commonRole)
-                .status(user.getStatus().getValue())
+                // 신규 사용자는 "NEW" 상태로 표시해 SuccessHandler에서 리다이렉트 여부를 판단한다
+                .status(isNewUser ? "NEW" : user.getStatus().getValue())
+                .complexId(isNewUser ? null : user.getComplexId())
                 .nameAttributeKey(resolveNameAttributeKey(registrationId))
                 .attributes(oAuth2User.getAttributes())
                 .build();
-    }
-
-    // 소셜 최초 로그인 시 이메일과 공급자 정보만으로 PENDING 사용자를 임시 저장한다
-    // 이후 추가 정보 입력 완료 시 socialSignup()으로 정보를 채운다
-    private User saveTemporarySocialUser(String email, String registrationId) {
-        User user = User.builder()
-                .email(email)
-                .passwordHash(null)
-                .name("소셜유저")
-                .role(UserRole.USER)
-                .status(UserStatus.PENDING)
-                .signupType(SignupType.valueOf(registrationId.toUpperCase()))
-                .isPhoneVerified(false)
-                .isEmailVerified(true)
-                .loginFailCount(0)
-                .isDeleted(false)
-                .build();
-        return userRepository.save(user);
     }
 
     // 공급자별 이메일 추출 — 카카오/네이버는 중첩 구조라 별도 처리 필요
