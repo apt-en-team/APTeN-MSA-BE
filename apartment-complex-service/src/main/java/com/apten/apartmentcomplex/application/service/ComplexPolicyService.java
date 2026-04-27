@@ -9,21 +9,14 @@ import com.apten.apartmentcomplex.application.model.response.FacilityPolicyPutRe
 import com.apten.apartmentcomplex.application.model.response.VehiclePolicyPutRes;
 import com.apten.apartmentcomplex.application.model.response.VisitorPolicyPutRes;
 
-import java.time.LocalDate;
+
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
-import com.apten.apartmentcomplex.domain.entity.ComplexPolicy;
-import com.apten.apartmentcomplex.domain.entity.FacilityPolicy;
-import com.apten.apartmentcomplex.domain.entity.VehiclePolicy;
-import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
-import com.apten.apartmentcomplex.domain.repository.ComplexPolicyRepository;
-import com.apten.apartmentcomplex.domain.repository.FacilityPolicyRepository;
-import com.apten.apartmentcomplex.domain.repository.VehiclePolicyRepository;
+import com.apten.apartmentcomplex.domain.entity.*;
+import com.apten.apartmentcomplex.domain.repository.*;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.common.exception.BusinessException;
@@ -43,6 +36,7 @@ public class ComplexPolicyService {
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
     private final VehiclePolicyRepository vehiclePolicyRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final VisitorPolicyRepository visitorPolicyRepository;
 
     // 단지 code로 단지를 조회한다
     private ApartmentComplex getComplexByCode(String code) {
@@ -195,14 +189,36 @@ public class ComplexPolicyService {
     // 방문차량 정책 설정 서비스 API-209
     @Transactional
     public VisitorPolicyPutRes updateVisitorPolicy(String code, VisitorPolicyPutReq req) {
-        // TODO: 방문차량 정책 설정 로직 구현
+        // 단지 존재 여부를 확인
+        ApartmentComplex apartmentComplex = getComplexByCode(code);
+
+        //요청값 검증
+        validatePositiveOrZero(req.getFreeMinutes());
+        validatePositiveOrZero(req.getHourFee());
+        validatePositiveOrZero(req.getMonthlyLimitHours());
+
+        // 기존 정책이 있으면 수정하고, 없으면 새로 생성한다.
+        VisitorPolicy visitorPolicy = visitorPolicyRepository.findByComplexId(apartmentComplex.getId())
+                .orElseGet(() -> VisitorPolicy.builder()
+                        .complexId(apartmentComplex.getId())
+                        .build());
+
+        // 기존 정책 또는 신규 정책에 현재 요청값을 반영한다.
+        visitorPolicy.apply(req);
+
+        // 신규 정책은 INSERT, 기존 정책은 UPDATE 처리된다.
+        VisitorPolicy savedPolicy = visitorPolicyRepository.save(visitorPolicy);
+
+        // 정책 변경 이벤트를 Outbox에 적재한다.
+        apartmentComplexOutboxService.saveVisitorPolicyUpdatedEvent(savedPolicy);
+
+
         return VisitorPolicyPutRes.builder()
-                .apartmentComplexUid(code)
-                .freeMinutes(req.getFreeMinutes())
-                .extraFeePerUnit(req.getExtraFeePerUnit())
-                .extraFeeUnitMinutes(req.getExtraFeeUnitMinutes())
-                .dailyMaxFee(req.getDailyMaxFee())
-                .updatedAt(LocalDateTime.now())
+                .code(code)
+                .freeMinutes(savedPolicy.getFreeMinutes())
+                .hourFee(savedPolicy.getHourFee())
+                .monthlyLimitHours(savedPolicy.getMonthlyLimitHours())
+                .updatedAt(savedPolicy.getUpdatedAt())
                 .build();
     }
 }

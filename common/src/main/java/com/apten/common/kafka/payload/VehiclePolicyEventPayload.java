@@ -13,20 +13,20 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class VehiclePolicyEventPayload {
 
+    //정책id
+    private Long vehiclePolicyId;
+
     // 정책이 속한 원본 단지 식별자
     private Long apartmentComplexId;
 
-    // 세대당 최대 차량 허용 대수
-    private Integer maxVehicleCountPerHousehold;
+    // 차량 대수 기준
+    private Integer carCount;
 
-    // 무료 허용 차량 대수
-    private Integer freeVehicleCount;
+    // 월 요금
+    private BigDecimal monthlyFee;
 
-    // 추가 차량 월 요금
-    private BigDecimal extraVehicleFee;
-
-    // 방문차량 무료 분
-    private Integer visitorFreeMinutes;
+    // 등록 제한 규칙 사용 여부
+    private Boolean isLimitRule;
 
     // 현재 정책 활성 여부
     private Boolean isActive;

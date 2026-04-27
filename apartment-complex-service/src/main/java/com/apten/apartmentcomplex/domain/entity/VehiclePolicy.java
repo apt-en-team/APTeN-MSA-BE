@@ -46,21 +46,14 @@ public class VehiclePolicy extends BaseEntity {
 
     // 월 요금
     @Column(name = "monthly_fee", nullable = false)
-    private BigDecimal monthlyFee;
+    private BigDecimal monthlyFee = BigDecimal.ZERO;
 
     // 등록 제한 규칙 사용 여부
     @Column(name = "is_limit_rule", nullable = false)
-    private Boolean isLimitRule;
+    private Boolean isLimitRule = true;
 
     // 정책 활성 여부
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
 
-    // 차량 정책 값을 갱신할 때 사용한다
-    public void apply(Integer carCount, BigDecimal monthlyFee, Boolean isLimitRule, Boolean isActive) {
-        this.carCount = carCount;
-        this.monthlyFee = monthlyFee;
-        this.isLimitRule = isLimitRule;
-        this.isActive = isActive;
-    }
 }

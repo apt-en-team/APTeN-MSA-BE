@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.domain.entity;
 
+import com.apten.apartmentcomplex.application.model.request.VisitorPolicyPutReq;
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
@@ -41,30 +42,31 @@ public class VisitorPolicy extends BaseEntity {
 
     // 무료 허용 분
     @Column(name = "free_minutes", nullable = false)
-    private Integer freeMinutes;
+    private Integer freeMinutes = 0;
 
     // 시간당 요금
     @Column(name = "hour_fee", nullable = false)
-    private BigDecimal hourFee;
+    private BigDecimal hourFee = BigDecimal.ZERO;
 
     // 월 기준 최대 허용 시간
     @Column(name = "monthly_limit_hours", nullable = false)
-    private Integer monthlyLimitHours;
+    private Integer monthlyLimitHours = 300;
 
     // 정책 활성 여부
     @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    private Boolean isActive = true;
 
     // 방문 차량 정책 값을 갱신할 때 사용한다
-    public void apply(
-            Integer freeMinutes,
-            BigDecimal hourFee,
-            Integer monthlyLimitHours,
-            Boolean isActive
-    ) {
-        this.freeMinutes = freeMinutes;
-        this.hourFee = hourFee;
-        this.monthlyLimitHours = monthlyLimitHours;
-        this.isActive = isActive;
+    public void apply(VisitorPolicyPutReq req) {
+        if (req.getFreeMinutes() != null){
+            this.freeMinutes = req.getFreeMinutes();
+        }
+        if (req.getHourFee() != null){
+            this.hourFee = req.getHourFee();
+        }
+        if (req.getMonthlyLimitHours() != null){
+            this.monthlyLimitHours = req.getMonthlyLimitHours();
+        }
+
     }
 }

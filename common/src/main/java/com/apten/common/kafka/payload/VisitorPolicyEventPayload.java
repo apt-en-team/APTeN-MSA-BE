@@ -14,19 +14,16 @@ import lombok.NoArgsConstructor;
 public class VisitorPolicyEventPayload {
 
     // 정책이 속한 원본 단지 식별자
-    private Long apartmentComplexId;
+    private Long complexId;
 
     // 무료 허용 분
     private Integer freeMinutes;
 
-    // 초과 요금 단가
-    private BigDecimal extraFeePerUnit;
+    // 시간당 요금
+    private BigDecimal hourFee;
 
-    // 초과 요금 계산 단위 분
-    private Integer extraFeeUnitMinutes;
-
-    // 일 최대 요금
-    private BigDecimal dailyMaxFee;
+    // 월 기준 최대 허용 시간
+    private Integer monthlyLimitHours;
 
     // 현재 정책 활성 여부
     private Boolean isActive;

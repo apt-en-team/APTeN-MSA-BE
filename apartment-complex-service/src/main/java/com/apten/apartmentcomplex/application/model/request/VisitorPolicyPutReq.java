@@ -13,9 +13,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class VisitorPolicyPutReq {
+
+    // 무료 시간
     private Integer freeMinutes;
-    private BigDecimal extraFeePerUnit;
-    private Integer extraFeeUnitMinutes;
-    private BigDecimal dailyMaxFee;
-    private String memo;
+
+    // 시간당 요금
+    private BigDecimal hourFee;
+
+    // 월 기준 시간
+    private Integer monthlyLimitHours;
 }

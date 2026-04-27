@@ -10,10 +10,19 @@ import lombok.Getter;
 @Getter
 @Builder
 public class VisitorPolicyPutRes {
-    private final String apartmentComplexUid;
-    private final Integer freeMinutes;
-    private final BigDecimal extraFeePerUnit;
-    private final Integer extraFeeUnitMinutes;
-    private final BigDecimal dailyMaxFee;
-    private final LocalDateTime updatedAt;
+
+    // 단지 코드
+    private String code;
+
+    // 무료 시간
+    private Integer freeMinutes;
+
+    // 시간당 요금
+    private BigDecimal hourFee;
+
+    // 월 기준 시간
+    private Integer monthlyLimitHours;
+
+    // 수정일시
+    private LocalDateTime updatedAt;
 }
