@@ -122,6 +122,7 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .userId(user.getId())
+                .userUid(String.valueOf(user.getId()))
                 .name(user.getName())
                 .role(user.getRole().getValue())
                 .status(user.getStatus().getValue())

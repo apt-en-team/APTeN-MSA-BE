@@ -20,6 +20,7 @@ import com.apten.auth.application.model.response.AuthSmsVerifyPostRes;
 import com.apten.auth.application.model.response.AuthSocialSignupPostRes;
 import com.apten.auth.application.model.response.AuthTokenRefreshPostRes;
 import com.apten.auth.application.service.AuthService;
+import com.apten.common.constants.SecurityConstants;
 import com.apten.common.response.ResultResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,8 @@ public class AuthController {
     // 로그아웃 API — AT 블랙리스트 등록을 위해 Authorization 헤더 필요
     @PostMapping("/logout")
     public ResultResponse<AuthLogoutPostRes> logout(
-            @RequestHeader("Authorization") String authorizationHeader) {
+            @RequestHeader(SecurityConstants.AUTHORIZATION_HEADER) String authorizationHeader
+    ) {
         return ResultResponse.success("로그아웃 성공", authService.logout(authorizationHeader));
     }
 
