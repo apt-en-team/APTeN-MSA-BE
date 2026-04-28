@@ -1,5 +1,5 @@
 server:
-  port: 9086
+  port: ${FACILITY_SERVER_PORT}
 
 spring:
   application:
@@ -9,14 +9,19 @@ spring:
       - optional:classpath:application-common.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:file:.env[.properties]
   datasource:
-    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${FACILITY_DB_URL}
     username: ${FACILITY_DB_USERNAME}
     password: ${FACILITY_DB_PASSWORD}
   kafka:
     consumer:
       group-id: facility-reservation-service-group
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 constants:
   api:

@@ -1,5 +1,5 @@
 server:
-  port: 9081
+  port: ${NOTIFICATION_SERVER_PORT}
 
 spring:
   application:
@@ -9,8 +9,9 @@ spring:
       - optional:classpath:application-common.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:file:.env[.properties]
   datasource:
-    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${NOTIFICATION_DB_URL}
     username: ${NOTIFICATION_DB_USERNAME}
     password: ${NOTIFICATION_DB_PASSWORD}

@@ -1,5 +1,5 @@
 server:
-  port: 9080
+  port: ${AUTH_SERVER_PORT}
 
 spring:
   application:
@@ -10,8 +10,9 @@ spring:
       - optional:classpath:application-auth.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:file:.env[.properties]
   datasource:
-    driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${AUTH_DB_URL}
     username: ${AUTH_DB_USERNAME}
     password: ${AUTH_DB_PASSWORD}
@@ -20,8 +21,8 @@ spring:
       group-id: auth-service-group
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
   security:
     oauth2:
       client:
