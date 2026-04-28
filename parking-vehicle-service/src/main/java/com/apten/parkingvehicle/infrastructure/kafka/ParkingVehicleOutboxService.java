@@ -9,6 +9,7 @@ import com.apten.parkingvehicle.infrastructure.kafka.payload.VisitorFeeCalculate
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
 public class ParkingVehicleOutboxService {
 
     // 차량 상태 변경 토픽이다.

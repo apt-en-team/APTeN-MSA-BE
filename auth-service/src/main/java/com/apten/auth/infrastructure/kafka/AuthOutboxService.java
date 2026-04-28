@@ -12,11 +12,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 // 사용자 원본 변경 이벤트를 Kafka로 바로 보내지 않고 Outbox row로 저장하는 서비스이다.
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
 public class AuthOutboxService {
 
     // Outbox 엔티티를 저장해 relay가 나중에 Kafka로 전송할 수 있게 한다.

@@ -14,11 +14,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 // 세대 서비스의 원본 변경 이벤트를 Outbox에 적재하는 서비스이다.
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
 public class HouseholdOutboxService {
 
     // Outbox row 저장소이다.

@@ -12,7 +12,7 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
     runtimeOnly 'org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4.1:1.16'
-    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
 }
 
 bootJar {

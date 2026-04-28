@@ -19,11 +19,13 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 // 게시판 도메인 이벤트를 Outbox에 적재하는 서비스이다.
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
 public class BoardOutboxService {
 
     // 공지 생성 토픽이다.
