@@ -56,7 +56,7 @@ public class UserCache extends BaseEntity {
     // 사용자 이벤트로 캐시 내용을 갱신한다
     public void apply(UserEventPayload payload) {
         this.id = payload.getUserId();
-        this.complexId = payload.getApartmentComplexId();
+        this.complexId = payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId();
         this.name = payload.getName();
         this.role = payload.getRole() != null ? UserCacheRole.valueOf(payload.getRole()) : null;
         this.status = payload.getStatus() != null ? UserCacheStatus.valueOf(payload.getStatus()) : null;

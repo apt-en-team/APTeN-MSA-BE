@@ -17,7 +17,7 @@ spring:
     password: ${PARKING_DB_PASSWORD}
   kafka:
     consumer:
-      group-id: parking-vehicle-service-group
+#      group-id: parking-vehicle-service-group
 
 constants:
   api:

@@ -1,14 +1,12 @@
 package com.apten.apartmentcomplex.application.model.request;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 // 관리자 단지 목록 조회 요청 DTO
 // 검색어와 페이지 정보를 함께 받을 때 사용한다
 @Getter
 @Builder
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApartmentComplexSearchReq {

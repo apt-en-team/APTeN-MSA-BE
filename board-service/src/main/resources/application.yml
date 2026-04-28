@@ -17,7 +17,7 @@ spring:
     password: ${BOARD_DB_PASSWORD}
   kafka:
     consumer:
-      group-id: board-service-group
+#      group-id: board-service-group
 
 constants:
   api:

@@ -15,9 +15,9 @@ spring:
     url: ${HOUSEHOLD_DB_URL}
     username: ${HOUSEHOLD_DB_USERNAME}
     password: ${HOUSEHOLD_DB_PASSWORD}
-  kafka:
-    consumer:
-      group-id: household-service-group
+#  kafka:
+#    consumer:
+#      group-id: household-service-group
 
 constants:
   api:

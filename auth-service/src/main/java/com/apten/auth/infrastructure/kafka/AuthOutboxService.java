@@ -37,15 +37,24 @@ public class AuthOutboxService {
         saveEvent(EventType.USER_UPDATED, user);
     }
 
+    // 회원 삭제 또는 탈퇴 시 USER_DELETED 이벤트를 Outbox에 적재한다.
+    public void saveDeletedEvent(User user) {
+        saveEvent(EventType.USER_DELETED, user);
+    }
+
     // 사용자 이벤트 payload와 envelope를 만들고 Outbox 저장까지 한 번에 처리한다.
     private void saveEvent(EventType eventType, User user) {
         // 현재 Kafka 계약의 user cache payload 필드만 사용한다.
         UserEventPayload payload = UserEventPayload.builder()
                 .userId(user.getId())
+                .complexId(user.getComplexId())
                 .name(user.getName())
+                .phone(user.getPhone())
+                .birthDate(user.getBirthDate())
                 .role(user.getRole().name())
                 .status(user.getStatus().name())
                 .apartmentComplexId(user.getComplexId())
+                .isDeleted(user.getIsDeleted())
                 .build();
 
         // 기존 Kafka consumer가 읽던 공통 envelope 구조를 유지한다.
