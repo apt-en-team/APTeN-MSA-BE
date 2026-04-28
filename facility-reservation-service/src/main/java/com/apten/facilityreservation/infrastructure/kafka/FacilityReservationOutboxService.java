@@ -8,11 +8,13 @@ import com.apten.facilityreservation.infrastructure.kafka.payload.ReservationSta
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 // facility-reservation-service의 outbox 적재 골격을 담당하는 서비스이다.
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
 public class FacilityReservationOutboxService {
 
     // reservation 상태 변경 토픽명이다.

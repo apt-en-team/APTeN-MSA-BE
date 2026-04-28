@@ -10,12 +10,16 @@ spring:
       - optional:classpath:application-auth.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
-      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   datasource:
-    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    driver-class-name: org.mariadb.jdbc.Driver
     url: ${AUTH_DB_URL}
     username: ${AUTH_DB_USERNAME}
     password: ${AUTH_DB_PASSWORD}
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MariaDBDialect
   kafka:
     consumer:
       group-id: auth-service-group
@@ -69,4 +73,8 @@ constants:
 
 springdoc:
   api-docs:
+    enabled: true
+
+apten:
+  outbox:
     enabled: true

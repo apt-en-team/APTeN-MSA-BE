@@ -3,6 +3,7 @@ package com.apten.common.outbox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(prefix = "spring.kafka.producer", name = "key-serializer")
+@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
 public class OutboxRelay {
 
     // INIT 상태 이벤트를 조회하고 성공/실패 결과를 저장하는 repository이다.
@@ -27,8 +28,16 @@ public class OutboxRelay {
     @Scheduled(fixedDelay = 10000)
     @Transactional
     public void publishEvents() {
-        // 오래된 INIT 이벤트부터 처리해서 서비스 이벤트 순서를 최대한 유지한다.
-        List<Outbox> events = outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxStatus.INIT);
+        List<Outbox> events;
+
+        try {
+            // 오래된 INIT 이벤트부터 처리해서 서비스 이벤트 순서를 최대한 유지한다.
+            events = outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxStatus.INIT);
+        } catch (DataAccessException exception) {
+            // outbox 테이블이 아직 준비되지 않은 초기 기동 구간에는 relay를 건너뛰고 서비스는 계속 살린다.
+            log.warn("Outbox relay skipped because outbox storage is not ready yet.", exception);
+            return;
+        }
 
         // 각 이벤트를 독립적으로 전송해서 한 건 실패가 다른 이벤트 전송을 막지 않게 한다.
         events.forEach(this::publishEvent);
