@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.support.NotFoundException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -22,6 +23,7 @@ import reactor.core.publisher.Mono;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
+@Slf4j
 public class GatewayExceptionHandler implements WebExceptionHandler {
 
     // JSON 응답 직렬화에 사용하는 객체
@@ -34,6 +36,8 @@ public class GatewayExceptionHandler implements WebExceptionHandler {
         if (exchange.getResponse().isCommitted()) {
             return Mono.error(ex);
         }
+
+        log.error("Gateway exception occurred. path={}", exchange.getRequest().getURI(), ex);
 
         GatewayErrorCode errorCode = resolveErrorCode(ex);
         exchange.getResponse().setStatusCode(errorCode.getStatus());

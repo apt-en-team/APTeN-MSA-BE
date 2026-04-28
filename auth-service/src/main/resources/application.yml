@@ -12,7 +12,7 @@ spring:
       - optional:classpath:application-kafka.yml
       - optional:file:../.env[.properties]
   datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${AUTH_DB_URL}
     username: ${AUTH_DB_USERNAME}
     password: ${AUTH_DB_PASSWORD}
