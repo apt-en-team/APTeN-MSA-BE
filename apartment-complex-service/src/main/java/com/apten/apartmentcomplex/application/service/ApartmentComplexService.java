@@ -31,6 +31,7 @@ import com.apten.common.exception.BusinessException;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 // 단지 도메인 응용 서비스이다.
 // 단지 등록과 조회, 수정, 상태 변경, 관리자 배정 흐름을 이 서비스가 묶는다.
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ApartmentComplexService {
 

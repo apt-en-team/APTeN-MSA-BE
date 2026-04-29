@@ -30,11 +30,11 @@ public class ApartmentComplexReferenceCacheService {
 
         // payload 기준으로 관리자 검증에 필요한 최소 사용자 정보를 유지한다.
         userCache.apply(
-                payload.getApartmentComplexId(),
+                payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId(),
                 payload.getName(),
                 resolveRole(payload.getRole()),
                 resolveStatus(payload.getStatus()),
-                isDeletedStatus(payload.getStatus())
+                resolveIsDeleted(payload)
         );
         userCacheRepository.save(userCache);
     }
@@ -47,7 +47,7 @@ public class ApartmentComplexReferenceCacheService {
 
         // 삭제성 이벤트는 관리자 소속 지정 대상에서 제외되도록 DELETED 상태로 반영한다.
         userCache.apply(
-                payload.getApartmentComplexId(),
+                payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId(),
                 payload.getName(),
                 resolveRole(payload.getRole()),
                 UserCacheStatus.DELETED,
@@ -65,7 +65,7 @@ public class ApartmentComplexReferenceCacheService {
         }
 
         // 비활성화 이벤트는 user_cache를 삭제 상태로 반영한다.
-        if (eventType == EventType.USER_DEACTIVATED) {
+        if (eventType == EventType.USER_DEACTIVATED || eventType == EventType.USER_DELETED) {
             markUserCacheDeleted(payload);
             return;
         }
@@ -84,8 +84,11 @@ public class ApartmentComplexReferenceCacheService {
         return UserCacheStatus.valueOf(status);
     }
 
-    // status가 DELETED이면 isDeleted도 true로 맞춰 삭제성 상태를 명확하게 남긴다.
-    private boolean isDeletedStatus(String status) {
-        return UserCacheStatus.DELETED.name().equals(status);
+    // payload의 삭제 여부 또는 status를 기준으로 isDeleted를 결정한다.
+    private boolean resolveIsDeleted(UserEventPayload payload) {
+        if (payload.getIsDeleted() != null) {
+            return payload.getIsDeleted();
+        }
+        return UserCacheStatus.DELETED.name().equals(payload.getStatus());
     }
 }

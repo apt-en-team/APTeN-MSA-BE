@@ -14,10 +14,12 @@ import java.util.List;
 import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -25,106 +27,129 @@ import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.ServerWebExchangeDecorator;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
-// 보호 경로 요청에서 JWT를 확인하고 downstream 서비스용 사용자 헤더를 추가하는 필터
-// gateway는 토큰을 발급하지 않고 auth-service가 만든 JWT를 읽어 전달 책임만 수행한다
 @Component
 @RequiredArgsConstructor
 public class TokenAuthenticationFilter implements WebFilter {
 
-    // auth-service가 access token 안에 넣어 주는 사용자 역할 claim 키
     private static final String ROLE_CLAIM = "role";
-
-    // auth-service가 access token 안에 넣어 주는 단지 ID claim 키
     private static final String COMPLEX_ID_CLAIM = "complexId";
 
-    // 공개 경로와 JWT 비밀키를 읽기 위한 설정 객체
     private final GatewayAuthProperties gatewayAuthProperties;
-
-    // 로그아웃된 AT 블랙리스트 확인용 Redis 클라이언트
     private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
-
-    // 제외 경로 패턴 매칭에 사용하는 유틸
     private final AntPathMatcher antPathMatcher = new AntPathMatcher();
 
     @Override
-    // 요청 경로가 공개 경로인지 먼저 확인하고 아니면 JWT를 해석해 사용자 헤더를 붙인다
-    // 이후 각 서비스는 X-User-Id와 X-User-Role만 읽어 현재 로그인 사용자를 식별할 수 있다
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+
+        // [공개 경로 확인] 인증 불필요 경로는 바로 통과
         String path = exchange.getRequest().getPath().value();
         if (isExcludedPath(path)) {
             return chain.filter(exchange);
         }
 
-        String token = resolveToken(exchange.getRequest().getHeaders().getFirst(SecurityConstants.AUTHORIZATION_HEADER));
+        // [토큰 추출] Authorization 헤더에서 Bearer 제거 후 순수 JWT 획득
+        String token = resolveToken(
+                exchange.getRequest().getHeaders().getFirst(SecurityConstants.AUTHORIZATION_HEADER)
+        );
+
+        // [토큰 파싱] 공유 secret key로 서명 검증 후 claim 맵 추출
         Claims claims = parseClaims(token);
         String userId = claims.getSubject();
         String role = claims.get(ROLE_CLAIM, String.class);
 
+        // [필수 claim 검증] userId·role 중 하나라도 없으면 비정상 토큰으로 거부
         if (userId == null || role == null) {
             throw new BadCredentialsException(GatewayErrorCode.INVALID_TOKEN.getMessage());
         }
 
+        // [role 변환] JWT role 문자열을 공통 UserRole enum으로 변환
         UserRole userRole = resolveUserRole(role);
 
-        // JWT claim에서 단지 ID를 꺼낸다 — MASTER는 null일 수 있다
-        Long complexId = claims.get(COMPLEX_ID_CLAIM, Long.class);
+        // [complexId 추출] Number 계열로 올 수 있으므로 longValue()로 안전하게 변환
+        Object complexIdClaim = claims.get(COMPLEX_ID_CLAIM);
+        final Long complexId = complexIdClaim instanceof Number number ? number.longValue() : null;
 
-        // 로그아웃된 토큰인지 Redis 블랙리스트 확인 — 있으면 401 반환
+        // [블랙리스트 확인] Redis에서 로그아웃된 토큰인지 비동기 조회
         return reactiveRedisTemplate.hasKey("blacklist:" + token)
                 .flatMap(isBlacklisted -> {
+
+                    // [블랙리스트 차단] 로그아웃된 토큰이면 401 후 종료
                     if (Boolean.TRUE.equals(isBlacklisted)) {
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                         return exchange.getResponse().setComplete();
                     }
 
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userId,
-                            token,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name()))
-                    );
+                    // [인증 객체 생성] Security 컨텍스트에 등록할 Authentication 생성
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId,
+                                    token,
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name()))
+                            );
 
-                    // gateway를 통과한 뒤 각 서비스가 바로 읽을 수 있도록 공통 헤더를 요청에 추가한다
-                    ServerHttpRequest.Builder requestBuilder = exchange.getRequest()
-                            .mutate()
-                            .header(HeaderConstants.X_USER_ID, userId)
-                            .header(HeaderConstants.X_USER_ROLE, userRole.name());
+                    // [요청 헤더 교체] ServerHttpRequestDecorator로 getHeaders()를 재정의
+                    // exchange.mutate() / request.mutate() 는 내부적으로 ReadOnlyHttpHeaders를 건드려 터지므로 사용 금지
+                    ServerHttpRequest decoratedRequest = new ServerHttpRequestDecorator(exchange.getRequest()) {
+                        @Override
+                        public HttpHeaders getHeaders() {
+                            // [새 헤더맵] 기존 헤더를 복사해 쓰기 가능한 새 맵 생성
+                            HttpHeaders headers = new HttpHeaders();
+                            headers.addAll(super.getHeaders());
 
-                    // 단지 ID가 있을 때만 헤더에 추가한다 (MASTER는 null이므로 추가하지 않는다)
-                    if (complexId != null) {
-                        requestBuilder.header(HeaderConstants.X_COMPLEX_ID, String.valueOf(complexId));
-                    }
+                            // [사용자 헤더 추가] downstream 서비스가 읽을 userId·role 세팅
+                            headers.set(HeaderConstants.X_USER_ID, userId);
+                            headers.set(HeaderConstants.X_USER_ROLE, userRole.name());
 
+                            // [단지 ID 조건부 추가] claim 존재 시에만 추가
+                            if (complexId != null) {
+                                headers.set(HeaderConstants.X_COMPLEX_ID, String.valueOf(complexId));
+                            }
+
+                            return HttpHeaders.readOnlyHttpHeaders(headers);
+                        }
+                    };
+
+                    // [exchange 교체] ServerWebExchangeDecorator로 getRequest()를 재정의
+                    // exchange.mutate().build() 도 내부에서 헤더를 복사하므로 Decorator로 대체
+                    ServerWebExchange decoratedExchange = new ServerWebExchangeDecorator(exchange) {
+                        @Override
+                        public ServerHttpRequest getRequest() {
+                            return decoratedRequest;
+                        }
+                    };
+
+                    // [컨텍스트 전파] 변경된 exchange와 인증 정보를 다음 필터·라우팅 단계로 전달
                     SecurityContextImpl securityContext = new SecurityContextImpl(authentication);
-
-                    // Security 컨텍스트에도 현재 사용자 정보를 남겨 이후 보안 체인이 인증 완료 상태로 이어지게 한다
-                    return chain.filter(exchange.mutate().request(requestBuilder.build()).build())
-                            .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
+                    return chain.filter(decoratedExchange)
+                            .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(
+                                    Mono.just(securityContext)
+                            ));
                 });
     }
 
-    // 현재 요청 경로가 인증 없이 통과 가능한 공개 경로인지 확인한다
-    // auth-service 로그인 경로와 oauth2 콜백 경로는 여기서 먼저 제외된다
+    // [공개 경로 판별] 설정 패턴과 현재 경로를 AntPathMatcher로 비교
     private boolean isExcludedPath(String path) {
         return gatewayAuthProperties.getExcludedPaths().stream()
                 .anyMatch(pattern -> antPathMatcher.match(pattern, path));
     }
 
-    // Authorization 헤더에서 Bearer 토큰만 분리한다
-    // 보호 경로에 토큰이 없으면 여기서 바로 인증 실패로 처리한다
+    // [Bearer 토큰 분리] 헤더 없거나 Bearer 아니면 즉시 인증 실패
     private String resolveToken(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
-            throw new AuthenticationCredentialsNotFoundException(GatewayErrorCode.UNAUTHORIZED.getMessage());
+        if (authorizationHeader == null
+                || !authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
+            throw new AuthenticationCredentialsNotFoundException(
+                    GatewayErrorCode.UNAUTHORIZED.getMessage()
+            );
         }
-
         return authorizationHeader.substring(SecurityConstants.BEARER_PREFIX.length());
     }
 
-    // auth-service가 만든 JWT를 같은 비밀키 기준으로 파싱해 claim을 읽는다
-    // gateway는 발급 기준 서비스가 아니므로 토큰 구조를 읽는 최소 책임만 가진다
+    // [JWT 파싱] 서명 검증 실패·만료 등 모든 JWT 예외를 BadCredentialsException으로 통일
     private Claims parseClaims(String token) {
         try {
             return Jwts.parser()
@@ -137,8 +162,7 @@ public class TokenAuthenticationFilter implements WebFilter {
         }
     }
 
-    // role claim 값을 common의 UserRole enum으로 맞춰 downstream 헤더 기준을 통일한다
-    // 예상하지 못한 role 문자열이 오면 잘못된 토큰으로 본다
+    // [role 파싱] 알 수 없는 role이면 비정상 토큰으로 거부
     private UserRole resolveUserRole(String role) {
         try {
             return UserRole.valueOf(role);
@@ -147,9 +171,10 @@ public class TokenAuthenticationFilter implements WebFilter {
         }
     }
 
-    // auth-service와 맞춰 둔 비밀키로 JWT 서명 검증 키를 생성한다
-    // 두 서비스가 같은 기준을 봐야 gateway가 발급된 토큰을 신뢰하고 해석할 수 있다
+    // [서명 키 생성] auth-service와 동일한 secret key로 HMAC-SHA 검증 키 반환
     private SecretKey getSecretKey() {
-        return Keys.hmacShaKeyFor(gatewayAuthProperties.getJwtSecret().getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(
+                gatewayAuthProperties.getJwtSecret().getBytes(StandardCharsets.UTF_8)
+        );
     }
 }

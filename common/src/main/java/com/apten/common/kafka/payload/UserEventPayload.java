@@ -15,8 +15,17 @@ public class UserEventPayload {
     // 원본 사용자 식별자
     private Long userId;
 
+    // 사용자 소속 단지 식별자이다.
+    private Long complexId;
+
     // 소비 서비스 화면에서 표시할 이름
     private String name;
+
+    // 연락처이다.
+    private String phone;
+
+    // 생년월일이다.
+    private java.time.LocalDate birthDate;
 
     // 현재 사용자 역할
     private String role;
@@ -24,6 +33,9 @@ public class UserEventPayload {
     // 활성 여부를 포함한 상태값
     private String status;
 
-    // 사용자 소속 단지 식별자
+    // 기존 consumer 호환을 위한 단지 식별자이다.
     private Long apartmentComplexId;
+
+    // 소프트 삭제 여부이다.
+    private Boolean isDeleted;
 }

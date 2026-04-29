@@ -17,7 +17,7 @@ spring:
     password: ${NOTIFICATION_DB_PASSWORD}
   kafka:
     consumer:
-      group-id: notification-service-group
+#      group-id: notification-service-group
 
 constants:
   api:

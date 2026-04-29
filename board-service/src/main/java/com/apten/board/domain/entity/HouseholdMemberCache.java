@@ -69,6 +69,6 @@ public class HouseholdMemberCache extends BaseEntity {
         if (payload.getMemberRole() != null) {
             this.role = HouseholdMemberRole.valueOf(payload.getMemberRole());
         }
-        this.isActive = !"REMOVED".equals(payload.getStatus());
+        this.isActive = !"REMOVED".equals(payload.getStatus()) && !"DELETED".equals(payload.getStatus());
     }
 }

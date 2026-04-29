@@ -29,9 +29,9 @@ spring:
           predicates:
             - Path=/households/**
         - id: apartment-complex-service
-          uri: http://localhost:${COMPLEX_SERVER_PORT}
+          uri: http://localhost:${COMPLEX_SERVER_PORT:9082}
           predicates:
-            - Path=/api/admin/master/apartment-complexes/**
+            - Path=/api/admin/master/apartment-complexes/**,/api/apartment-complexes/**
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
@@ -55,6 +55,7 @@ gateway:
       - /api/auth/**
       - /login/**
       - /oauth2/**
+      - /api/apartment-complexes/**
     jwt-secret: ${JWT_SECRET_KEY}
 
 server:

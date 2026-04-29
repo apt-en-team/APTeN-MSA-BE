@@ -1,7 +1,10 @@
 package com.apten.household.application.service;
 
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
+import com.apten.common.kafka.payload.FacilityUsageEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
+import com.apten.common.kafka.payload.VehicleSnapshotEventPayload;
+import com.apten.common.kafka.payload.VisitorUsageEventPayload;
 import com.apten.household.domain.entity.ComplexCache;
 import com.apten.household.domain.entity.UserCache;
 import com.apten.household.domain.enums.ComplexCacheStatus;
@@ -57,15 +60,30 @@ public class HouseholdReferenceCacheService {
 
         // 공통 payload에 있는 값만 우선 반영하고 누락 필드는 추후 계약 확장 시 채운다.
         userCache.apply(
-                payload.getApartmentComplexId(),
+                payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId(),
                 payload.getName(),
-                userCache.getPhone(),
-                userCache.getBirthDate(),
+                payload.getPhone() != null ? payload.getPhone() : userCache.getPhone(),
+                payload.getBirthDate() != null ? payload.getBirthDate() : userCache.getBirthDate(),
                 UserCacheRole.valueOf(payload.getRole()),
                 UserCacheStatus.valueOf(payload.getStatus())
         );
 
         // 사용자 캐시를 저장한다.
         userCacheRepository.save(userCache);
+    }
+
+    // 차량 스냅샷 이벤트를 받아 vehicle_snapshot을 upsert 하는 준비 메서드이다.
+    public void upsertVehicleSnapshot(VehicleSnapshotEventPayload payload) {
+        // TODO vehicle_snapshot event 계약이 확정되면 household-service 스냅샷 저장 로직을 연결한다.
+    }
+
+    // 시설 이용 스냅샷 이벤트를 받아 facility_usage_snapshot을 upsert 하는 준비 메서드이다.
+    public void upsertFacilityUsageSnapshot(FacilityUsageEventPayload payload) {
+        // TODO facility_usage event 계약이 확정되면 household-service 스냅샷 저장 로직을 연결한다.
+    }
+
+    // 방문차량 월 집계 이벤트를 받아 visitor_usage_snapshot을 upsert 하는 준비 메서드이다.
+    public void upsertVisitorUsageSnapshot(VisitorUsageEventPayload payload) {
+        // TODO visitor_usage event 계약이 확정되면 household-service 스냅샷 저장 로직을 연결한다.
     }
 }

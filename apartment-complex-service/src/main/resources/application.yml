@@ -17,7 +17,7 @@ spring:
     password: ${COMPLEX_DB_PASSWORD}
   kafka:
     consumer:
-      group-id: apartment-complex-service-group
+#      group-id: apartment-complex-service-group
 
 constants:
   api:

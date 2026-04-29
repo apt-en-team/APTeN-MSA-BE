@@ -16,6 +16,7 @@ import com.apten.apartmentcomplex.application.service.ApartmentComplexService;
 import com.apten.common.response.ResultResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 // 관리자 단지 API 진입점이다.
 // 단지 등록과 조회, 수정, 상태 변경, 관리자 배정/해제/조회 요청을 이 컨트롤러가 받는다.
 @RestController
+@Slf4j
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/master/apartment-complexes")
 public class AdminApartmentComplexController {
@@ -50,6 +52,7 @@ public class AdminApartmentComplexController {
     public ResultResponse<ApartmentComplexGetPageRes> getApartmentComplexList(
             @ModelAttribute ApartmentComplexSearchReq req
     ) {
+        log.info("keyword = [{}], page = {}, size = {}", req.getKeyword(), req.getPage(), req.getSize());
         return ResultResponse.success("단지 목록 조회 성공", apartmentComplexService.getApartmentComplexList(req));
     }
 

@@ -16,6 +16,15 @@ public final class KafkaTopics {
     // household member 캐시 동기화 topic
     public static final String HOUSEHOLD_MEMBER = "household-member.v1";
 
+    // 차량 스냅샷 동기화 topic
+    public static final String VEHICLE = "vehicle.v1";
+
+    // 시설 이용 스냅샷 동기화 topic
+    public static final String FACILITY_USAGE = "facility-usage.v1";
+
+    // 방문차량 월 집계 스냅샷 동기화 topic
+    public static final String VISITOR_USAGE = "visitor-usage.v1";
+
     private KafkaTopics() {
     }
 }

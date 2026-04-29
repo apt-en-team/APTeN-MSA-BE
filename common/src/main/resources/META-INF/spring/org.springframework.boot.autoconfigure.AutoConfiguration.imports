@@ -1,4 +1,3 @@
 com.apten.common.outbox.OutboxPackagesAutoConfiguration
 com.apten.common.outbox.OutboxAutoConfiguration
-com.apten.common.kafka.KafkaConfiguration
 com.apten.common.enumcode.EnumAutoConfiguration

@@ -17,7 +17,7 @@ spring:
     password: ${FACILITY_DB_PASSWORD}
   kafka:
     consumer:
-      group-id: facility-reservation-service-group
+#      group-id: facility-reservation-service-group
   data:
     redis:
       host: ${REDIS_HOST}
