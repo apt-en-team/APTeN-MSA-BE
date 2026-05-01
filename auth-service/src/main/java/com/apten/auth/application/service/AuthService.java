@@ -1,29 +1,14 @@
 package com.apten.auth.application.service;
 
 import com.apten.auth.application.mapper.AuthUserMapper;
-import com.apten.auth.application.model.request.AuthCheckEmailReq;
-import com.apten.auth.application.model.request.AuthLoginPostReq;
-import com.apten.auth.application.model.request.AuthPasswordForgotPostReq;
-import com.apten.auth.application.model.request.AuthPasswordResetPostReq;
-import com.apten.auth.application.model.request.AuthRegisterPostReq;
-import com.apten.auth.application.model.request.AuthSmsSendPostReq;
-import com.apten.auth.application.model.request.AuthSmsVerifyPostReq;
-import com.apten.auth.application.model.request.AuthSocialSignupPostReq;
-import com.apten.auth.application.model.request.AuthTokenRefreshPostReq;
-import com.apten.auth.application.model.response.AuthCheckEmailRes;
-import com.apten.auth.application.model.response.AuthLoginPostRes;
-import com.apten.auth.application.model.response.AuthLogoutPostRes;
-import com.apten.auth.application.model.response.AuthPasswordForgotPostRes;
-import com.apten.auth.application.model.response.AuthPasswordResetPostRes;
-import com.apten.auth.application.model.response.AuthRegisterPostRes;
-import com.apten.auth.application.model.response.AuthSmsSendPostRes;
-import com.apten.auth.application.model.response.AuthSmsVerifyPostRes;
-import com.apten.auth.application.model.response.AuthSocialSignupPostRes;
-import com.apten.auth.application.model.response.AuthTokenRefreshPostRes;
+import com.apten.auth.application.model.request.*;
+import com.apten.auth.application.model.response.*;
+import com.apten.auth.domain.entity.AdminProfile;
 import com.apten.auth.domain.entity.User;
 import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
+import com.apten.auth.domain.repository.AdminProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
@@ -33,15 +18,16 @@ import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.security.UserContext;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 
 // 인증 응용 서비스 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @Service
@@ -50,6 +36,9 @@ public class AuthService {
 
     // 회원 기본 저장소
     private final UserRepository userRepository;
+
+    // MANAGER / ADMIN 단지 소속 정보 저장소
+    private final AdminProfileRepository adminProfileRepository;
 
     // 인증 조회용 MyBatis 매퍼
     private final ObjectProvider<AuthQueryMapper> authQueryMapperProvider;
@@ -99,12 +88,16 @@ public class AuthService {
         user.resetLoginFailCount();
 
         // auth.UserRole → common.UserRole 변환
-        // auth에는 USER가 있고 common에는 RESIDENT — JWT claim은 common 기준
         com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+
+        // role에 따라 complexId 조회 분기
+        // MASTER는 null, MANAGER/ADMIN은 admin_profile, USER는 user 테이블
+        Long complexId = resolveComplexIdByRole(user);
+
         UserContext userContext = UserContext.builder()
                 .userId(user.getId())
                 .userRole(commonRole)
-                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
+                .complexId(complexId)
                 .build();
 
         // JWT 발급
@@ -293,12 +286,16 @@ public class AuthService {
         }
 
         // 최신 정보로 새 AT 발급
-        // 최신 정보로 새 AT 발급
         com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+
+        // role에 따라 complexId 조회 분기
+        // MASTER는 null, MANAGER/ADMIN은 admin_profile, USER는 user 테이블
+        Long complexId = resolveComplexIdByRole(user);
+
         UserContext userContext = UserContext.builder()
                 .userId(userId)
                 .userRole(commonRole)
-                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
+                .complexId(complexId)
                 .build();
         String newAccessToken = jwtTokenProvider.issueAccessToken(userContext);
 
@@ -405,6 +402,20 @@ public class AuthService {
     // TODO: 내 계정 정보 조회는 API 명세 확정 후 추가
     // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
     // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
+
+    // role에 따라 complexId 조회 분기
+    // MASTER → null, MANAGER/ADMIN → admin_profile 조회, USER → user 테이블 직접 사용
+    private Long resolveComplexIdByRole(User user) {
+        if (user.getRole() == UserRole.MASTER) {
+            return null;
+        }
+        if (user.getRole() == UserRole.MANAGER || user.getRole() == UserRole.ADMIN) {
+            return adminProfileRepository.findByUserId(user.getId())
+                    .map(AdminProfile::getComplexId)
+                    .orElse(null);
+        }
+        return user.getComplexId();
+    }
 
     // 단지 UID를 Long으로 변환 — 매핑 확정 전까지 숫자 UID만 허용
     private Long resolveComplexId(String apartmentComplexUid) {

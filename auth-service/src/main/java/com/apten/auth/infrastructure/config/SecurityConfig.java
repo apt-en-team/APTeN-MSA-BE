@@ -29,6 +29,10 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
+                        // MASTER 전용 경로 — MANAGER 계정 생성
+                        .requestMatchers("/api/admin/master/**").hasRole("MASTER")
+                        // MANAGER 전용 경로 — ADMIN 계정 생성
+                        .requestMatchers("/api/admin/manager/**").hasRole("MANAGER")
                         .anyRequest().authenticated()
                 )
                 // OAuth2 소셜 로그인 설정 연결
