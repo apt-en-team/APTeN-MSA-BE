@@ -16,14 +16,13 @@ import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
 import com.apten.apartmentcomplex.domain.entity.ComplexAdmin;
-import com.apten.apartmentcomplex.domain.entity.UserCache;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
-import com.apten.apartmentcomplex.domain.enums.UserCacheRole;
-import com.apten.apartmentcomplex.domain.enums.UserCacheStatus;
 import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
 import com.apten.apartmentcomplex.domain.repository.ComplexAdminRepository;
-import com.apten.apartmentcomplex.domain.repository.UserCacheRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
+import com.apten.apartmentcomplex.infrastructure.client.AuthInternalClient;
+import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateReq;
+import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateRes;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.apartmentcomplex.infrastructure.mapper.ApartmentComplexMapper;
 import com.apten.common.exception.CommonErrorCode;
@@ -48,8 +47,8 @@ public class ApartmentComplexService {
     private final ApartmentComplexRepository apartmentComplexRepository;
     private final ObjectProvider<ApartmentComplexMapper> apartmentComplexMapper;
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
-    private final UserCacheRepository userCacheRepository;
     private final ComplexAdminRepository complexAdminRepository;
+    private final AuthInternalClient authInternalClient;
 
     // 최소 생성 정보를 검증한다.
     private void validateCreateApartmentComplexReq(ApartmentComplexReq req) {
@@ -83,6 +82,10 @@ public class ApartmentComplexService {
     public ApartmentComplexPostRes createApartmentComplex(ApartmentComplexReq req) {
 
         validateCreateApartmentComplexReq(req);
+
+        // 단지 등록 요청에 포함된 최초 관리자 정보를 검증한다.
+        validateInitialManager(req);
+
         //중복 체크
         if (apartmentComplexRepository.existsByName(req.getName())) {
             throw new BusinessException(ApartmentComplexErrorCode.DUPLICATE_COMPLEX);
@@ -90,21 +93,44 @@ public class ApartmentComplexService {
 
         String code = generateNextComplexCode();
 
-        // 단지 원본을 먼저 저장해 aggregateId로 사용할 Long PK를 확보한다
+        // 단지 정보를 먼저 저장해 complexId를 확보한다.
         ApartmentComplex apartmentComplex = ApartmentComplex.builder()
                 .code(code)
                 .name(req.getName())
                 .address(req.getAddress())
                 .addressDetail(req.getAddressDetail())
-                .zipCode(req.getZipcode())
+                .zipCode(req.getZipCode())
                 .status(ApartmentComplexStatus.ACTIVE)
                 .description(req.getDescription())
                 .build();
         ApartmentComplex savedApartmentComplex = apartmentComplexRepository.save(apartmentComplex);
 
-        // TODO: 단지 등록 완료 후 Auth Service 내부 호출로 최초 관리자 계정을 생성한다.
-        // TODO: Auth Service에서 반환한 userId로 complex_admin 소속 정보를 저장한다.
-        // TODO: Kafka Outbox 구조는 기존 이벤트 발행 흐름을 그대로 유지한다.
+        // Auth Service 내부 API를 호출해 최초 관리자 계정을 생성한다.
+        InternalAdminCreateRes createdAdmin = authInternalClient.createAdmin(
+                InternalAdminCreateReq.builder()
+                        .complexId(savedApartmentComplex.getId())
+                        .email(req.getManagerEmail())
+                        .password(req.getManagerPassword())
+                        .name(req.getManagerName())
+                        .phone(req.getManagerPhone())
+                        .adminRole("01")
+                        .build()
+        );
+
+        // Auth 응답의 userId를 기준으로 단지 관리자 소속을 저장한다.
+        ComplexAdmin complexAdmin = ComplexAdmin.builder()
+                .complexId(savedApartmentComplex.getId())
+                .adminUserId(createdAdmin.getUserId())
+                .adminName(createdAdmin.getName())
+                .adminRole("01")
+                .isActive(true)
+                .assignedAt(LocalDateTime.now())
+                .build();
+        complexAdminRepository.save(complexAdmin);
+
+        // user_cache는 Auth 이벤트를 통해 비동기로 동기화되므로 여기서 직접 저장하지 않는다.
+        // Kafka Outbox 구조는 기존 단지 이벤트 발행 흐름을 그대로 유지한다.
+        // TODO: 외부 Auth 호출이 트랜잭션 안에 있으므로 이후 보상 처리 전략을 검토한다.
 
         // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남긴다
         apartmentComplexOutboxService.saveCreatedEvent(savedApartmentComplex);
@@ -113,6 +139,8 @@ public class ApartmentComplexService {
                 .complexId(savedApartmentComplex.getId())
                 .code(savedApartmentComplex.getCode())
                 .name(savedApartmentComplex.getName())
+                .managerUserId(createdAdmin.getUserId())
+                .managerName(createdAdmin.getName())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -187,7 +215,7 @@ public class ApartmentComplexService {
                 req.getName(),
                 req.getAddress(),
                 req.getAddressDetail(),
-                req.getZipcode(),
+                req.getZipCode(),
                 req.getDescription()
         );
 
@@ -208,38 +236,57 @@ public class ApartmentComplexService {
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
-        // 배정할 사용자 ID가 없으면 어느 사용자를 단지에 붙일지 알 수 없다.
-        if (req == null || req.getUserId() == null) {
+        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
+            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
+        }
+
+        // 관리자 생성 요청의 필수값과 역할 코드를 검증한다.
+        if (req == null
+                || isBlank(req.getEmail())
+                || isBlank(req.getPassword())
+                || isBlank(req.getName())
+                || isBlank(req.getPhone())
+                || isBlank(req.getAdminRole())) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // user_cache에서 실제 관리자 사용자 원본을 찾는다.
-        UserCache userCache = userCacheRepository.findById(req.getUserId())
-                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.USER_NOT_FOUND));
+        validateAdminRole(req.getAdminRole());
 
-        // 플랫폼 권한은 Auth Service가 관리하므로 ADMIN 계정만 단지에 배정할 수 있다.
-        validateAdminUser(userCache);
+        // 관리자 생성 시 Auth Service 내부 API 호출 예정이다.
+        InternalAdminCreateRes createdAdmin = authInternalClient.createAdmin(
+                InternalAdminCreateReq.builder()
+                        .complexId(complex.getId())
+                        .email(req.getEmail())
+                        .password(req.getPassword())
+                        .name(req.getName())
+                        .phone(req.getPhone())
+                        .adminRole(req.getAdminRole())
+                        .build()
+        );
 
         // 같은 단지에 대한 기존 배정 이력이 있으면 활성 상태에 따라 재사용한다.
-        ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), userCache.getId())
-                .map(existingAdmin -> reactivateAdminAssignment(existingAdmin, userCache))
+        ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), createdAdmin.getUserId())
+                .map(existingAdmin -> reactivateAdminAssignment(existingAdmin, createdAdmin))
                 .orElseGet(() -> ComplexAdmin.builder()
                         .complexId(complex.getId())
-                        .adminUserId(userCache.getId())
-                        .adminName(userCache.getName())
+                        .adminUserId(createdAdmin.getUserId())
+                        .adminName(createdAdmin.getName())
+                        .adminRole(req.getAdminRole())
                         .isActive(true)
                         .assignedAt(LocalDateTime.now())
                         .build());
 
-        // TODO: 관리자 생성 시 Auth Service 내부 호출로 계정 생성과 프로필 생성을 연동한다.
-
-        // 관리자-단지 배정 여부만 저장하고 세부 역할은 Auth role에 맡긴다.
+        // Auth 응답의 userId를 기준으로 단지 관리자 소속을 저장한다.
         complexAdminRepository.save(admin);
+
+        // user_cache는 Auth 이벤트를 통해 비동기로 동기화되므로 여기서 직접 저장하지 않는다.
 
         return ComplexAdminPostRes.builder()
                 .code(code)
                 .userId(admin.getAdminUserId())
                 .name(admin.getAdminName())
+                .email(createdAdmin.getEmail())
+                .adminRole(admin.getAdminRole())
                 .isActive(admin.getIsActive())
                 .assignedAt(admin.getAssignedAt())
                 .build();
@@ -337,28 +384,30 @@ public class ApartmentComplexService {
                 .toList();
     }
 
-    // user_cache의 플랫폼 권한과 상태를 보고 단지 배정 가능한 ADMIN인지 검증한다.
-    private void validateAdminUser(UserCache userCache) {
-        // 단지 관리자 배정은 ADMIN 역할 사용자에게만 허용한다.
-        if (userCache.getRole() != UserCacheRole.ADMIN) {
-            throw new BusinessException(ApartmentComplexErrorCode.USER_NOT_ADMIN);
-        }
-
-        // 비활성 또는 삭제 상태 사용자는 단지 관리자로 배정하지 않는다.
-        if (userCache.getStatus() != UserCacheStatus.ACTIVE || Boolean.TRUE.equals(userCache.getIsDeleted())) {
+    private void validateInitialManager(ApartmentComplexReq req) {
+        if (isBlank(req.getManagerEmail())
+                || isBlank(req.getManagerPassword())
+                || isBlank(req.getManagerName())
+                || isBlank(req.getManagerPhone())) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
+    private void validateAdminRole(String adminRole) {
+        if (!"01".equals(adminRole) && !"02".equals(adminRole)) {
+            throw new BusinessException(ApartmentComplexErrorCode.INVALID_ADMIN_ROLE);
+        }
+    }
+
     // 기존 비활성 배정은 재활성화하고, 이미 활성 배정이면 중복으로 본다.
-    private ComplexAdmin reactivateAdminAssignment(ComplexAdmin existingAdmin, UserCache userCache) {
+    private ComplexAdmin reactivateAdminAssignment(ComplexAdmin existingAdmin, InternalAdminCreateRes createdAdmin) {
         // 이미 활성화된 배정이면 같은 단지에 다시 배정할 수 없다.
         if (Boolean.TRUE.equals(existingAdmin.getIsActive())) {
             throw new BusinessException(ApartmentComplexErrorCode.DUPLICATE_COMPLEX_ADMIN);
         }
 
         // 비활성 이력은 이름을 최신화하고 다시 활성 상태로 전환한다.
-        existingAdmin.reassign(userCache.getName());
+        existingAdmin.reassign(createdAdmin.getName(), createdAdmin.getAdminRole());
         return existingAdmin;
     }
 }

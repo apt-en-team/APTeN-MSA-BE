@@ -1,23 +1,95 @@
 package com.apten.apartmentcomplex.infrastructure.client;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateReq;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateRes;
+import com.apten.apartmentcomplex.infrastructure.config.AuthServiceProperties;
+import com.apten.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
-// Auth Service 내부 호출 예시용 클라이언트이다.
+// Auth Service 내부 관리자 생성 API를 호출하는 클라이언트이다.
 @Component
 @RequiredArgsConstructor
 public class AuthInternalClient {
 
-    // 향후 내부 인증 호출이 필요해지면 RestClient 기반으로 연결한다.
     private final RestClient.Builder restClientBuilder;
+    private final AuthServiceProperties authServiceProperties;
+    private final ObjectMapper objectMapper;
 
     public InternalAdminCreateRes createAdmin(InternalAdminCreateReq req) {
-        // TODO: 단지 등록 후 최초 관리자 생성 예정
-        // TODO: 관리자 생성 시 Auth Service 내부 호출 예정
-        // TODO: Kafka Outbox 구조는 기존 이벤트 발행 흐름을 그대로 유지한다.
-        throw new UnsupportedOperationException("TODO: Auth Service 내부 호출은 다음 작업에서 연결합니다.");
+        try {
+            String body = restClientBuilder.build()
+                    .post()
+                    .uri(authServiceProperties.getUrl() + "/internal/auth/admins")
+                    .body(req)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, response) -> {
+                        throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+                    })
+                    .body(String.class);
+
+            return unwrapResponse(body);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RestClientResponseException exception) {
+            throw mapAuthException(exception.getResponseBodyAsString());
+        } catch (RestClientException exception) {
+            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
+            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+        } catch (Exception exception) {
+            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
+            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+        }
+    }
+
+    private InternalAdminCreateRes unwrapResponse(String body) throws Exception {
+        JsonNode root = objectMapper.readTree(body);
+        JsonNode successNode = root.get("success");
+
+        if (successNode != null) {
+            if (!successNode.asBoolean()) {
+                throw mapAuthException(body);
+            }
+
+            JsonNode dataNode = root.get("data");
+            if (dataNode == null || dataNode.isNull()) {
+                dataNode = root.get("resultData");
+            }
+
+            if (dataNode == null || dataNode.isNull() || dataNode.isMissingNode()) {
+                throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+            }
+
+            return objectMapper.treeToValue(dataNode, InternalAdminCreateRes.class);
+        }
+
+        return objectMapper.treeToValue(root, InternalAdminCreateRes.class);
+    }
+
+    private BusinessException mapAuthException(String body) {
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            String code = root.hasNonNull("code") ? root.get("code").asText() : "";
+            String message = root.hasNonNull("message") ? root.get("message").asText() : "";
+
+            if ("AUTH_409_01".equals(code) || "DUPLICATE_EMAIL".equals(code)) {
+                return new BusinessException(ApartmentComplexErrorCode.DUPLICATE_EMAIL);
+            }
+
+            if (message.contains("이미 사용중인 이메일")) {
+                return new BusinessException(ApartmentComplexErrorCode.DUPLICATE_EMAIL);
+            }
+        } catch (Exception ignored) {
+            // 응답 본문 파싱에 실패하면 공통 내부 호출 오류로 처리한다.
+        }
+
+        return new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
     }
 }

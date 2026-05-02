@@ -19,6 +19,12 @@ public class ComplexAdminPostRes {
     // 관리자 이름이다.
     private final String name;
 
+    // 관리자 이메일이다.
+    private final String email;
+
+    // 단지 내 관리자 역할이다.
+    private final String adminRole;
+
     // 현재 활성 여부이다.
     private final Boolean isActive;
 

@@ -52,6 +52,10 @@ public class ComplexAdmin extends BaseEntity {
     @Column(name = "admin_name", nullable = false)
     private String adminName;
 
+    // 단지 내 관리자 역할 코드이다.
+    @Column(name = "admin_role", nullable = false, length = 20)
+    private String adminRole;
+
     // 현재 소속 활성 여부이다.
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
@@ -65,8 +69,9 @@ public class ComplexAdmin extends BaseEntity {
     private LocalDateTime unassignedAt;
 
     // 기존 비활성 배정을 다시 활성화할 때 사용한다.
-    public void reassign(String adminName) {
+    public void reassign(String adminName, String adminRole) {
         this.adminName = adminName;
+        this.adminRole = adminRole;
         this.isActive = true;
         this.assignedAt = LocalDateTime.now();
         this.unassignedAt = null;

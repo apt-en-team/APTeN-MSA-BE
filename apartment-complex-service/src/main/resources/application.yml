@@ -30,3 +30,7 @@ apten:
 juso:
   api-key: ${JUSO_API_KEY}
   search-url: https://business.juso.go.kr/addrlink/addrLinkApi.do
+
+services:
+  auth:
+    url: ${AUTH_SERVICE_URL:http://localhost:9080}
