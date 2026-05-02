@@ -21,4 +21,7 @@ public class ComplexAdminDeleteRes {
 
     // 해제 시각이다.
     private final LocalDateTime unassignedAt;
+
+    // Auth 내부 계정 삭제 시각이다.
+    private final LocalDateTime deletedAt;
 }

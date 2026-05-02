@@ -3,6 +3,7 @@ package com.apten.apartmentcomplex.application.service;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexStatusPatchReq;
+import com.apten.apartmentcomplex.application.model.request.ComplexAdminPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetDetailRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetPageRes;
@@ -13,6 +14,7 @@ import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPub
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexStatusPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminDeleteRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
+import com.apten.apartmentcomplex.application.model.response.ComplexAdminPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
 import com.apten.apartmentcomplex.domain.entity.ComplexAdmin;
@@ -23,6 +25,8 @@ import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.client.AuthInternalClient;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateReq;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateRes;
+import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminDeleteRes;
+import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminUpdateReq;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.apartmentcomplex.infrastructure.mapper.ApartmentComplexMapper;
 import com.apten.common.exception.CommonErrorCode;
@@ -299,6 +303,10 @@ public class ApartmentComplexService {
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
+        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
+            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
+        }
+
         // complex_admin에서 현재 또는 과거 배정 이력을 조회한다.
         ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), userId)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_ADMIN_NOT_FOUND));
@@ -308,17 +316,23 @@ public class ApartmentComplexService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 실제 삭제 대신 소프트 해제로 배정 상태만 끈다.
+        // 단지 관리자 소속은 실제 삭제하지 않고 비활성 처리한다.
         admin.unassign();
         complexAdminRepository.save(admin);
 
-        // TODO: 관리자 삭제 시 소속 해제 후 Auth Service 내부 API로 계정을 소프트 삭제한다.
+        // Auth Service 내부 API를 호출해 관리자 계정을 소프트 삭제한다.
+        InternalAdminDeleteRes deletedAdmin = authInternalClient.softDeleteAdmin(userId);
+
+        // user_cache는 Auth 이벤트로 비동기 동기화되므로 여기서 직접 수정하지 않는다.
+        // Kafka Outbox 구조는 기존 이벤트 발행 흐름을 그대로 유지한다.
+        // TODO: 내부 호출과 DB 상태 변경 사이의 보상 처리 정책을 정리한다.
 
         return ComplexAdminDeleteRes.builder()
                 .code(code)
                 .userId(admin.getAdminUserId())
                 .isActive(admin.getIsActive())
                 .unassignedAt(admin.getUnassignedAt())
+                .deletedAt(deletedAdmin.getDeletedAt())
                 .build();
     }
 
@@ -329,16 +343,66 @@ public class ApartmentComplexService {
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
-        // 현재 활성화된 관리자만 조회해 상세 화면에 내려준다.
-        return complexAdminRepository.findByComplexIdAndIsActiveTrue(complex.getId()).stream()
+        // 프론트에서 현재 상태를 함께 보여줄 수 있도록 전체 관리자 현황을 내려준다.
+        return complexAdminRepository.findByComplexIdOrderByAssignedAtDesc(complex.getId()).stream()
                 .map(admin -> ComplexAdminGetRes.builder()
                         .userId(admin.getAdminUserId())
                         .name(admin.getAdminName())
+                        // 프론트 수정 모달에서 사용할 수 있도록 권한 code와 표시명을 함께 내려준다.
+                        .adminRole(admin.getAdminRole())
+                        .adminRoleName(resolveAdminRoleName(admin.getAdminRole()))
                         .isActive(admin.getIsActive())
                         .assignedAt(admin.getAssignedAt())
                         .unassignedAt(admin.getUnassignedAt())
                         .build())
                 .toList();
+    }
+
+    // 관리자 권한 수정 서비스 API-212이다.
+    @Transactional
+    public ComplexAdminPatchRes updateComplexAdmin(String code, Long userId, ComplexAdminPatchReq req) {
+        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+
+        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
+            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
+        }
+
+        // complex_admin 조회
+        ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), userId)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_ADMIN_NOT_FOUND));
+
+        // 관리자 수정 시 adminRole/isActive 검증
+        if (req == null || isBlank(req.getAdminRole()) || req.getIsActive() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        validateAdminRole(req.getAdminRole());
+
+        admin.changeAdminRole(req.getAdminRole());
+        admin.changeActive(req.getIsActive());
+        complexAdminRepository.save(admin);
+
+        // 관리자 수정 시 Auth Service 내부 API 호출
+        authInternalClient.updateAdmin(
+                userId,
+                InternalAdminUpdateReq.builder()
+                        .adminRole(req.getAdminRole())
+                        .status(Boolean.TRUE.equals(req.getIsActive()) ? "01" : "02")
+                        .build()
+        );
+
+        // user_cache는 Auth 이벤트로 비동기 동기화되므로 여기서 직접 수정하지 않는다.
+        // Kafka Outbox 구조는 기존 이벤트 발행 흐름을 그대로 유지한다.
+        // TODO: 내부 호출과 DB 상태 변경 사이의 보상 처리 정책을 정리한다.
+
+        return ComplexAdminPatchRes.builder()
+                .userId(admin.getAdminUserId())
+                .name(admin.getAdminName())
+                .adminRole(admin.getAdminRole())
+                .adminRoleName(resolveAdminRoleName(admin.getAdminRole()))
+                .isActive(admin.getIsActive())
+                .updatedAt(admin.getUpdatedAt())
+                .build();
     }
 
     // 단지 활성 상태를 별도 API에서 변경한다.
@@ -397,6 +461,16 @@ public class ApartmentComplexService {
         if (!"01".equals(adminRole) && !"02".equals(adminRole)) {
             throw new BusinessException(ApartmentComplexErrorCode.INVALID_ADMIN_ROLE);
         }
+    }
+
+    private String resolveAdminRoleName(String adminRole) {
+        if ("01".equals(adminRole)) {
+            return "매니저";
+        }
+        if ("02".equals(adminRole)) {
+            return "스태프";
+        }
+        return "";
     }
 
     // 기존 비활성 배정은 재활성화하고, 이미 활성 배정이면 중복으로 본다.

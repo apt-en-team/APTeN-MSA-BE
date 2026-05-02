@@ -3,6 +3,7 @@ package com.apten.apartmentcomplex.application.controller;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexStatusPatchReq;
+import com.apten.apartmentcomplex.application.model.request.ComplexAdminPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetDetailRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetPageRes;
@@ -11,6 +12,7 @@ import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPos
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexStatusPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminDeleteRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
+import com.apten.apartmentcomplex.application.model.response.ComplexAdminPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.application.service.ApartmentComplexService;
 import com.apten.common.response.ResultResponse;
@@ -122,6 +124,19 @@ public class AdminApartmentComplexController {
         return ResultResponse.success(
                 "단지 관리자 해제 성공",
                 apartmentComplexService.unassignAdminFromComplex(code, userId)
+        );
+    }
+
+    //관리자 권한 수정 API-212
+    @PatchMapping("/{code}/admins/{userId}")
+    public ResultResponse<ComplexAdminPatchRes> updateComplexAdmin(
+            @PathVariable String code,
+            @PathVariable Long userId,
+            @RequestBody ComplexAdminPatchReq req
+    ) {
+        return ResultResponse.success(
+                "단지 관리자 수정 성공",
+                apartmentComplexService.updateComplexAdmin(code, userId, req)
         );
     }
 }

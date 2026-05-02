@@ -82,4 +82,19 @@ public class ComplexAdmin extends BaseEntity {
         this.isActive = false;
         this.unassignedAt = LocalDateTime.now();
     }
+
+    // 단지 내 관리자 역할을 수정한다.
+    public void changeAdminRole(String adminRole) {
+        this.adminRole = adminRole;
+    }
+
+    // 활성 여부를 수정하면서 해제 시각도 함께 관리한다.
+    public void changeActive(Boolean isActive) {
+        this.isActive = isActive;
+        if (Boolean.TRUE.equals(isActive)) {
+            this.unassignedAt = null;
+            return;
+        }
+        this.unassignedAt = LocalDateTime.now();
+    }
 }

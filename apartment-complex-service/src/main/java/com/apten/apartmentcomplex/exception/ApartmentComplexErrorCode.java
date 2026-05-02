@@ -16,6 +16,7 @@ public enum ApartmentComplexErrorCode implements ErrorCode {
     HOUSEHOLD_TYPE_NOT_FOUND(HttpStatus.NOT_FOUND, "CPLX_404_03", "세대 유형을 찾을 수 없습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "CPLX_404_04", "사용자를 찾을 수 없습니다."),
     COMPLEX_ADMIN_NOT_FOUND(HttpStatus.NOT_FOUND, "CPLX_404_05", "단지 관리자 소속 정보를 찾을 수 없습니다."),
+    ADMIN_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "CPLX_404_06", "관리자 프로필 정보를 찾을 수 없습니다."),
 
     DUPLICATE_COMPLEX(HttpStatus.CONFLICT, "CPLX_409_01", "이미 존재하는 단지입니다."),
     DUPLICATE_HOUSEHOLD_TYPE(HttpStatus.CONFLICT, "CPLX_409_02", "이미 존재하는 세대 유형입니다."),
