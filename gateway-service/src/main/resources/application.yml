@@ -15,8 +15,8 @@ spring:
       - optional:file:../.env[.properties]
   data:
     redis:
-      host: ${REDIS_HOST} # Redis 호스트
-      port: ${REDIS_PORT} # Redis 포트
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
   cloud:
     gateway:
       routes:
@@ -24,26 +24,45 @@ spring:
           uri: http://localhost:${AUTH_SERVER_PORT}
           predicates:
             - Path=/api/auth/**,/login/**,/oauth2/**
-        - id: household-service
-          uri: http://localhost:${HOUSEHOLD_SERVER_PORT}
-          predicates:
-            - Path=/households/**
+
+        # /api/admin/master/apartment-complexes/** 는 complex-service로 — auth-service보다 먼저 선언해야 충돌 안 남
         - id: apartment-complex-service
           uri: http://localhost:${COMPLEX_SERVER_PORT:9082}
           predicates:
             - Path=/api/admin/master/apartment-complexes/**,/api/apartment-complexes/**
+
+        # MASTER -> MANAGER 생성, MANAGER → ADMIN 생성 API — auth-service로 라우팅
+        - id: auth-service-admin
+          uri: http://localhost:${AUTH_SERVER_PORT}
+          predicates:
+            - Path=/api/admin/master/managers/**,/api/admin/manager/admins/**
+
+        # 내 계정 조회/수정 API — auth-service로 라우팅
+        - id: auth-service-users
+          uri: http://localhost:${AUTH_SERVER_PORT}
+          predicates:
+            - Path=/api/users/**
+
+        - id: household-service
+          uri: http://localhost:${HOUSEHOLD_SERVER_PORT}
+          predicates:
+            - Path=/households/**
+
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
             - Path=/parking-vehicles/**
+
         - id: facility-reservation-service
           uri: http://localhost:${FACILITY_SERVER_PORT}
           predicates:
             - Path=/facilities/**,/facility-reservations/**
+
         - id: board-service
           uri: http://localhost:${BOARD_SERVER_PORT}
           predicates:
             - Path=/boards/**,/comments/**
+
         - id: notification-service
           uri: http://localhost:${NOTIFICATION_SERVER_PORT}
           predicates:
