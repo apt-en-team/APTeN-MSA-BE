@@ -4,11 +4,13 @@ import com.apten.auth.application.mapper.AuthUserMapper;
 import com.apten.auth.application.model.request.*;
 import com.apten.auth.application.model.response.*;
 import com.apten.auth.domain.entity.AdminProfile;
+import com.apten.auth.domain.entity.ResidentProfile;
 import com.apten.auth.domain.entity.User;
 import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.AdminProfileRepository;
+import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
@@ -39,6 +41,9 @@ public class AuthService {
 
     // MANAGER / ADMIN 단지 소속 정보 저장소
     private final AdminProfileRepository adminProfileRepository;
+
+    // USER 단지 소속 정보 저장소
+    private final ResidentProfileRepository residentProfileRepository;
 
     // 인증 조회용 MyBatis 매퍼
     private final ObjectProvider<AuthQueryMapper> authQueryMapperProvider;
@@ -404,17 +409,22 @@ public class AuthService {
     // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
 
     // role에 따라 complexId 조회 분기
-    // MASTER → null, MANAGER/ADMIN → admin_profile 조회, USER → user 테이블 직접 사용
+    // MASTER → null, MANAGER/ADMIN → admin_profile 조회, USER → resident_profile 조회
     private Long resolveComplexIdByRole(User user) {
         if (user.getRole() == UserRole.MASTER) {
+            // MASTER는 전체 단지 접근 — complexId 없음
             return null;
         }
         if (user.getRole() == UserRole.MANAGER || user.getRole() == UserRole.ADMIN) {
+            // MANAGER / ADMIN은 admin_profile에서 소속 단지 조회
             return adminProfileRepository.findByUserId(user.getId())
                     .map(AdminProfile::getComplexId)
                     .orElse(null);
         }
-        return user.getComplexId();
+        // USER(입주민)는 resident_profile에서 소속 단지 조회
+        return residentProfileRepository.findByUserId(user.getId())
+                .map(ResidentProfile::getComplexId)
+                .orElse(null);
     }
 
     // 단지 UID를 Long으로 변환 — 매핑 확정 전까지 숫자 UID만 허용
