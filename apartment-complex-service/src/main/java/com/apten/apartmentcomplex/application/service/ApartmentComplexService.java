@@ -102,6 +102,10 @@ public class ApartmentComplexService {
                 .build();
         ApartmentComplex savedApartmentComplex = apartmentComplexRepository.save(apartmentComplex);
 
+        // TODO: 단지 등록 완료 후 Auth Service 내부 호출로 최초 관리자 계정을 생성한다.
+        // TODO: Auth Service에서 반환한 userId로 complex_admin 소속 정보를 저장한다.
+        // TODO: Kafka Outbox 구조는 기존 이벤트 발행 흐름을 그대로 유지한다.
+
         // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남긴다
         apartmentComplexOutboxService.saveCreatedEvent(savedApartmentComplex);
 
@@ -227,6 +231,8 @@ public class ApartmentComplexService {
                         .assignedAt(LocalDateTime.now())
                         .build());
 
+        // TODO: 관리자 생성 시 Auth Service 내부 호출로 계정 생성과 프로필 생성을 연동한다.
+
         // 관리자-단지 배정 여부만 저장하고 세부 역할은 Auth role에 맡긴다.
         complexAdminRepository.save(admin);
 
@@ -258,6 +264,8 @@ public class ApartmentComplexService {
         // 실제 삭제 대신 소프트 해제로 배정 상태만 끈다.
         admin.unassign();
         complexAdminRepository.save(admin);
+
+        // TODO: 관리자 삭제 시 소속 해제 후 Auth Service 내부 API로 계정을 소프트 삭제한다.
 
         return ComplexAdminDeleteRes.builder()
                 .code(code)

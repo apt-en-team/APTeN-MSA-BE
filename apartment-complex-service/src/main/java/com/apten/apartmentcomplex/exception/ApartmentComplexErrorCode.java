@@ -25,7 +25,8 @@ public enum ApartmentComplexErrorCode implements ErrorCode {
     INVALID_ADMIN_ROLE(HttpStatus.BAD_REQUEST, "CPLX_400_02", "유효하지 않은 관리자 역할입니다."),
     INVALID_POLICY_DATE(HttpStatus.BAD_REQUEST, "CPLX_400_03", "유효하지 않은 정책 적용 기간입니다."),
     USER_NOT_ADMIN(HttpStatus.BAD_REQUEST, "CPLX_400_04", "관리자 권한이 없는 사용자입니다."),
-    INACTIVE_COMPLEX(HttpStatus.BAD_REQUEST, "CPLX_400_05", "비활성화된 단지입니다.");
+    INACTIVE_COMPLEX(HttpStatus.BAD_REQUEST, "CPLX_400_05", "비활성화된 단지입니다."),
+    EXTERNAL_ADDRESS_API_ERROR(HttpStatus.BAD_GATEWAY, "CPLX_502_01", "주소 검색 외부 API 호출 중 오류가 발생했습니다.");
 
     // HTTP 상태값
     private final HttpStatus status;

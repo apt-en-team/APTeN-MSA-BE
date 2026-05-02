@@ -26,3 +26,7 @@ constants:
 apten:
   outbox:
     enabled: true
+
+juso:
+  api-key: ${JUSO_API_KEY}
+  search-url: https://business.juso.go.kr/addrlink/addrLinkApi.do
