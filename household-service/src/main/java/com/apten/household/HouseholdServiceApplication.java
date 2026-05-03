@@ -3,10 +3,14 @@ package com.apten.household;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @EnableJpaAuditing
-@SpringBootApplication
+@EntityScan(basePackages = {"com.apten.household", "com.apten.common"})
+@EnableJpaRepositories(basePackages = {"com.apten.household", "com.apten.common"})
+@SpringBootApplication(scanBasePackages = {"com.apten.household", "com.apten.common"})
 public class HouseholdServiceApplication {
 
     public static void main(String[] args) {
