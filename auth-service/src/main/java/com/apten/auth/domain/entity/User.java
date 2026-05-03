@@ -152,4 +152,9 @@ public class User extends BaseEntity {
         this.lockedAt = null;
         this.lastLoginAt = LocalDateTime.now();
     }
+
+    // 비밀번호 변경 — 새 해시값으로 교체
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
 }
