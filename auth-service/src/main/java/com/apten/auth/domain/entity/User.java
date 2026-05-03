@@ -164,4 +164,9 @@ public class User extends BaseEntity {
         this.deletedAt = LocalDateTime.now();
         this.status = UserStatus.DELETED;
     }
+
+    // 회원 상태 갱신 — 세대 매칭 승인/거절 시 호출
+    public void updateStatus(UserStatus status) {
+        this.status = status;
+    }
 }
