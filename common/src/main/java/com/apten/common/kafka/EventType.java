@@ -25,5 +25,8 @@ public enum EventType {
     VEHICLE_DELETED, // 차량 삭제 스냅샷 이벤트
 
     FACILITY_USAGE_COMPLETED, // 시설 이용 완료 스냅샷 이벤트
-    VISITOR_USAGE_SUMMARIZED // 방문차량 월 집계 스냅샷 이벤트
+    VISITOR_USAGE_SUMMARIZED, // 방문차량 월 집계 스냅샷 이벤트
+
+    HOUSEHOLD_MATCH_APPROVED, // 세대 매칭 승인 이벤트
+    HOUSEHOLD_MATCH_REJECTED  // 세대 매칭 거절 이벤트
 }
