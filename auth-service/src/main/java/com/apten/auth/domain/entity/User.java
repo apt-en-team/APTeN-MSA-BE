@@ -157,4 +157,11 @@ public class User extends BaseEntity {
     public void changePassword(String newPasswordHash) {
         this.passwordHash = newPasswordHash;
     }
+
+    // 회원 탈퇴 소프트 삭제 — DB 행 유지하고 상태만 변경
+    public void softDelete() {
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
+        this.status = UserStatus.DELETED;
+    }
 }

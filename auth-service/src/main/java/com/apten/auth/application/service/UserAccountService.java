@@ -7,8 +7,10 @@ import com.apten.auth.application.model.response.UserPasswordPatchRes;
 import com.apten.auth.domain.entity.User;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
+import com.apten.auth.infrastructure.kafka.AuthOutboxService;
 import com.apten.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,12 @@ public class UserAccountService {
 
     // 비밀번호 암호화
     private final BCryptPasswordEncoder passwordEncoder;
+
+    // Redis — RT 제거용
+    private final RedisTemplate<String, String> redisTemplate;
+
+    // Outbox 이벤트 발행 — 탈퇴 후 user_cache 동기화
+    private final AuthOutboxService authOutboxService;
 
     // 내 비밀번호 변경
     // X-User-Id 헤더로 받은 userId로 본인을 식별하고 현재 비밀번호 검증 후 새 비밀번호로 교체한다
@@ -51,8 +59,28 @@ public class UserAccountService {
     }
 
     // 회원 탈퇴 서비스
-    public UserDeleteRes deleteMyAccount(UserDeleteReq request) {
-        // TODO: 회원 소프트 삭제 로직 구현
+    // 소셜 전용 계정은 비밀번호 검증 없이 탈퇴 가능
+    @Transactional
+    public UserDeleteRes deleteMyAccount(Long userId, UserDeleteReq request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        // 비밀번호가 있는 계정만 비밀번호 검증
+        if (user.getPasswordHash() != null) {
+            if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+                throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
+            }
+        }
+
+        // 소프트 삭제 — DB 행 유지, status = DELETED
+        user.softDelete();
+
+        // Redis RT 제거 — 즉시 로그아웃 효과
+        redisTemplate.delete("refresh:" + userId);
+
+        // USER_UPDATED 이벤트 발행 — 다른 서비스의 user_cache 동기화
+        authOutboxService.saveUpdatedEvent(user);
+
         return UserDeleteRes.builder()
                 .message("회원 탈퇴 완료")
                 .build();

@@ -36,6 +36,6 @@ public class UserMeController {
             @RequestHeader("X-User-Id") Long userId,
             @RequestBody UserDeleteReq request
     ) {
-        return ResultResponse.success("회원 탈퇴 성공", userAccountService.deleteMyAccount(request));
+        return ResultResponse.success("회원 탈퇴 성공", userAccountService.deleteMyAccount(userId, request));
     }
 }
