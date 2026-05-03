@@ -14,6 +14,7 @@ import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
+import com.apten.auth.infrastructure.mail.MailService;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
 import com.apten.auth.infrastructure.sms.CoolsmsClient;
 import com.apten.auth.security.JwtTokenProvider;
@@ -65,6 +66,9 @@ public class AuthService {
 
     // 비밀번호 단방향 암호화
     private final BCryptPasswordEncoder passwordEncoder;
+
+    // 비밀번호 재설정 링크를 이메일로 발송하는 서비스
+    private final MailService mailService;
 
     // 이메일 로그인 서비스
     @Transactional
@@ -320,16 +324,53 @@ public class AuthService {
     }
 
     // 비밀번호 재설정 메일 발송 서비스
+    @Transactional
     public AuthPasswordForgotPostRes sendPasswordResetMail(AuthPasswordForgotPostReq request) {
-        // TODO: 비밀번호 재설정 메일 발송 로직 구현
+        // 계정 존재 여부 노출 방지 — 없어도 성공 응답
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+
+            // UUID 토큰 생성 (충분히 랜덤 — BCrypt 불필요)
+            String rawToken = java.util.UUID.randomUUID().toString();
+
+            // Redis 저장 — key: reset:{token}, value: userId, TTL: 30분
+            redisTemplate.opsForValue().set(
+                    "reset:" + rawToken,
+                    String.valueOf(user.getId()),
+                    Duration.ofMinutes(30)
+            );
+
+            // 재설정 링크 발송
+            String resetLink = "https://apten.com/reset-password?token=" + rawToken;
+            mailService.sendPasswordResetMail(user.getEmail(), resetLink);
+        });
+
         return AuthPasswordForgotPostRes.builder()
                 .message("비밀번호 재설정 메일 발송 완료")
                 .build();
     }
 
     // 비밀번호 재설정 서비스
+    @Transactional
     public AuthPasswordResetPostRes resetPassword(AuthPasswordResetPostReq request) {
-        // TODO: 비밀번호 재설정 로직 구현
+        // Redis에서 토큰으로 userId 조회
+        String userIdStr = redisTemplate.opsForValue().get("reset:" + request.getToken());
+
+        if (userIdStr == null) {
+            // null이면 TTL 만료 또는 없는 토큰
+            throw new BusinessException(AuthErrorCode.RESET_TOKEN_INVALID);
+        }
+
+        Long userId = Long.valueOf(userIdStr);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        // 새 비밀번호 저장
+        user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+
+        // 토큰 즉시 삭제 — 재사용 방지
+        redisTemplate.delete("reset:" + request.getToken());
+
         return AuthPasswordResetPostRes.builder()
                 .message("비밀번호 재설정 완료")
                 .build();
