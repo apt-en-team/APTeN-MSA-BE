@@ -4,12 +4,15 @@ import com.apten.auth.application.mapper.AuthUserMapper;
 import com.apten.auth.application.model.request.*;
 import com.apten.auth.application.model.response.*;
 import com.apten.auth.domain.entity.AdminProfile;
+import com.apten.auth.domain.entity.LoginHistory;
 import com.apten.auth.domain.entity.ResidentProfile;
 import com.apten.auth.domain.entity.User;
+import com.apten.auth.domain.enums.LoginResult;
 import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.AdminProfileRepository;
+import com.apten.auth.domain.repository.LoginHistoryRepository;
 import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
@@ -70,6 +73,9 @@ public class AuthService {
     // 비밀번호 재설정 링크를 이메일로 발송하는 서비스
     private final MailService mailService;
 
+    // 로그인 이력 저장소
+    private final LoginHistoryRepository loginHistoryRepository;
+
     // 이메일 로그인 서비스
     @Transactional
     public AuthLoginPostRes login(AuthLoginPostReq request) {
@@ -90,13 +96,26 @@ public class AuthService {
         // 비밀번호 검증 실패 시 실패 횟수 증가 (5회 시 자동 잠금)
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             user.incrementLoginFailCount();
+            // 로그인 실패 이력 저장
+            loginHistoryRepository.save(LoginHistory.builder()
+                    .userId(user.getId())
+                    .email(request.getEmail())
+                    .result(LoginResult.FAIL)
+                    .build());
             throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
         // 로그인 성공 — 실패 횟수 초기화 + 마지막 로그인 시각 갱신
         user.resetLoginFailCount();
 
-        // auth.UserRole → common.UserRole 변환
+        // 로그인 성공 이력 저장
+        loginHistoryRepository.save(LoginHistory.builder()
+                .userId(user.getId())
+                .email(request.getEmail())
+                .result(LoginResult.SUCCESS)
+                .build());
+
+        // auth.UserRole -> common.UserRole 변환
         com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
 
         // role에 따라 complexId 조회 분기
