@@ -5,15 +5,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 단지 관리자 권한과 활성 여부 수정 요청 DTO이다.
+// 단지 수정 요청 DTO
+// 단지명과 설명만 수정할 때 사용한다
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ComplexAdminPatchReq {
+public class ApartmentComplexPatchReq {
 
     private String name;
-    private String phone;
-    private String adminRole;
-    private Boolean isActive;
+    private String description;
 }

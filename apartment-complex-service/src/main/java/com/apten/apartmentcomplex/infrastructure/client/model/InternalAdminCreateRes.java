@@ -16,6 +16,7 @@ public class InternalAdminCreateRes {
     private Long userId;
     private String email;
     private String name;
+    private String phone;
     private String role;
     private String adminRole;
     private LocalDateTime createdAt;

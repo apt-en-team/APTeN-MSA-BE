@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class InternalAdminUpdateReq {
 
+    private String name;
+    private String phone;
     private String adminRole;
     private String status;
 }

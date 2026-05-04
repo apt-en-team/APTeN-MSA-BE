@@ -11,6 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 public class ApartmentComplexSearchReq {
     private String keyword;
+    private String status;
     private Integer page;
     private Integer size;
 

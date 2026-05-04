@@ -1,5 +1,6 @@
 package com.apten.auth.application.model.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,9 +18,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthRegisterPostReq {
 
-    // 선택한 단지 UID
-    @NotBlank(message = "단지를 선택해주세요.")
-    private String apartmentComplexUid;
+    // 회원가입은 최종적으로 complexId 기준으로 단지를 식별한다.
+    @NotNull(message = "단지를 선택해주세요.")
+    @JsonAlias("apartmentComplexUid")
+    private Long complexId;
 
     // 이메일
     @NotBlank(message = "이메일을 입력해주세요.")

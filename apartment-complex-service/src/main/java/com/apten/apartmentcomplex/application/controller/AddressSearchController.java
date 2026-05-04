@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 // 주소 검색 API를 제공하는 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/admin/master/address")
+@RequestMapping("/api/admin/master/apartment-complexes/address")
 public class AddressSearchController {
 
     private final AddressSearchService addressSearchService;

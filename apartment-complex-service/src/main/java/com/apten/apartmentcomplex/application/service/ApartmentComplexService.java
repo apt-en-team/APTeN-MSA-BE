@@ -1,6 +1,7 @@
 package com.apten.apartmentcomplex.application.service;
 
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
+import com.apten.apartmentcomplex.application.model.request.ApartmentComplexPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexStatusPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPatchReq;
@@ -11,6 +12,7 @@ import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGet
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPostRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPublicRes;
+import com.apten.apartmentcomplex.application.model.response.ApartmentComplexSelectRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexStatusPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminDeleteRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
@@ -33,6 +35,7 @@ import com.apten.common.exception.CommonErrorCode;
 import com.apten.common.exception.BusinessException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -126,6 +129,8 @@ public class ApartmentComplexService {
                 .complexId(savedApartmentComplex.getId())
                 .adminUserId(createdAdmin.getUserId())
                 .adminName(createdAdmin.getName())
+                .adminEmail(createdAdmin.getEmail())
+                .adminPhone(defaultIfBlank(createdAdmin.getPhone(), req.getManagerPhone()))
                 .adminRole("01")
                 .isActive(true)
                 .assignedAt(LocalDateTime.now())
@@ -145,6 +150,8 @@ public class ApartmentComplexService {
                 .name(savedApartmentComplex.getName())
                 .managerUserId(createdAdmin.getUserId())
                 .managerName(createdAdmin.getName())
+                .managerEmail(createdAdmin.getEmail())
+                .managerPhone(defaultIfBlank(createdAdmin.getPhone(), req.getManagerPhone()))
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -155,15 +162,15 @@ public class ApartmentComplexService {
         // 요청값이 없을 때 기본 페이지와 사이즈를 설정한다.
         int page = req.getPage();
         int size = req.getSize();
+        ApartmentComplexStatus status = parseApartmentComplexStatusOrNull(req.getStatus());
 
         // JPA 페이징 처리를 위한 PageRequest를 생성한다.
         PageRequest pageRequest = PageRequest.of(page, size);
 
-        // 키워드 조건을 적용해 단지 목록을 페이지 단위로 조회한다.
-        Page<ApartmentComplex> result = apartmentComplexRepository.findPageByKeyword(
-                req.getKeyword(),
-                pageRequest
-        );
+        // status가 없으면 전체 상태를, 있으면 선택 상태만 조회한다.
+        Page<ApartmentComplex> result = status == null
+                ? apartmentComplexRepository.findPageByKeyword(req.getKeyword(), pageRequest)
+                : apartmentComplexRepository.findPageByKeywordAndStatus(req.getKeyword(), status, pageRequest);
 
         // 조회된 엔티티 목록을 API 응답 DTO 목록으로 변환한다.
         List<ApartmentComplexGetRes> content = result.getContent()
@@ -172,7 +179,8 @@ public class ApartmentComplexService {
                         .code(complex.getCode())
                         .name(complex.getName())
                         .address(complex.getAddress())
-                        .status(complex.getStatus())
+                        .status(toStatusCode(complex.getStatus()))
+                        .statusName(toStatusName(complex.getStatus()))
                         .description(complex.getDescription())
                         .createdAt(complex.getCreatedAt())
                         .build())
@@ -194,13 +202,15 @@ public class ApartmentComplexService {
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
         return ApartmentComplexGetDetailRes.builder()
-                .apartmentComplexId(complex.getId())
+                .complexId(complex.getId())
                 .code(complex.getCode())
                 .name(complex.getName())
                 .address(complex.getAddress())
                 .addressDetail(complex.getAddressDetail())
-                .zipcode(complex.getZipCode())
-                .status(complex.getStatus())
+                // 외부 응답 필드명은 zipCode로 통일한다.
+                .zipCode(complex.getZipCode())
+                .status(toStatusCode(complex.getStatus()))
+                .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
@@ -209,19 +219,17 @@ public class ApartmentComplexService {
 
     // 단지 수정 서비스 API-204
     @Transactional
-    public ApartmentComplexPatchRes updateApartmentComplex(String code, ApartmentComplexReq req) {
+    public ApartmentComplexPatchRes updateApartmentComplex(String code, ApartmentComplexPatchReq req) {
         // API의 단지 code로 보고 수정 대상 단지를 조회한다
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
-        // 단지 원본 정보를 갱신하되 상태 변경 로직은 별도 API가 생길 때 분리한다
-        complex.update(
-                req.getName(),
-                req.getAddress(),
-                req.getAddressDetail(),
-                req.getZipCode(),
-                req.getDescription()
-        );
+        if (req == null || isBlank(req.getName())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 단지 수정에서는 주소와 우편번호를 보존하고 이름과 설명만 변경한다.
+        complex.updateSummary(req.getName(), req.getDescription());
 
         // Kafka 직접 발행 대신 수정 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
         apartmentComplexOutboxService.saveUpdatedEvent(complex);
@@ -229,6 +237,7 @@ public class ApartmentComplexService {
         return ApartmentComplexPatchRes.builder()
                 .code(code)
                 .name(complex.getName())
+                .description(complex.getDescription())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
     }
@@ -270,11 +279,13 @@ public class ApartmentComplexService {
 
         // 같은 단지에 대한 기존 배정 이력이 있으면 활성 상태에 따라 재사용한다.
         ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), createdAdmin.getUserId())
-                .map(existingAdmin -> reactivateAdminAssignment(existingAdmin, createdAdmin))
+                .map(existingAdmin -> reactivateAdminAssignment(existingAdmin, createdAdmin, req))
                 .orElseGet(() -> ComplexAdmin.builder()
                         .complexId(complex.getId())
                         .adminUserId(createdAdmin.getUserId())
                         .adminName(createdAdmin.getName())
+                        .adminEmail(createdAdmin.getEmail())
+                        .adminPhone(defaultIfBlank(createdAdmin.getPhone(), req.getPhone()))
                         .adminRole(req.getAdminRole())
                         .isActive(true)
                         .assignedAt(LocalDateTime.now())
@@ -289,8 +300,10 @@ public class ApartmentComplexService {
                 .code(code)
                 .userId(admin.getAdminUserId())
                 .name(admin.getAdminName())
-                .email(createdAdmin.getEmail())
+                .email(admin.getAdminEmail())
+                .phone(admin.getAdminPhone())
                 .adminRole(admin.getAdminRole())
+                .adminRoleName(resolveAdminRoleName(admin.getAdminRole()))
                 .isActive(admin.getIsActive())
                 .assignedAt(admin.getAssignedAt())
                 .build();
@@ -348,6 +361,8 @@ public class ApartmentComplexService {
                 .map(admin -> ComplexAdminGetRes.builder()
                         .userId(admin.getAdminUserId())
                         .name(admin.getAdminName())
+                        .email(admin.getAdminEmail())
+                        .phone(admin.getAdminPhone())
                         // 프론트 수정 모달에서 사용할 수 있도록 권한 code와 표시명을 함께 내려준다.
                         .adminRole(admin.getAdminRole())
                         .adminRoleName(resolveAdminRoleName(admin.getAdminRole()))
@@ -373,19 +388,27 @@ public class ApartmentComplexService {
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_ADMIN_NOT_FOUND));
 
         // 관리자 수정 시 adminRole/isActive 검증
-        if (req == null || isBlank(req.getAdminRole()) || req.getIsActive() == null) {
+        if (req == null
+                || isBlank(req.getName())
+                || isBlank(req.getPhone())
+                || isBlank(req.getAdminRole())
+                || req.getIsActive() == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
         validateAdminRole(req.getAdminRole());
 
+        // 관리자 수정에서는 이름과 연락처 스냅샷을 함께 갱신한다.
+        admin.changeAdminProfile(req.getName(), req.getPhone());
         admin.changeAdminRole(req.getAdminRole());
         admin.changeActive(req.getIsActive());
         complexAdminRepository.save(admin);
 
-        // 관리자 수정 시 Auth Service 내부 API 호출
+        // 관리자 수정 시 Auth Service와 local 스냅샷을 함께 갱신한다.
         authInternalClient.updateAdmin(
                 userId,
                 InternalAdminUpdateReq.builder()
+                        .name(req.getName())
+                        .phone(req.getPhone())
                         .adminRole(req.getAdminRole())
                         .status(Boolean.TRUE.equals(req.getIsActive()) ? "01" : "02")
                         .build()
@@ -398,6 +421,8 @@ public class ApartmentComplexService {
         return ComplexAdminPatchRes.builder()
                 .userId(admin.getAdminUserId())
                 .name(admin.getAdminName())
+                .email(admin.getAdminEmail())
+                .phone(admin.getAdminPhone())
                 .adminRole(admin.getAdminRole())
                 .adminRoleName(resolveAdminRoleName(admin.getAdminRole()))
                 .isActive(admin.getIsActive())
@@ -413,15 +438,18 @@ public class ApartmentComplexService {
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
 
         // 바꿀 상태가 없으면 요청이 잘못된 것으로 본다.
-        if (req == null || req.getStatus() == null) {
+        if (req == null || isBlank(req.getStatus())) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
+        // 상태 문자열은 code, enum name, 한글 표시명을 모두 허용한다.
+        ApartmentComplexStatus status = parseApartmentComplexStatus(req.getStatus());
+
         // 단지 상태를 별도 API에서만 바꾸도록 명시적으로 반영한다.
-        complex.changeStatus(req.getStatus());
+        complex.changeStatus(status);
 
         // 단지 비활성화는 별도 이벤트로, 나머지 상태 변경은 일반 수정 이벤트로 적재한다.
-        if (req.getStatus() == ApartmentComplexStatus.INACTIVE) {
+        if (status == ApartmentComplexStatus.INACTIVE) {
             apartmentComplexOutboxService.saveDeactivatedEvent(complex);
         } else {
             apartmentComplexOutboxService.saveUpdatedEvent(complex);
@@ -429,8 +457,31 @@ public class ApartmentComplexService {
 
         return ApartmentComplexStatusPatchRes.builder()
                 .code(complex.getCode())
-                .status(complex.getStatus())
+                .status(toStatusCode(complex.getStatus()))
+                .statusName(toStatusName(complex.getStatus()))
                 .updatedAt(complex.getUpdatedAt())
+                .build();
+    }
+
+    // 마스터 단지 선택 화면에는 code, 상태, 관리자 화면 URL을 함께 내려준다.
+    @Transactional(readOnly = true)
+    public ApartmentComplexSelectRes selectApartmentComplex(String code) {
+        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+
+        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
+            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
+        }
+
+        // 관리자 화면 이동 경로는 단지 코드 기준으로 고정 생성한다.
+        String adminPageUrl = "/admin/master/complexes/" + complex.getCode() + "/dashboard";
+
+        return ApartmentComplexSelectRes.builder()
+                .code(complex.getCode())
+                .name(complex.getName())
+                .status(toStatusCode(complex.getStatus()))
+                .statusName(toStatusName(complex.getStatus()))
+                .adminPageUrl(adminPageUrl)
                 .build();
     }
 
@@ -441,6 +492,8 @@ public class ApartmentComplexService {
         return apartmentComplexRepository.findPublicListByKeyword(keyword, ApartmentComplexStatus.ACTIVE)
                 .stream()
                 .map(complex -> ApartmentComplexPublicRes.builder()
+                        // 회원가입 화면에서는 code와 함께 complexId도 내려준다.
+                        .complexId(complex.getId())
                         .code(complex.getCode())
                         .name(complex.getName())
                         .address(complex.getAddress())
@@ -463,25 +516,70 @@ public class ApartmentComplexService {
         }
     }
 
+    // 상태 요청은 code, enum name, 한글 표시명까지 허용한다.
+    private ApartmentComplexStatus parseApartmentComplexStatus(String rawStatus) {
+        if (isBlank(rawStatus)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        String normalized = rawStatus.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "01", "ACTIVE", "활성" -> ApartmentComplexStatus.ACTIVE;
+            case "02", "INACTIVE", "비활성" -> ApartmentComplexStatus.INACTIVE;
+            case "03", "DELETED", "삭제" -> ApartmentComplexStatus.DELETED;
+            default -> throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        };
+    }
+
+    private ApartmentComplexStatus parseApartmentComplexStatusOrNull(String rawStatus) {
+        if (isBlank(rawStatus)) {
+            return null;
+        }
+        return parseApartmentComplexStatus(rawStatus);
+    }
+
+    // enum 상태는 API 응답에서 code로 통일한다.
+    private String toStatusCode(ApartmentComplexStatus status) {
+        return status.getCode();
+    }
+
+    // enum 상태는 API 응답에서 표시명도 함께 내려줄 수 있게 변환한다.
+    private String toStatusName(ApartmentComplexStatus status) {
+        return status.getValue();
+    }
+
     private String resolveAdminRoleName(String adminRole) {
-        if ("01".equals(adminRole)) {
+        if ("01".equals(adminRole) || "MANAGER".equalsIgnoreCase(adminRole)) {
             return "매니저";
         }
-        if ("02".equals(adminRole)) {
-            return "스태프";
+        if ("02".equals(adminRole) || "ADMIN".equalsIgnoreCase(adminRole)) {
+            return "어드민";
         }
         return "";
     }
 
     // 기존 비활성 배정은 재활성화하고, 이미 활성 배정이면 중복으로 본다.
-    private ComplexAdmin reactivateAdminAssignment(ComplexAdmin existingAdmin, InternalAdminCreateRes createdAdmin) {
+    private ComplexAdmin reactivateAdminAssignment(
+            ComplexAdmin existingAdmin,
+            InternalAdminCreateRes createdAdmin,
+            ComplexAdminPostReq req
+    ) {
         // 이미 활성화된 배정이면 같은 단지에 다시 배정할 수 없다.
         if (Boolean.TRUE.equals(existingAdmin.getIsActive())) {
             throw new BusinessException(ApartmentComplexErrorCode.DUPLICATE_COMPLEX_ADMIN);
         }
 
         // 비활성 이력은 이름을 최신화하고 다시 활성 상태로 전환한다.
-        existingAdmin.reassign(createdAdmin.getName(), createdAdmin.getAdminRole());
+        existingAdmin.reassign(
+                createdAdmin.getName(),
+                createdAdmin.getEmail(),
+                defaultIfBlank(createdAdmin.getPhone(), req.getPhone()),
+                req.getAdminRole()
+        );
         return existingAdmin;
+    }
+
+    private String defaultIfBlank(String value, String fallback) {
+        return isBlank(value) ? fallback : value;
     }
 }

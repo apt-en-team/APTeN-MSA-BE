@@ -10,9 +10,12 @@ import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminUpdat
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminUpdateRes;
 import com.apten.apartmentcomplex.infrastructure.config.AuthServiceProperties;
 import com.apten.common.exception.BusinessException;
+import com.apten.common.exception.CommonErrorCode;
+import java.net.http.HttpClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -26,9 +29,16 @@ public class AuthInternalClient {
     private final AuthServiceProperties authServiceProperties;
     private final ObjectMapper objectMapper;
 
+    private RestClient restClient() {
+        // 내부 인증 연동은 PATCH 요청을 사용하므로 JDK HttpClient 기반 request factory를 명시한다.
+        return restClientBuilder
+                .requestFactory(new JdkClientHttpRequestFactory(HttpClient.newHttpClient()))
+                .build();
+    }
+
     public InternalAdminCreateRes createAdmin(InternalAdminCreateReq req) {
         try {
-            String body = restClientBuilder.build()
+            String body = restClient()
                     .post()
                     .uri(authServiceProperties.getUrl() + "/internal/auth/admins")
                     .body(req)
@@ -54,7 +64,7 @@ public class AuthInternalClient {
 
     public InternalAdminDeleteRes softDeleteAdmin(Long userId) {
         try {
-            String body = restClientBuilder.build()
+            String body = restClient()
                     .patch()
                     .uri(authServiceProperties.getUrl() + "/internal/auth/admins/" + userId + "/delete")
                     .retrieve()
@@ -79,7 +89,7 @@ public class AuthInternalClient {
 
     public InternalAdminUpdateRes updateAdmin(Long userId, InternalAdminUpdateReq req) {
         try {
-            String body = restClientBuilder.build()
+            String body = restClient()
                     .patch()
                     .uri(authServiceProperties.getUrl() + "/internal/auth/admins/" + userId)
                     .body(req)
@@ -137,6 +147,10 @@ public class AuthInternalClient {
                 return new BusinessException(ApartmentComplexErrorCode.DUPLICATE_EMAIL);
             }
 
+            if ("COMMON_400".equals(code) || "INVALID_PARAMETER".equals(code)) {
+                return new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+
             if ("AUTH_404_01".equals(code) || "USER_NOT_FOUND".equals(code)) {
                 return new BusinessException(ApartmentComplexErrorCode.USER_NOT_FOUND);
             }
@@ -147,6 +161,10 @@ public class AuthInternalClient {
 
             if (message.contains("이미 사용중인 이메일")) {
                 return new BusinessException(ApartmentComplexErrorCode.DUPLICATE_EMAIL);
+            }
+
+            if (message.contains("잘못된 요청 파라미터")) {
+                return new BusinessException(CommonErrorCode.INVALID_PARAMETER);
             }
 
             if (message.contains("사용자를 찾을 수 없습니다")) {

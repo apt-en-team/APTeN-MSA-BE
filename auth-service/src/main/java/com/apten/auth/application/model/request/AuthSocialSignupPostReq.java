@@ -1,6 +1,7 @@
 package com.apten.auth.application.model.request;
 
 import com.apten.auth.domain.enums.SocialProvider;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,8 +18,9 @@ public class AuthSocialSignupPostReq {
     private SocialProvider provider;
     // 제공자 사용자 ID
     private String providerUserId;
-    // 선택한 단지 UID
-    private String apartmentComplexUid;
+    // 소셜 회원가입도 complexId 기준으로 단지를 식별한다.
+    @JsonAlias("apartmentComplexUid")
+    private Long complexId;
     // 이메일
     private String email;
     // 이름

@@ -38,6 +38,21 @@ public interface ApartmentComplexRepository extends JpaRepository<ApartmentCompl
             Pageable pageable
     );
 
+    @Query("""
+            SELECT c
+            FROM ApartmentComplex c
+            WHERE c.status = :status
+              AND (:keyword IS NULL OR :keyword = ''
+                   OR c.name LIKE CONCAT('%', :keyword, '%')
+                   OR c.address LIKE CONCAT('%', :keyword, '%'))
+            ORDER BY c.id DESC
+            """)
+    Page<ApartmentComplex> findPageByKeywordAndStatus(
+            @Param("keyword") String keyword,
+            @Param("status") ApartmentComplexStatus status,
+            Pageable pageable
+    );
+
     // 공개 단지 목록에서 활성 단지만 조회하고 키워드 검색을 함께 적용한다.
     @Query("""
             SELECT c

@@ -11,6 +11,8 @@ public class ComplexAdminPatchRes {
 
     private final Long userId;
     private final String name;
+    private final String email;
+    private final String phone;
     private final String adminRole;
     private final String adminRoleName;
     private final Boolean isActive;

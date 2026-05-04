@@ -9,7 +9,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,10 +35,6 @@ public class User extends BaseEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    // 소속 단지 ID — MASTER는 null 허용, MANAGER/ADMIN은 admin_profile에서 관리
-    @Column(name = "complex_id")
-    private Long complexId;
-
     // 로그인 이메일
     @Column(name = "email", nullable = false, length = 100, unique = true)
     private String email;
@@ -55,18 +50,6 @@ public class User extends BaseEntity {
     // 휴대폰 번호 — USER는 SMS 인증 필수, MANAGER/ADMIN은 선택
     @Column(name = "phone", length = 20)
     private String phone;
-
-    // 생년월일 — USER 전용 (MANAGER/ADMIN은 null)
-    @Column(name = "birth_date")
-    private LocalDate birthDate;
-
-    // 동 정보 — USER 전용 (MANAGER/ADMIN은 null)
-    @Column(name = "building", length = 10)
-    private String building;
-
-    // 호 정보 — USER 전용 (MANAGER/ADMIN은 null)
-    @Column(name = "unit", length = 10)
-    private String unit;
 
     // 사용자 권한은 converter를 통해 DB에는 code로 저장된다
     // MASTER / MANAGER / ADMIN / USER
@@ -112,26 +95,18 @@ public class User extends BaseEntity {
 
     // 회원 기본 정보 갱신
     public void apply(
-            Long complexId,
             String email,
             String passwordHash,
             String name,
             String phone,
-            LocalDate birthDate,
-            String building,
-            String unit,
             UserRole role,
             UserStatus status,
             SignupType signupType
     ) {
-        this.complexId = complexId;
         this.email = email;
         this.passwordHash = passwordHash;
         this.name = name;
         this.phone = phone;
-        this.birthDate = birthDate;
-        this.building = building;
-        this.unit = unit;
         this.role = role;
         this.status = status;
         this.signupType = signupType;

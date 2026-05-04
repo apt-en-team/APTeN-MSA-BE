@@ -155,7 +155,7 @@ public class AdminService {
             applyInternalStatus(user, adminProfile, request.getStatus());
         }
 
-        authOutboxService.saveUpdatedEvent(user);
+        authOutboxService.saveUpdatedEvent(user, adminProfile.getComplexId());
 
         return InternalAdminPatchRes.builder()
                 .userId(user.getId())
@@ -174,7 +174,7 @@ public class AdminService {
         //수정 user hard delete는 금지하고 soft delete만 수행한다.
         user.softDelete();
         adminProfile.updateStatus(AdminProfileStatus.INACTIVE);
-        authOutboxService.saveDeletedEvent(user);
+        authOutboxService.saveDeletedEvent(user, adminProfile.getComplexId());
 
         return InternalAdminDeleteRes.builder()
                 .userId(user.getId())
@@ -203,7 +203,6 @@ public class AdminService {
         String passwordHash = passwordEncoder.encode(password);
 
         User user = User.builder()
-                .complexId(complexId)
                 .email(email)
                 .passwordHash(passwordHash)
                 .name(name)
@@ -228,7 +227,7 @@ public class AdminService {
         adminProfileRepository.save(adminProfile);
 
         //수정 관리자 계정 생성 후 user cache 동기화 이벤트를 적재한다.
-        authOutboxService.saveCreatedEvent(savedUser);
+        authOutboxService.saveCreatedEvent(savedUser, complexId);
         return savedUser;
     }
 
@@ -265,7 +264,7 @@ public class AdminService {
         user.updateProfile(request.getName(), request.getPhone());
         applyPublicStatus(user, adminProfile, request.getStatus());
 
-        authOutboxService.saveUpdatedEvent(user);
+        authOutboxService.saveUpdatedEvent(user, adminProfile.getComplexId());
 
         return AdminPatchRes.builder()
                 .userId(user.getId())
@@ -291,7 +290,7 @@ public class AdminService {
         user.softDelete();
         adminProfile.updateStatus(AdminProfileStatus.INACTIVE);
 
-        authOutboxService.saveDeletedEvent(user);
+        authOutboxService.saveDeletedEvent(user, adminProfile.getComplexId());
 
         return AdminDeleteRes.builder()
                 .userId(user.getId())

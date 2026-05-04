@@ -1,6 +1,5 @@
 package com.apten.apartmentcomplex.application.model.request;
 
-import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,5 +12,5 @@ import lombok.NoArgsConstructor;
 public class ApartmentComplexStatusPatchReq {
 
     // 변경할 단지 상태이다.
-    private ApartmentComplexStatus status;
+    private String status;
 }

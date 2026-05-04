@@ -11,5 +11,6 @@ import lombok.Getter;
 public class ApartmentComplexPatchRes {
     private final String code;
     private final String name;
+    private final String description;
     private final LocalDateTime updatedAt;
 }

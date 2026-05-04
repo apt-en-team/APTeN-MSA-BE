@@ -14,5 +14,7 @@ public class ApartmentComplexPostRes {
     private final String name;
     private final Long managerUserId;
     private final String managerName;
+    private final String managerEmail;
+    private final String managerPhone;
     private final LocalDateTime createdAt;
 }

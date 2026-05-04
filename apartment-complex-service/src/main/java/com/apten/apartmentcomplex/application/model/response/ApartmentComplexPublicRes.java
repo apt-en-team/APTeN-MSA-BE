@@ -8,6 +8,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ApartmentComplexPublicRes {
+    private final Long complexId;
     private final String code;
     private final String name;
     private final String address;
