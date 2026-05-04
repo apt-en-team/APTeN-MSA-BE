@@ -2,9 +2,11 @@ package com.apten.auth.application.controller;
 
 import com.apten.auth.application.model.request.UserDeleteReq;
 import com.apten.auth.application.model.request.UserPasswordPatchReq;
+import com.apten.auth.application.model.request.UserPatchReq;
 import com.apten.auth.application.model.response.UserDeleteRes;
 import com.apten.auth.application.model.response.UserMeRes;
 import com.apten.auth.application.model.response.UserPasswordPatchRes;
+import com.apten.auth.application.model.response.UserPatchRes;
 import com.apten.auth.application.service.UserAccountService;
 import com.apten.common.response.ResultResponse;
 import jakarta.validation.Valid;
@@ -46,5 +48,14 @@ public class UserMeController {
             @RequestHeader("X-User-Id") Long userId
     ) {
         return ResultResponse.success("내 계정 정보 조회 성공", userAccountService.getMyInfo(userId));
+    }
+
+    // 내 계정 정보 수정 API
+    @PatchMapping
+    public ResultResponse<UserPatchRes> updateMyInfo(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody UserPatchReq request
+    ) {
+        return ResultResponse.success("계정 정보 수정 성공", userAccountService.updateMyInfo(userId, request));
     }
 }

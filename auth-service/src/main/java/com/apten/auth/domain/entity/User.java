@@ -169,4 +169,10 @@ public class User extends BaseEntity {
     public void updateStatus(UserStatus status) {
         this.status = status;
     }
+
+    // 내 계정 정보 수정 — 이름, 전화번호 변경
+    public void updateProfile(String name, String phone) {
+        if (name != null) this.name = name;
+        if (phone != null) this.phone = phone;
+    }
 }

@@ -445,10 +445,6 @@ public class AuthService {
         return authUserMapper.toLoginResponse(accessToken, refreshToken, userPrincipal);
     }
 
-    // TODO: 내 계정 정보 조회는 API 명세 확정 후 추가
-    // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
-    // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
-
     // role에 따라 complexId 조회 분기
     // MASTER → null, MANAGER/ADMIN → admin_profile 조회, USER → resident_profile 조회
     private Long resolveComplexIdByRole(User user) {

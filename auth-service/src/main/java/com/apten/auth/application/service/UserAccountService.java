@@ -2,9 +2,11 @@ package com.apten.auth.application.service;
 
 import com.apten.auth.application.model.request.UserDeleteReq;
 import com.apten.auth.application.model.request.UserPasswordPatchReq;
+import com.apten.auth.application.model.request.UserPatchReq;
 import com.apten.auth.application.model.response.UserDeleteRes;
 import com.apten.auth.application.model.response.UserMeRes;
 import com.apten.auth.application.model.response.UserPasswordPatchRes;
+import com.apten.auth.application.model.response.UserPatchRes;
 import com.apten.auth.domain.entity.User;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
@@ -107,6 +109,25 @@ public class UserAccountService {
                 .signupType(user.getSignupType().name())
                 .complexId(user.getComplexId())
                 .createdAt(user.getCreatedAt())
+                .build();
+    }
+
+    // 내 계정 정보 수정
+    @Transactional
+    public UserPatchRes updateMyInfo(Long userId, UserPatchReq request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        // 변경 항목만 업데이트 — null이면 기존값 유지
+        user.updateProfile(request.getName(), request.getPhone());
+
+        // Outbox 이벤트 발행 — 다른 서비스 user_cache 동기화
+        authOutboxService.saveUpdatedEvent(user);
+
+        return UserPatchRes.builder()
+                .name(user.getName())
+                .phone(user.getPhone())
+                .message("계정 정보 수정 완료")
                 .build();
     }
 }
