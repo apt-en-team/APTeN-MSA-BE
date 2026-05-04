@@ -28,7 +28,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**","/api/users/**").permitAll()
                         // MASTER 전용 경로 — MANAGER 계정 생성
                         .requestMatchers("/api/admin/master/**").hasRole("MASTER")
                         // MANAGER 전용 경로 — ADMIN 계정 생성
