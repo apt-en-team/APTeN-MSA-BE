@@ -4,6 +4,7 @@ import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
 import com.apten.common.kafka.KafkaTopics;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
+import com.apten.common.kafka.payload.HouseholdMatchResultEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;

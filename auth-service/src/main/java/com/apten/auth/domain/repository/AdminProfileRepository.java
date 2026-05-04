@@ -1,0 +1,12 @@
+package com.apten.auth.domain.repository;
+
+import com.apten.auth.domain.entity.AdminProfile;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+// MANAGER / ADMIN 단지 소속 정보 저장소
+public interface AdminProfileRepository extends JpaRepository<AdminProfile, Long> {
+
+    // userId로 admin_profile 조회 — 로그인 시 complexId 확인에 사용
+    Optional<AdminProfile> findByUserId(Long userId);
+}

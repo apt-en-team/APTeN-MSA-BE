@@ -21,7 +21,10 @@ public enum SignupType implements EnumMapperType {
     KAKAO("03", "카카오"),
 
     // Naver 계정으로 가입한 방식이다.
-    NAVER("04", "네이버");
+    NAVER("04", "네이버"),
+
+    // MASTER 또는 MANAGER가 직접 생성한 계정 방식이다.
+    CREATED_BY_ADMIN("05", "관리자 생성");
 
     // DB에 저장할 가입 방식 code이다.
     private final String code;

@@ -22,11 +22,22 @@ spring:
         dialect: org.hibernate.dialect.MariaDBDialect
   kafka:
     consumer:
-#      group-id: auth-service-group
+      group-id: auth-service-group
   data:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   security:
     oauth2:
       client:
@@ -65,7 +76,6 @@ coolsms:
   api-key: ${COOLSMS_API_KEY}
   api-secret: ${COOLSMS_API_SECRET}
   from: ${COOLSMS_FROM_NUMBER}
-
 
 constants:
   api:

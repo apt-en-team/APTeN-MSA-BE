@@ -23,7 +23,10 @@ public enum AuthErrorCode implements ErrorCode {
     SMS_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "AUTH_400_01", "인증코드가 만료되었습니다."),
     SMS_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_400_02", "인증코드가 일치하지 않습니다."),
     ACCOUNT_LOCKED(HttpStatus.UNAUTHORIZED, "AUTH_401_07", "로그인 실패 횟수 초과로 계정이 잠금 처리되었습니다."),
-    ACCOUNT_NOT_ACTIVE(HttpStatus.UNAUTHORIZED, "AUTH_401_08", "활성화되지 않은 계정입니다.");
+    ACCOUNT_NOT_ACTIVE(HttpStatus.UNAUTHORIZED, "AUTH_401_08", "활성화되지 않은 계정입니다."),
+    PASSWORD_POLICY_INVALID(HttpStatus.BAD_REQUEST, "AUTH_400_03", "비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다."),
+    SOCIAL_ACCOUNT_NO_PASSWORD(HttpStatus.BAD_REQUEST, "AUTH_400_04", "소셜 로그인 전용 계정은 비밀번호 변경이 불가합니다."),
+    RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "AUTH_400_05", "유효하지 않거나 만료된 재설정 토큰입니다.");
 
     // HTTP 상태값
     private final HttpStatus status;

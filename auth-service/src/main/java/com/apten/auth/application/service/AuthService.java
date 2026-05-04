@@ -1,47 +1,39 @@
 package com.apten.auth.application.service;
 
 import com.apten.auth.application.mapper.AuthUserMapper;
-import com.apten.auth.application.model.request.AuthCheckEmailReq;
-import com.apten.auth.application.model.request.AuthLoginPostReq;
-import com.apten.auth.application.model.request.AuthPasswordForgotPostReq;
-import com.apten.auth.application.model.request.AuthPasswordResetPostReq;
-import com.apten.auth.application.model.request.AuthRegisterPostReq;
-import com.apten.auth.application.model.request.AuthSmsSendPostReq;
-import com.apten.auth.application.model.request.AuthSmsVerifyPostReq;
-import com.apten.auth.application.model.request.AuthSocialSignupPostReq;
-import com.apten.auth.application.model.request.AuthTokenRefreshPostReq;
-import com.apten.auth.application.model.response.AuthCheckEmailRes;
-import com.apten.auth.application.model.response.AuthLoginPostRes;
-import com.apten.auth.application.model.response.AuthLogoutPostRes;
-import com.apten.auth.application.model.response.AuthPasswordForgotPostRes;
-import com.apten.auth.application.model.response.AuthPasswordResetPostRes;
-import com.apten.auth.application.model.response.AuthRegisterPostRes;
-import com.apten.auth.application.model.response.AuthSmsSendPostRes;
-import com.apten.auth.application.model.response.AuthSmsVerifyPostRes;
-import com.apten.auth.application.model.response.AuthSocialSignupPostRes;
-import com.apten.auth.application.model.response.AuthTokenRefreshPostRes;
+import com.apten.auth.application.model.request.*;
+import com.apten.auth.application.model.response.*;
+import com.apten.auth.domain.entity.AdminProfile;
+import com.apten.auth.domain.entity.LoginHistory;
+import com.apten.auth.domain.entity.ResidentProfile;
 import com.apten.auth.domain.entity.User;
+import com.apten.auth.domain.enums.LoginResult;
 import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
+import com.apten.auth.domain.repository.AdminProfileRepository;
+import com.apten.auth.domain.repository.LoginHistoryRepository;
+import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
+import com.apten.auth.infrastructure.mail.MailService;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
 import com.apten.auth.infrastructure.sms.CoolsmsClient;
 import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.security.UserContext;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.concurrent.ThreadLocalRandom;
 
 // 인증 응용 서비스 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @Service
@@ -50,6 +42,12 @@ public class AuthService {
 
     // 회원 기본 저장소
     private final UserRepository userRepository;
+
+    // MANAGER / ADMIN 단지 소속 정보 저장소
+    private final AdminProfileRepository adminProfileRepository;
+
+    // USER 단지 소속 정보 저장소
+    private final ResidentProfileRepository residentProfileRepository;
 
     // 인증 조회용 MyBatis 매퍼
     private final ObjectProvider<AuthQueryMapper> authQueryMapperProvider;
@@ -72,6 +70,12 @@ public class AuthService {
     // 비밀번호 단방향 암호화
     private final BCryptPasswordEncoder passwordEncoder;
 
+    // 비밀번호 재설정 링크를 이메일로 발송하는 서비스
+    private final MailService mailService;
+
+    // 로그인 이력 저장소
+    private final LoginHistoryRepository loginHistoryRepository;
+
     // 이메일 로그인 서비스
     @Transactional
     public AuthLoginPostRes login(AuthLoginPostReq request) {
@@ -92,19 +96,36 @@ public class AuthService {
         // 비밀번호 검증 실패 시 실패 횟수 증가 (5회 시 자동 잠금)
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             user.incrementLoginFailCount();
+            // 로그인 실패 이력 저장
+            loginHistoryRepository.save(LoginHistory.builder()
+                    .userId(user.getId())
+                    .email(request.getEmail())
+                    .result(LoginResult.FAIL)
+                    .build());
             throw new BusinessException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
         // 로그인 성공 — 실패 횟수 초기화 + 마지막 로그인 시각 갱신
         user.resetLoginFailCount();
 
-        // auth.UserRole → common.UserRole 변환
-        // auth에는 USER가 있고 common에는 RESIDENT — JWT claim은 common 기준
+        // 로그인 성공 이력 저장
+        loginHistoryRepository.save(LoginHistory.builder()
+                .userId(user.getId())
+                .email(request.getEmail())
+                .result(LoginResult.SUCCESS)
+                .build());
+
+        // auth.UserRole -> common.UserRole 변환
         com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+
+        // role에 따라 complexId 조회 분기
+        // MASTER는 null, MANAGER/ADMIN은 admin_profile, USER는 user 테이블
+        Long complexId = resolveComplexIdByRole(user);
+
         UserContext userContext = UserContext.builder()
                 .userId(user.getId())
                 .userRole(commonRole)
-                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
+                .complexId(complexId)
                 .build();
 
         // JWT 발급
@@ -293,12 +314,16 @@ public class AuthService {
         }
 
         // 최신 정보로 새 AT 발급
-        // 최신 정보로 새 AT 발급
         com.apten.common.security.UserRole commonRole = user.getRole().toCommonUserRole();
+
+        // role에 따라 complexId 조회 분기
+        // MASTER는 null, MANAGER/ADMIN은 admin_profile, USER는 user 테이블
+        Long complexId = resolveComplexIdByRole(user);
+
         UserContext userContext = UserContext.builder()
                 .userId(userId)
                 .userRole(commonRole)
-                .complexId(user.getComplexId())  // 단지 ID — MASTER는 null일 수 있다
+                .complexId(complexId)
                 .build();
         String newAccessToken = jwtTokenProvider.issueAccessToken(userContext);
 
@@ -318,16 +343,53 @@ public class AuthService {
     }
 
     // 비밀번호 재설정 메일 발송 서비스
+    @Transactional
     public AuthPasswordForgotPostRes sendPasswordResetMail(AuthPasswordForgotPostReq request) {
-        // TODO: 비밀번호 재설정 메일 발송 로직 구현
+        // 계정 존재 여부 노출 방지 — 없어도 성공 응답
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+
+            // UUID 토큰 생성 (충분히 랜덤 — BCrypt 불필요)
+            String rawToken = java.util.UUID.randomUUID().toString();
+
+            // Redis 저장 — key: reset:{token}, value: userId, TTL: 30분
+            redisTemplate.opsForValue().set(
+                    "reset:" + rawToken,
+                    String.valueOf(user.getId()),
+                    Duration.ofMinutes(30)
+            );
+
+            // 재설정 링크 발송
+            String resetLink = "https://apten.com/reset-password?token=" + rawToken;
+            mailService.sendPasswordResetMail(user.getEmail(), resetLink);
+        });
+
         return AuthPasswordForgotPostRes.builder()
                 .message("비밀번호 재설정 메일 발송 완료")
                 .build();
     }
 
     // 비밀번호 재설정 서비스
+    @Transactional
     public AuthPasswordResetPostRes resetPassword(AuthPasswordResetPostReq request) {
-        // TODO: 비밀번호 재설정 로직 구현
+        // Redis에서 토큰으로 userId 조회
+        String userIdStr = redisTemplate.opsForValue().get("reset:" + request.getToken());
+
+        if (userIdStr == null) {
+            // null이면 TTL 만료 또는 없는 토큰
+            throw new BusinessException(AuthErrorCode.RESET_TOKEN_INVALID);
+        }
+
+        Long userId = Long.valueOf(userIdStr);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        // 새 비밀번호 저장
+        user.changePassword(passwordEncoder.encode(request.getNewPassword()));
+
+        // 토큰 즉시 삭제 — 재사용 방지
+        redisTemplate.delete("reset:" + request.getToken());
+
         return AuthPasswordResetPostRes.builder()
                 .message("비밀번호 재설정 완료")
                 .build();
@@ -402,9 +464,24 @@ public class AuthService {
         return authUserMapper.toLoginResponse(accessToken, refreshToken, userPrincipal);
     }
 
-    // TODO: 내 계정 정보 조회는 API 명세 확정 후 추가
-    // TODO: 내 계정 정보 수정은 API 명세 확정 후 추가
-    // TODO: 회원 상태 변경 이벤트 수신 후 ACTIVE 또는 REJECTED 반영
+    // role에 따라 complexId 조회 분기
+    // MASTER → null, MANAGER/ADMIN → admin_profile 조회, USER → resident_profile 조회
+    private Long resolveComplexIdByRole(User user) {
+        if (user.getRole() == UserRole.MASTER) {
+            // MASTER는 전체 단지 접근 — complexId 없음
+            return null;
+        }
+        if (user.getRole() == UserRole.MANAGER || user.getRole() == UserRole.ADMIN) {
+            // MANAGER / ADMIN은 admin_profile에서 소속 단지 조회
+            return adminProfileRepository.findByUserId(user.getId())
+                    .map(AdminProfile::getComplexId)
+                    .orElse(null);
+        }
+        // USER(입주민)는 resident_profile에서 소속 단지 조회
+        return residentProfileRepository.findByUserId(user.getId())
+                .map(ResidentProfile::getComplexId)
+                .orElse(null);
+    }
 
     // 단지 UID를 Long으로 변환 — 매핑 확정 전까지 숫자 UID만 허용
     private Long resolveComplexId(String apartmentComplexUid) {

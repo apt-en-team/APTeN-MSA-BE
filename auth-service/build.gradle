@@ -7,6 +7,8 @@ dependencies {
     implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 
     implementation 'org.springframework.boot:spring-boot-starter-data-redis' // Redis
+    implementation 'org.springframework.kafka:spring-kafka' // @KafkaListener, KafkaTemplate 사용에 필요
+    implementation 'org.springframework.boot:spring-boot-starter-mail' // 이메일 발송에 필요
     implementation 'net.nurigo:sdk:4.3.0' // Coolsms SDK
     implementation project(':common')
     implementation 'org.springframework.boot:spring-boot-starter-web'
