@@ -5,8 +5,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
 @EnableJpaAuditing
-@SpringBootApplication
+@EntityScan(basePackages = {"com.apten.auth", "com.apten.common"})
+@EnableJpaRepositories(basePackages = {"com.apten.auth", "com.apten.common"})
+@SpringBootApplication(scanBasePackages = {"com.apten.auth", "com.apten.common"})
 public class AuthServiceApplication {
 
     public static void main(String[] args) {
