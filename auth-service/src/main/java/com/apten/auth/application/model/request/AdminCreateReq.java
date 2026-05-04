@@ -33,6 +33,9 @@ public class AdminCreateReq {
     @Size(max = 50)
     private String name;
 
+    //추가 관리자 계정 생성 시 연락처를 함께 저장한다.
+    private String phone;
+
     // 담당 단지 ID — MANAGER는 MASTER가 지정, ADMIN은 MANAGER 본인 단지로 강제
     @NotNull
     private Long complexId;

@@ -175,4 +175,18 @@ public class User extends BaseEntity {
         if (name != null) this.name = name;
         if (phone != null) this.phone = phone;
     }
+
+    //추가 관리자 계정의 역할을 변경한다.
+    public void updateRole(UserRole role) {
+        if (role != null) {
+            this.role = role;
+        }
+    }
+
+    //추가 관리자 계정의 상태를 변경한다.
+    public void updateUserStatus(UserStatus status) {
+        if (status != null) {
+            this.status = status;
+        }
+    }
 }

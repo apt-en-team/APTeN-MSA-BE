@@ -18,6 +18,9 @@ public class AdminCreateRes {
     // 생성된 계정 이름
     private String name;
 
+    //추가 관리자 계정 생성 응답에도 연락처를 포함한다.
+    private String phone;
+
     // 부여된 역할 — MANAGER 또는 ADMIN
     private String role;
 

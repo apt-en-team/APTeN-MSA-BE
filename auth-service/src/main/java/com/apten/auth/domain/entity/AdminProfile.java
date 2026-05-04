@@ -1,5 +1,6 @@
 package com.apten.auth.domain.entity;
 
+import com.apten.auth.domain.enums.AdminProfileStatus;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.common.entity.BaseEntity;
 import io.hypersistence.utils.hibernate.id.Tsid;
@@ -40,9 +41,24 @@ public class AdminProfile extends BaseEntity {
     @Column(name = "admin_role", nullable = false, length = 20)
     private UserRole adminRole;
 
+    //추가 관리자 프로필 활성 상태를 저장한다.
+    @Column(name = "status", nullable = false, length = 20)
+    private AdminProfileStatus status;
+
     // 이 계정을 생성한 사람의 user_id
     // MANAGER이면 → MASTER의 userId
     // ADMIN이면 → MANAGER의 userId
-    @Column(name = "created_by", nullable = false)
+    //수정 내부 서비스 호출 생성은 createdBy 없이 저장할 수 있다.
+    @Column(name = "created_by")
     private Long createdBy;
+
+    //추가 관리자 권한을 수정한다.
+    public void updateAdminRole(UserRole adminRole) {
+        this.adminRole = adminRole;
+    }
+
+    //추가 관리자 프로필 상태를 수정한다.
+    public void updateStatus(AdminProfileStatus status) {
+        this.status = status;
+    }
 }
