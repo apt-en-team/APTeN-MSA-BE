@@ -3,6 +3,7 @@ package com.apten.auth.application.service;
 import com.apten.auth.application.model.request.UserDeleteReq;
 import com.apten.auth.application.model.request.UserPasswordPatchReq;
 import com.apten.auth.application.model.response.UserDeleteRes;
+import com.apten.auth.application.model.response.UserMeRes;
 import com.apten.auth.application.model.response.UserPasswordPatchRes;
 import com.apten.auth.domain.entity.User;
 import com.apten.auth.domain.repository.UserRepository;
@@ -83,6 +84,29 @@ public class UserAccountService {
 
         return UserDeleteRes.builder()
                 .message("회원 탈퇴 완료")
+                .build();
+    }
+
+    // 내 계정 정보 조회
+    // X-User-Id 헤더로 받은 userId로 본인 정보를 반환한다
+    @Transactional(readOnly = true)
+    public UserMeRes getMyInfo(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        return UserMeRes.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .phone(user.getPhone())
+                .birthDate(user.getBirthDate())
+                .building(user.getBuilding())
+                .unit(user.getUnit())
+                .role(user.getRole().getValue())
+                .status(user.getStatus().getValue())
+                .signupType(user.getSignupType().name())
+                .complexId(user.getComplexId())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

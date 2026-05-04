@@ -3,6 +3,7 @@ package com.apten.auth.application.controller;
 import com.apten.auth.application.model.request.UserDeleteReq;
 import com.apten.auth.application.model.request.UserPasswordPatchReq;
 import com.apten.auth.application.model.response.UserDeleteRes;
+import com.apten.auth.application.model.response.UserMeRes;
 import com.apten.auth.application.model.response.UserPasswordPatchRes;
 import com.apten.auth.application.service.UserAccountService;
 import com.apten.common.response.ResultResponse;
@@ -37,5 +38,13 @@ public class UserMeController {
             @RequestBody UserDeleteReq request
     ) {
         return ResultResponse.success("회원 탈퇴 성공", userAccountService.deleteMyAccount(userId, request));
+    }
+
+    // 내 계정 정보 조회 API
+    @GetMapping
+    public ResultResponse<UserMeRes> getMyInfo(
+            @RequestHeader("X-User-Id") Long userId
+    ) {
+        return ResultResponse.success("내 계정 정보 조회 성공", userAccountService.getMyInfo(userId));
     }
 }
