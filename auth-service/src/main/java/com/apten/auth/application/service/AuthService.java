@@ -185,22 +185,15 @@ public class AuthService {
     // 이메일 회원가입 서비스
     @Transactional
     public AuthRegisterPostRes register(AuthRegisterPostReq request) {
-        // SMS 인증코드 검증 — Redis에 저장된 코드와 요청 코드 비교
-        String storedCode = redisTemplate.opsForValue()
-                .get("sms:" + request.getPhone());
-
-        // Redis에 없으면 TTL 만료 — 인증코드 유효시간 초과
-        if (storedCode == null) {
+        // SMS 인증 완료 여부 확인 — verifySmsCode() 호출 시 저장한 플래그 조회
+        // "true"가 아니면 인증 미완료 또는 TTL 만료로 판단
+        String verified = redisTemplate.opsForValue().get("sms:verified:" + request.getPhone());
+        if (!"true".equals(verified)) {
             throw new BusinessException(AuthErrorCode.SMS_CODE_EXPIRED);
         }
 
-        // 입력값과 저장값 불일치
-        if (!storedCode.equals(request.getAuthCode())) {
-            throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
-        }
-
-        // 인증 성공 후 즉시 삭제 — 재사용 방지
-        redisTemplate.delete("sms:" + request.getPhone());
+        // 인증 완료 플래그 삭제 — 재사용 방지
+        redisTemplate.delete("sms:verified:" + request.getPhone());
 
         // 이메일 중복 확인
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -460,8 +453,16 @@ public class AuthService {
             throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
         }
 
-        // 인증 성공 후 즉시 삭제 — 재사용 방지
+        // 인증 성공 후 SMS 코드 즉시 삭제 — 재사용 방지
         redisTemplate.delete("sms:" + request.getPhone());
+
+        // 인증 완료 플래그 저장 — register() 호출 시 인증 여부 확인용
+        // TTL 5분: 인증 완료 후 5분 내에 회원가입을 완료해야 함
+        redisTemplate.opsForValue().set(
+                "sms:verified:" + request.getPhone(),
+                "true",
+                Duration.ofMinutes(5)
+        );
 
         return AuthSmsVerifyPostRes.builder()
                 .verified(true)
