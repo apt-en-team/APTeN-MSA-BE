@@ -31,6 +31,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.apten.auth.domain.entity.ResidentProfile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -143,6 +144,18 @@ public class AuthService {
                 Duration.ofDays(14)
         );
 
+        // USER 역할인 경우에만 resident_profile에서 동/호 조회
+        String building = null;
+        String unit = null;
+        if (user.getRole() == UserRole.USER) {
+            building = residentProfileRepository.findByUserId(user.getId())
+                    .map(ResidentProfile::getBuilding)
+                    .orElse(null);
+            unit = residentProfileRepository.findByUserId(user.getId())
+                    .map(ResidentProfile::getUnit)
+                    .orElse(null);
+        }
+
         return AuthLoginPostRes.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -151,6 +164,8 @@ public class AuthService {
                 .name(user.getName())
                 .role(user.getRole().name()) // "USER"
                 .status(user.getStatus().name()) // "ACTIVE"
+                .building(building)  // 입주민 동
+                .unit(unit) // 입주민 호
                 .build();
     }
 
