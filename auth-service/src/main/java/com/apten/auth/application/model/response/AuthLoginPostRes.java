@@ -16,7 +16,7 @@ public class AuthLoginPostRes {
     // 사용자 UID
     private final String userUid;
     // 이름
-    private final String namegit;
+    private final String name;
     // 권한
     private final String role;
     // 상태
