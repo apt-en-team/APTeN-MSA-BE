@@ -32,27 +32,27 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     ) throws IOException, ServletException {
         if (authentication.getPrincipal() instanceof UserPrincipal principal) {
 
-//            // 신규 소셜 사용자 — 추가 정보 입력 페이지로 리다이렉트
-//            if ("NEW".equals(principal.getStatus())) {
-//                String redirectUrl = "http://localhost:5173/social-signup"
-//                        + "?email=" + principal.getEmail()
-//                        + "&name=" + principal.getDisplayName();
-//                getRedirectStrategy().sendRedirect(request, response, redirectUrl);
-//                clearAuthenticationAttributes(request);
-//                return;
-//            }
-
-            // 신규 소셜 사용자 — 추가 정보 입력이 필요함을 JSON으로 응답한다 (프론트 미구현 시 임시)
+            // 신규 소셜 사용자 — 추가 정보 입력 페이지로 리다이렉트
             if ("NEW".equals(principal.getStatus())) {
-                response.setContentType("application/json;charset=UTF-8");
-                response.setStatus(HttpServletResponse.SC_OK);
-                response.getWriter().write(
-                        "{\"isNewUser\":true,\"email\":\"" + principal.getEmail()
-                                + "\",\"name\":\"" + principal.getDisplayName() + "\"}"
-                );
+                String redirectUrl = "http://localhost:5173/social-signup"
+                        + "?email=" + principal.getEmail()
+                        + "&name=" + principal.getDisplayName();
+                getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 clearAuthenticationAttributes(request);
                 return;
             }
+
+//            // 신규 소셜 사용자 — 추가 정보 입력이 필요함을 JSON으로 응답한다 (프론트 미구현 시 임시)
+//            if ("NEW".equals(principal.getStatus())) {
+//                response.setContentType("application/json;charset=UTF-8");
+//                response.setStatus(HttpServletResponse.SC_OK);
+//                response.getWriter().write(
+//                        "{\"isNewUser\":true,\"email\":\"" + principal.getEmail()
+//                                + "\",\"name\":\"" + principal.getDisplayName() + "\"}"
+//                );
+//                clearAuthenticationAttributes(request);
+//                return;
+//            }
 
             // 기존 소셜 사용자 — JWT 발급 후 헤더에 담아 응답
             AuthLoginPostRes tokenResponse = authService.issueTokenResponse(principal);
