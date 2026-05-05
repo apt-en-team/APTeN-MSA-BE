@@ -20,7 +20,7 @@ public class AuthUserMapper {
                 .email(user.getEmail())
                 .displayName(user.getName())
                 .role(user.getRole().toCommonUserRole())
-                .status(user.getStatus().getValue())
+                .status(user.getStatus().name())
 //                .complexId(user.getComplexId())
                 .nameAttributeKey(nameAttributeKey)
                 .attributes(attributes)

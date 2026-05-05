@@ -149,8 +149,8 @@ public class AuthService {
                 .userId(user.getId())
                 .userUid(String.valueOf(user.getId()))
                 .name(user.getName())
-                .role(user.getRole().getValue())
-                .status(user.getStatus().getValue())
+                .role(user.getRole().name()) // "USER"
+                .status(user.getStatus().name()) // "ACTIVE"
                 .build();
     }
 
