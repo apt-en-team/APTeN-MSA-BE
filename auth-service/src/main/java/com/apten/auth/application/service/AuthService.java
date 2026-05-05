@@ -396,7 +396,8 @@ public class AuthService {
             );
 
             // 재설정 링크 발송
-            String resetLink = "https://apten.com/reset-password?token=" + rawToken;
+            // 나중에는 배포 서버로 고쳐야함
+            String resetLink = "http://localhost:5173/reset-password?token=" + rawToken;
             mailService.sendPasswordResetMail(user.getEmail(), resetLink);
         });
 
