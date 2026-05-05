@@ -105,7 +105,6 @@ public class ApartmentComplexService {
                 .code(code)
                 .name(req.getName())
                 .address(req.getAddress())
-                .addressDetail(req.getAddressDetail())
                 .zipCode(req.getZipCode())
                 .status(ApartmentComplexStatus.ACTIVE)
                 .description(req.getDescription())
@@ -206,7 +205,6 @@ public class ApartmentComplexService {
                 .code(complex.getCode())
                 .name(complex.getName())
                 .address(complex.getAddress())
-                .addressDetail(complex.getAddressDetail())
                 // 외부 응답 필드명은 zipCode로 통일한다.
                 .zipCode(complex.getZipCode())
                 .status(toStatusCode(complex.getStatus()))

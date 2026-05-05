@@ -86,7 +86,6 @@ public class AddressSearchService {
         return AddressSearchRes.builder()
                 .apartmentName(apartmentName)
                 .address(address)
-                .addressDetail("")
                 .zipCode(defaultString(juso.getZipNo()))
                 .build();
     }

@@ -15,7 +15,6 @@ import lombok.NoArgsConstructor;
 public class ApartmentComplexReq {
     private String name;
     private String address;
-    private String addressDetail;
     @JsonAlias("zipcode")
     private String zipCode;
     private String description;

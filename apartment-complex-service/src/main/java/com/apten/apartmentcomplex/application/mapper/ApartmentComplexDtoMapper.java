@@ -16,7 +16,6 @@ public class ApartmentComplexDtoMapper {
                 .code(apartmentComplex.getCode())
                 .name(apartmentComplex.getName())
                 .address(apartmentComplex.getAddress())
-                .addressDetail(apartmentComplex.getAddressDetail())
                 .zipCode(apartmentComplex.getZipCode())
                 .status(apartmentComplex.getStatus())
                 .description(apartmentComplex.getDescription())

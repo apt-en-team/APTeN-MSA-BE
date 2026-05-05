@@ -13,7 +13,6 @@ public class ApartmentComplexGetDetailRes {
     private final String code;
     private String name;
     private String address;
-    private String addressDetail;
     private String zipCode;
     private String status;
     private String statusName;
