@@ -16,6 +16,18 @@ public class ComplexAdminGetRes {
     // 관리자 이름이다.
     private final String name;
 
+    // 관리자 이메일이다.
+    private final String email;
+
+    // 관리자 연락처이다.
+    private final String phone;
+
+    // 단지 내 관리자 권한이다.
+    private final String adminRole;
+
+    // 단지 내 관리자 권한 표시명이다.
+    private final String adminRoleName;
+
     // 현재 배정 활성 여부이다.
     private final Boolean isActive;
 

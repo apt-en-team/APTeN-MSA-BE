@@ -7,8 +7,13 @@ import com.apten.auth.application.model.response.UserDeleteRes;
 import com.apten.auth.application.model.response.UserMeRes;
 import com.apten.auth.application.model.response.UserPasswordPatchRes;
 import com.apten.auth.application.model.response.UserPatchRes;
+import com.apten.auth.domain.entity.AdminProfile;
+import com.apten.auth.domain.entity.ResidentProfile;
 import com.apten.auth.domain.entity.User;
+import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.repository.UserRepository;
+import com.apten.auth.domain.repository.AdminProfileRepository;
+import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.exception.AuthErrorCode;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
 import com.apten.common.exception.BusinessException;
@@ -25,6 +30,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserAccountService {
     // 회원 저장소
     private final UserRepository userRepository;
+
+    // 입주민 프로필 저장소
+    private final ResidentProfileRepository residentProfileRepository;
+
+    // 관리자 프로필 저장소
+    private final AdminProfileRepository adminProfileRepository;
 
     // 비밀번호 암호화
     private final BCryptPasswordEncoder passwordEncoder;
@@ -82,7 +93,7 @@ public class UserAccountService {
         redisTemplate.delete("refresh:" + userId);
 
         // USER_UPDATED 이벤트 발행 — 다른 서비스의 user_cache 동기화
-        authOutboxService.saveUpdatedEvent(user);
+        authOutboxService.saveUpdatedEvent(user, resolveComplexId(user));
 
         return UserDeleteRes.builder()
                 .message("회원 탈퇴 완료")
@@ -96,18 +107,20 @@ public class UserAccountService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
 
+        ResidentProfile residentProfile = resolveResidentProfile(user);
+
         return UserMeRes.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .phone(user.getPhone())
-                .birthDate(user.getBirthDate())
-                .building(user.getBuilding())
-                .unit(user.getUnit())
+                .birthDate(residentProfile == null ? null : residentProfile.getBirthDate())
+                .building(residentProfile == null ? null : residentProfile.getBuilding())
+                .unit(residentProfile == null ? null : residentProfile.getUnit())
                 .role(user.getRole().getValue())
                 .status(user.getStatus().getValue())
                 .signupType(user.getSignupType().name())
-                .complexId(user.getComplexId())
+                .complexId(resolveComplexId(user))
                 .createdAt(user.getCreatedAt())
                 .build();
     }
@@ -122,12 +135,40 @@ public class UserAccountService {
         user.updateProfile(request.getName(), request.getPhone());
 
         // Outbox 이벤트 발행 — 다른 서비스 user_cache 동기화
-        authOutboxService.saveUpdatedEvent(user);
+        authOutboxService.saveUpdatedEvent(user, resolveComplexId(user));
 
         return UserPatchRes.builder()
                 .name(user.getName())
                 .phone(user.getPhone())
                 .message("계정 정보 수정 완료")
                 .build();
+    }
+
+    private Long resolveComplexId(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        if (user.getRole() == UserRole.USER) {
+            return residentProfileRepository.findByUserId(user.getId())
+                    .map(ResidentProfile::getComplexId)
+                    .orElse(null);
+        }
+
+        if (user.getRole() == UserRole.MANAGER || user.getRole() == UserRole.ADMIN) {
+            return adminProfileRepository.findByUserId(user.getId())
+                    .map(AdminProfile::getComplexId)
+                    .orElse(null);
+        }
+
+        return null;
+    }
+
+    private ResidentProfile resolveResidentProfile(User user) {
+        if (user == null || user.getRole() != UserRole.USER) {
+            return null;
+        }
+
+        return residentProfileRepository.findByUserId(user.getId()).orElse(null);
     }
 }

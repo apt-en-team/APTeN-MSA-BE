@@ -19,6 +19,12 @@ public class AuthReferenceCacheService {
 
     // 단지 이벤트 payload를 받아 complex_cache를 upsert 한다.
     public void upsertComplexCache(ApartmentComplexEventPayload payload) {
+        //수정 단지 원본은 소프트 삭제하지만 Auth 캐시는 삭제 이벤트 수신 시 제거한다.
+        if ("DELETED".equals(payload.getStatus())) {
+            complexCacheRepository.deleteById(payload.getApartmentComplexId());
+            return;
+        }
+
         // 기존 캐시가 있으면 갱신하고 없으면 새로 만든다.
         ComplexCache complexCache = complexCacheRepository.findById(payload.getApartmentComplexId())
                 .orElseGet(() -> ComplexCache.builder()

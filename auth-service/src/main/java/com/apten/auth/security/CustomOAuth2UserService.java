@@ -1,5 +1,11 @@
 package com.apten.auth.security;
 
+import com.apten.auth.domain.entity.AdminProfile;
+import com.apten.auth.domain.entity.ResidentProfile;
+import com.apten.auth.domain.entity.User;
+import com.apten.auth.domain.enums.UserRole;
+import com.apten.auth.domain.repository.AdminProfileRepository;
+import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +23,28 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     // 이메일 기준으로 기존 사용자를 조회하는 저장소
     private final UserRepository userRepository;
+    private final ResidentProfileRepository residentProfileRepository;
+    private final AdminProfileRepository adminProfileRepository;
+
+    private Long resolveComplexId(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        if (user.getRole() == UserRole.USER) {
+            return residentProfileRepository.findByUserId(user.getId())
+                    .map(ResidentProfile::getComplexId)
+                    .orElse(null);
+        }
+
+        if (user.getRole() == UserRole.MANAGER || user.getRole() == UserRole.ADMIN) {
+            return adminProfileRepository.findByUserId(user.getId())
+                    .map(AdminProfile::getComplexId)
+                    .orElse(null);
+        }
+
+        return null;
+    }
 
     @Override
     // OAuth2 공급자 응답에서 이메일을 추출해 기존 사용자와 연결하거나 신규 사용자로 표시한다
@@ -48,7 +76,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .role(commonRole)
                 // 신규 사용자는 "NEW" 상태로 표시해 SuccessHandler에서 리다이렉트 여부를 판단한다
                 .status(isNewUser ? "NEW" : user.getStatus().getValue())
-                .complexId(isNewUser ? null : user.getComplexId())
+                .complexId(isNewUser ? null : resolveComplexId(user))
                 .nameAttributeKey(resolveNameAttributeKey(registrationId))
                 .attributes(oAuth2User.getAttributes())
                 .build();

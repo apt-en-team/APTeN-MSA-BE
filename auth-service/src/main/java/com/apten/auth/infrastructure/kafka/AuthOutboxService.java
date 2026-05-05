@@ -28,32 +28,32 @@ public class AuthOutboxService {
     private final ObjectMapper objectMapper;
 
     // 회원 생성 직후 같은 트랜잭션에서 USER_CREATED 이벤트를 Outbox에 적재한다.
-    public void saveCreatedEvent(User user) {
-        saveEvent(EventType.USER_CREATED, user);
+    public void saveCreatedEvent(User user, Long complexId) {
+        saveEvent(EventType.USER_CREATED, user, complexId);
     }
 
     // 회원 정보 수정 직후 같은 트랜잭션에서 USER_UPDATED 이벤트를 Outbox에 적재한다.
-    public void saveUpdatedEvent(User user) {
-        saveEvent(EventType.USER_UPDATED, user);
+    public void saveUpdatedEvent(User user, Long complexId) {
+        saveEvent(EventType.USER_UPDATED, user, complexId);
     }
 
     // 회원 삭제 또는 탈퇴 시 USER_DELETED 이벤트를 Outbox에 적재한다.
-    public void saveDeletedEvent(User user) {
-        saveEvent(EventType.USER_DELETED, user);
+    public void saveDeletedEvent(User user, Long complexId) {
+        saveEvent(EventType.USER_DELETED, user, complexId);
     }
 
     // 사용자 이벤트 payload와 envelope를 만들고 Outbox 저장까지 한 번에 처리한다.
-    private void saveEvent(EventType eventType, User user) {
+    private void saveEvent(EventType eventType, User user, Long complexId) {
         // 현재 Kafka 계약의 user cache payload 필드만 사용한다.
         UserEventPayload payload = UserEventPayload.builder()
                 .userId(user.getId())
-                .complexId(user.getComplexId())
+                .complexId(complexId)
                 .name(user.getName())
                 .phone(user.getPhone())
-                .birthDate(user.getBirthDate())
+//                .birthDate(user.getBirthDate())
                 .role(user.getRole().name())
                 .status(user.getStatus().name())
-                .apartmentComplexId(user.getComplexId())
+//                .apartmentComplexId(user.getComplexId())
                 .isDeleted(user.getIsDeleted())
                 .build();
 

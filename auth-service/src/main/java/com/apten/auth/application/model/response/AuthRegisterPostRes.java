@@ -8,8 +8,8 @@ import lombok.Getter;
 @Getter
 @Builder
 public class AuthRegisterPostRes {
-    // 선택한 단지 UID
-    private final String apartmentComplexUid;
+    // 회원가입 응답도 complexId 기준으로 단지 식별값을 내려준다.
+    private final Long complexId;
     // 사용자 ID
     private final Long userId;
     // 사용자 UID

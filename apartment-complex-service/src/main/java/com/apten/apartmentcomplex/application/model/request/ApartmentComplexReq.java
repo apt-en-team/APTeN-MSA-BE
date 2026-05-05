@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.application.model.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,6 +16,11 @@ public class ApartmentComplexReq {
     private String name;
     private String address;
     private String addressDetail;
-    private String zipcode;
+    @JsonAlias("zipcode")
+    private String zipCode;
     private String description;
+    private String managerEmail;
+    private String managerPassword;
+    private String managerName;
+    private String managerPhone;
 }

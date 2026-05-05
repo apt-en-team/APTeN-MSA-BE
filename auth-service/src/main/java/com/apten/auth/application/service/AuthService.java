@@ -12,6 +12,7 @@ import com.apten.auth.domain.enums.SignupType;
 import com.apten.auth.domain.enums.UserRole;
 import com.apten.auth.domain.enums.UserStatus;
 import com.apten.auth.domain.repository.AdminProfileRepository;
+import com.apten.auth.domain.repository.ComplexCacheRepository;
 import com.apten.auth.domain.repository.LoginHistoryRepository;
 import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
@@ -48,6 +49,9 @@ public class AuthService {
 
     // USER 단지 소속 정보 저장소
     private final ResidentProfileRepository residentProfileRepository;
+
+    // 회원가입 시 선택한 complexId를 검증하는 단지 캐시 저장소
+    private final ComplexCacheRepository complexCacheRepository;
 
     // 인증 조회용 MyBatis 매퍼
     private final ObjectProvider<AuthQueryMapper> authQueryMapperProvider;
@@ -208,14 +212,14 @@ public class AuthService {
 
         // 회원 원본 저장 — aggregateId로 사용할 Long PK 확보
         User user = User.builder()
-                .complexId(resolveComplexId(request.getApartmentComplexUid()))
+//                .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
                 .passwordHash(passwordHash)
                 .name(request.getName())
                 .phone(request.getPhone())
-                .birthDate(request.getBirthDate())
-                .building(request.getDong())
-                .unit(request.getHo())
+//                .birthDate(request.getBirthDate())
+//                .building(request.getDong())
+//                .unit(request.getHo())
                 .role(UserRole.USER)
                 .status(UserStatus.PENDING)
                 .signupType(SignupType.EMAIL)
@@ -225,12 +229,24 @@ public class AuthService {
                 .isDeleted(false)
                 .build();
         User savedUser = userRepository.save(user);
+        ResidentProfile resident = ResidentProfile.builder()
+                .userId(savedUser.getId())
+                // resident_profile.complex_id에는 검증된 complexId를 저장한다.
+                .complexId(resolveComplexId(request.getComplexId()))
+                .birthDate(request.getBirthDate())
+                .building(request.getDong())
+                .unit(request.getHo())
+                .status(UserStatus.PENDING)
+                .build();
+        ResidentProfile savedResident = residentProfileRepository.save(resident);
 
-        // Kafka 전송은 relay가 담당하므로 같은 트랜잭션 안에서는 Outbox row만 남김
-        authOutboxService.saveCreatedEvent(savedUser);
+        Long complexId = savedResident.getComplexId();
+
+        // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
+        authOutboxService.saveCreatedEvent(savedUser, complexId);
 
         return AuthRegisterPostRes.builder()
-                .apartmentComplexUid(request.getApartmentComplexUid())
+                .complexId(savedResident.getComplexId())
                 .userId(savedUser.getId())
                 .userUid(String.valueOf(savedUser.getId()))
                 .email(savedUser.getEmail())
@@ -246,14 +262,14 @@ public class AuthService {
     public AuthSocialSignupPostRes socialSignup(AuthSocialSignupPostReq request) {
         // 소셜 가입도 user 원본을 먼저 저장해 Outbox aggregateId로 사용할 PK를 확보
         User user = User.builder()
-                .complexId(resolveComplexId(request.getApartmentComplexUid()))
+//                .complexId(resolveComplexId(request.getApartmentComplexUid()))
                 .email(request.getEmail())
                 .passwordHash(null)
                 .name(request.getName())
                 .phone(request.getPhone())
-                .birthDate(request.getBirthDate())
-                .building(request.getDong())
-                .unit(request.getHo())
+//                .birthDate(request.getBirthDate())
+//                .building(request.getDong())
+//                .unit(request.getHo())
                 .role(UserRole.USER)
                 .status(UserStatus.PENDING)
                 .signupType(SignupType.valueOf(request.getProvider().name()))
@@ -263,11 +279,24 @@ public class AuthService {
                 .isDeleted(false)
                 .build();
         User savedUser = userRepository.save(user);
+        ResidentProfile resident = ResidentProfile.builder()
+                .userId(savedUser.getId())
+                // apartmentComplexUid 호환 입력이 와도 내부 저장은 complexId 기준으로 처리한다.
+                .complexId(resolveComplexId(request.getComplexId()))
+                .birthDate(request.getBirthDate())
+                .building(request.getDong())
+                .unit(request.getHo())
+                .status(UserStatus.PENDING)
+                .build();
+        ResidentProfile savedResident = residentProfileRepository.save(resident);
+
+        Long complexId = savedResident.getComplexId();
 
         // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
-        authOutboxService.saveCreatedEvent(savedUser);
+        authOutboxService.saveCreatedEvent(savedUser, complexId);
 
         return AuthSocialSignupPostRes.builder()
+                .complexId(savedResident.getComplexId())
                 .userId(savedUser.getId())
                 .userUid(String.valueOf(savedUser.getId()))
                 .email(savedUser.getEmail())
@@ -483,12 +512,14 @@ public class AuthService {
                 .orElse(null);
     }
 
-    // 단지 UID를 Long으로 변환 — 매핑 확정 전까지 숫자 UID만 허용
-    private Long resolveComplexId(String apartmentComplexUid) {
-        try {
-            return Long.valueOf(apartmentComplexUid);
-        } catch (NumberFormatException exception) {
-            return 0L;
+    // 회원가입에서 받은 complexId는 auth complex_cache 존재 여부까지 검증한다.
+    private Long resolveComplexId(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(AuthErrorCode.INVALID_PARAMETER);
         }
+
+        return complexCacheRepository.findById(complexId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_PARAMETER))
+                .getId();
     }
 }

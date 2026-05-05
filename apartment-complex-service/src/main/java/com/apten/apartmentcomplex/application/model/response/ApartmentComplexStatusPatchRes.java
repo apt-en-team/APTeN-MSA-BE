@@ -1,6 +1,5 @@
 package com.apten.apartmentcomplex.application.model.response;
 
-import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,7 +14,10 @@ public class ApartmentComplexStatusPatchRes {
     private final String code;
 
     // 변경 완료된 단지 상태이다.
-    private final ApartmentComplexStatus status;
+    private final String status;
+
+    // 변경 완료된 단지 상태 표시명이다.
+    private final String statusName;
 
     // 상태 변경 처리 시각이다.
     private final LocalDateTime updatedAt;

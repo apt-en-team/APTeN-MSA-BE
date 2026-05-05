@@ -1,16 +1,20 @@
 package com.apten.apartmentcomplex.application.controller;
 
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
+import com.apten.apartmentcomplex.application.model.request.ApartmentComplexPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexStatusPatchReq;
+import com.apten.apartmentcomplex.application.model.request.ComplexAdminPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetDetailRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetPageRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPostRes;
+import com.apten.apartmentcomplex.application.model.response.ApartmentComplexSelectRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexStatusPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminDeleteRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
+import com.apten.apartmentcomplex.application.model.response.ComplexAdminPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.application.service.ApartmentComplexService;
 import com.apten.common.response.ResultResponse;
@@ -71,7 +75,7 @@ public class AdminApartmentComplexController {
     @PatchMapping("/{code}")
     public ResultResponse<ApartmentComplexPatchRes> updateApartmentComplex(
             @PathVariable String code,
-            @RequestBody ApartmentComplexReq req
+            @RequestBody ApartmentComplexPatchReq req
     ) {
         return ResultResponse.success(
                 "단지 수정 성공",
@@ -122,6 +126,28 @@ public class AdminApartmentComplexController {
         return ResultResponse.success(
                 "단지 관리자 해제 성공",
                 apartmentComplexService.unassignAdminFromComplex(code, userId)
+        );
+    }
+
+    //마스터 단지 선택 API-210
+    @GetMapping("/{code}/select")
+    public ResultResponse<ApartmentComplexSelectRes> selectApartmentComplex(@PathVariable String code) {
+        return ResultResponse.success(
+                "단지 선택 정보 조회 성공",
+                apartmentComplexService.selectApartmentComplex(code)
+        );
+    }
+
+    //관리자 권한 수정 API-212
+    @PatchMapping("/{code}/admins/{userId}")
+    public ResultResponse<ComplexAdminPatchRes> updateComplexAdmin(
+            @PathVariable String code,
+            @PathVariable Long userId,
+            @RequestBody ComplexAdminPatchReq req
+    ) {
+        return ResultResponse.success(
+                "단지 관리자 수정 성공",
+                apartmentComplexService.updateComplexAdmin(code, userId, req)
         );
     }
 }

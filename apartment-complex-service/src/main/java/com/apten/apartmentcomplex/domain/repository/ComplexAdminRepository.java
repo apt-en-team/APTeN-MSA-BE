@@ -13,4 +13,7 @@ public interface ComplexAdminRepository extends JpaRepository<ComplexAdmin, Long
 
     // 단지 ID 기준 현재 활성화된 관리자 목록을 조회한다.
     List<ComplexAdmin> findByComplexIdAndIsActiveTrue(Long complexId);
+
+    // 단지 ID 기준 관리자 현황을 최근 배정 순으로 조회한다.
+    List<ComplexAdmin> findByComplexIdOrderByAssignedAtDesc(Long complexId);
 }

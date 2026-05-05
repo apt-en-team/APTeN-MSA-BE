@@ -52,6 +52,18 @@ public class ComplexAdmin extends BaseEntity {
     @Column(name = "admin_name", nullable = false)
     private String adminName;
 
+    // 관리자 이메일 스냅샷
+    @Column(name = "admin_email")
+    private String adminEmail;
+
+    // 관리자 연락처 스냅샷
+    @Column(name = "admin_phone")
+    private String adminPhone;
+
+    // 단지 내 관리자 역할 코드이다.
+    @Column(name = "admin_role", nullable = false, length = 20)
+    private String adminRole;
+
     // 현재 소속 활성 여부이다.
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
@@ -65,8 +77,11 @@ public class ComplexAdmin extends BaseEntity {
     private LocalDateTime unassignedAt;
 
     // 기존 비활성 배정을 다시 활성화할 때 사용한다.
-    public void reassign(String adminName) {
+    public void reassign(String adminName, String adminEmail, String adminPhone, String adminRole) {
         this.adminName = adminName;
+        this.adminEmail = adminEmail;
+        this.adminPhone = adminPhone;
+        this.adminRole = adminRole;
         this.isActive = true;
         this.assignedAt = LocalDateTime.now();
         this.unassignedAt = null;
@@ -75,6 +90,27 @@ public class ComplexAdmin extends BaseEntity {
     // 단지 관리자 배정을 해제할 때 사용한다.
     public void unassign() {
         this.isActive = false;
+        this.unassignedAt = LocalDateTime.now();
+    }
+
+    // 단지 내 관리자 역할을 수정한다.
+    public void changeAdminRole(String adminRole) {
+        this.adminRole = adminRole;
+    }
+
+    // 관리자 기본 정보 스냅샷은 이름과 연락처만 갱신한다.
+    public void changeAdminProfile(String adminName, String adminPhone) {
+        this.adminName = adminName;
+        this.adminPhone = adminPhone;
+    }
+
+    // 활성 여부를 수정하면서 해제 시각도 함께 관리한다.
+    public void changeActive(Boolean isActive) {
+        this.isActive = isActive;
+        if (Boolean.TRUE.equals(isActive)) {
+            this.unassignedAt = null;
+            return;
+        }
         this.unassignedAt = LocalDateTime.now();
     }
 }

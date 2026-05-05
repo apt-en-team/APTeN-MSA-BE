@@ -76,6 +76,12 @@ public class ApartmentComplex extends BaseEntity {
         this.description = description;
     }
 
+    // 단지 수정에서는 주소와 우편번호를 보존하고 단지명과 설명만 변경한다.
+    public void updateSummary(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
     // 단지 활성 상태를 별도 API에서 변경할 때 사용한다.
     public void changeStatus(ApartmentComplexStatus status) {
         this.status = status;
