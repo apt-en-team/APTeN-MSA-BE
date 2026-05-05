@@ -15,7 +15,10 @@ public enum UserCacheRole implements EnumMapperType {
     USER("01", "입주민"),
 
     // 사용할 수 있는 유저 캐시 권한이다.
-    ADMIN("02", "관리자");
+    ADMIN("02", "관리자"),
+
+    // 단지 생성 시 최초 관리자와 관리 책임자 계정을 캐시에 반영한다.
+    MANAGER("03", "관리 책임자");
 
     // DB에 저장할 유저 캐시 권한 code이다.
     private final String code;
