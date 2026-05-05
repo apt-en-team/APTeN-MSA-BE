@@ -530,12 +530,11 @@ public class AuthService {
     }
 
     // 회원가입에서 받은 complexId는 auth complex_cache 존재 여부까지 검증한다.
-    private Long resolveComplexId(Long complexId) {
+    private Long resolveComplexId(String complexId) {
         if (complexId == null) {
             throw new BusinessException(AuthErrorCode.INVALID_PARAMETER);
         }
-
-        return complexCacheRepository.findById(complexId)
+        return complexCacheRepository.findById(Long.parseLong(complexId))
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_PARAMETER))
                 .getId();
     }
