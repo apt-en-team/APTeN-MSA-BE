@@ -75,7 +75,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .displayName(name)
                 .role(commonRole)
                 // 신규 사용자는 "NEW" 상태로 표시해 SuccessHandler에서 리다이렉트 여부를 판단한다
-                .status(isNewUser ? "NEW" : user.getStatus().getValue())
+                .status(isNewUser ? "NEW" : user.getStatus().name())
                 .complexId(isNewUser ? null : resolveComplexId(user))
                 .nameAttributeKey(resolveNameAttributeKey(registrationId))
                 .attributes(oAuth2User.getAttributes())

@@ -21,4 +21,8 @@ public class AuthLoginPostRes {
     private final String role;
     // 상태
     private final String status;
+    // 동 (USER만 존재)
+    private final String building;
+    // 호 (USER만 존재)
+    private final String unit;
 }

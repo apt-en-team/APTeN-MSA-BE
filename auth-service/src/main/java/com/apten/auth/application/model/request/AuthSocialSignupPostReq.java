@@ -20,7 +20,7 @@ public class AuthSocialSignupPostReq {
     private String providerUserId;
     // 소셜 회원가입도 complexId 기준으로 단지를 식별한다.
     @JsonAlias("apartmentComplexUid")
-    private Long complexId;
+    private String complexId;
     // 이메일
     private String email;
     // 이름

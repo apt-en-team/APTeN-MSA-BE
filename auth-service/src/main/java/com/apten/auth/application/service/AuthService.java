@@ -31,6 +31,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.apten.auth.domain.entity.ResidentProfile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -143,14 +144,28 @@ public class AuthService {
                 Duration.ofDays(14)
         );
 
+        // USER 역할인 경우에만 resident_profile에서 동/호 조회
+        String building = null;
+        String unit = null;
+        if (user.getRole() == UserRole.USER) {
+            building = residentProfileRepository.findByUserId(user.getId())
+                    .map(ResidentProfile::getBuilding)
+                    .orElse(null);
+            unit = residentProfileRepository.findByUserId(user.getId())
+                    .map(ResidentProfile::getUnit)
+                    .orElse(null);
+        }
+
         return AuthLoginPostRes.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .userId(user.getId())
                 .userUid(String.valueOf(user.getId()))
                 .name(user.getName())
-                .role(user.getRole().getValue())
-                .status(user.getStatus().getValue())
+                .role(user.getRole().name()) // "USER"
+                .status(user.getStatus().name()) // "ACTIVE"
+                .building(building)  // 입주민 동
+                .unit(unit) // 입주민 호
                 .build();
     }
 
@@ -185,22 +200,15 @@ public class AuthService {
     // 이메일 회원가입 서비스
     @Transactional
     public AuthRegisterPostRes register(AuthRegisterPostReq request) {
-        // SMS 인증코드 검증 — Redis에 저장된 코드와 요청 코드 비교
-        String storedCode = redisTemplate.opsForValue()
-                .get("sms:" + request.getPhone());
-
-        // Redis에 없으면 TTL 만료 — 인증코드 유효시간 초과
-        if (storedCode == null) {
+        // SMS 인증 완료 여부 확인 — verifySmsCode() 호출 시 저장한 플래그 조회
+        // "true"가 아니면 인증 미완료 또는 TTL 만료로 판단
+        String verified = redisTemplate.opsForValue().get("sms:verified:" + request.getPhone());
+        if (!"true".equals(verified)) {
             throw new BusinessException(AuthErrorCode.SMS_CODE_EXPIRED);
         }
 
-        // 입력값과 저장값 불일치
-        if (!storedCode.equals(request.getAuthCode())) {
-            throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
-        }
-
-        // 인증 성공 후 즉시 삭제 — 재사용 방지
-        redisTemplate.delete("sms:" + request.getPhone());
+        // 인증 완료 플래그 삭제 — 재사용 방지
+        redisTemplate.delete("sms:verified:" + request.getPhone());
 
         // 이메일 중복 확인
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -388,7 +396,8 @@ public class AuthService {
             );
 
             // 재설정 링크 발송
-            String resetLink = "https://apten.com/reset-password?token=" + rawToken;
+            // 나중에는 배포 서버로 고쳐야함
+            String resetLink = "http://localhost:5173/reset-password?token=" + rawToken;
             mailService.sendPasswordResetMail(user.getEmail(), resetLink);
         });
 
@@ -460,8 +469,16 @@ public class AuthService {
             throw new BusinessException(AuthErrorCode.SMS_CODE_INVALID);
         }
 
-        // 인증 성공 후 즉시 삭제 — 재사용 방지
+        // 인증 성공 후 SMS 코드 즉시 삭제 — 재사용 방지
         redisTemplate.delete("sms:" + request.getPhone());
+
+        // 인증 완료 플래그 저장 — register() 호출 시 인증 여부 확인용
+        // TTL 5분: 인증 완료 후 5분 내에 회원가입을 완료해야 함
+        redisTemplate.opsForValue().set(
+                "sms:verified:" + request.getPhone(),
+                "true",
+                Duration.ofMinutes(5)
+        );
 
         return AuthSmsVerifyPostRes.builder()
                 .verified(true)
@@ -513,12 +530,11 @@ public class AuthService {
     }
 
     // 회원가입에서 받은 complexId는 auth complex_cache 존재 여부까지 검증한다.
-    private Long resolveComplexId(Long complexId) {
+    private Long resolveComplexId(String complexId) {
         if (complexId == null) {
             throw new BusinessException(AuthErrorCode.INVALID_PARAMETER);
         }
-
-        return complexCacheRepository.findById(complexId)
+        return complexCacheRepository.findById(Long.parseLong(complexId))
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.INVALID_PARAMETER))
                 .getId();
     }
