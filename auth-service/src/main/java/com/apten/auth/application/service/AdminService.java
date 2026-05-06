@@ -32,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AdminService {
 
+    private static final String PASSWORD_POLICY_REGEX =
+            "^(?=.*[a-zA-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$";
+
     // 회원 기본 저장소
     private final UserRepository userRepository;
 
@@ -357,13 +360,19 @@ public class AdminService {
 
     //추가 내부 관리자 생성 요청도 필수값을 검증한다.
     private void validateInternalCreateRequest(InternalAdminCreateReq request) {
-        //수정 내부 관리자 생성에서는 phone을 선택값으로 허용한다.
         if (request.getEmail() == null || request.getEmail().isBlank()
                 || request.getPassword() == null || request.getPassword().isBlank()
                 || request.getName() == null || request.getName().isBlank()
+                || request.getPhone() == null || request.getPhone().isBlank()
                 || request.getComplexId() == null) {
             throw new BusinessException(AuthErrorCode.INVALID_PARAMETER);
         }
+
+        // 내부 관리자 생성도 공개 회원가입과 같은 비밀번호 정책을 따른다.
+        if (!request.getPassword().matches(PASSWORD_POLICY_REGEX)) {
+            throw new BusinessException(AuthErrorCode.PASSWORD_POLICY_INVALID);
+        }
+
         resolveRoleFromAdminRoleCode(request.getAdminRole());
     }
 

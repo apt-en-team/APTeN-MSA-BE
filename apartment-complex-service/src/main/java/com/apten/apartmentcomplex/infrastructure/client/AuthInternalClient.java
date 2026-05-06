@@ -12,7 +12,9 @@ import com.apten.apartmentcomplex.infrastructure.config.AuthServiceProperties;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import java.net.http.HttpClient;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -22,6 +24,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 // Auth Service 내부 관리자 생성 API를 호출하는 클라이언트이다.
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class AuthInternalClient {
 
@@ -37,80 +40,47 @@ public class AuthInternalClient {
     }
 
     public InternalAdminCreateRes createAdmin(InternalAdminCreateReq req) {
-        try {
-            String body = restClient()
-                    .post()
-                    .uri(authServiceProperties.getUrl() + "/internal/auth/admins")
-                    .body(req)
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (request, response) -> {
-                        throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-                    })
-                    .body(String.class);
-
-            return unwrapResponse(body, InternalAdminCreateRes.class);
-        } catch (BusinessException exception) {
-            throw exception;
-        } catch (RestClientResponseException exception) {
-            throw mapAuthException(exception.getResponseBodyAsString());
-        } catch (RestClientException exception) {
-            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
-            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-        } catch (Exception exception) {
-            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
-            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-        }
+        String url = authServiceProperties.getUrl() + "/internal/auth/admins";
+        return executeAuthRequest(
+                "내부 관리자 생성",
+                url,
+                () -> restClient()
+                        .post()
+                        .uri(url)
+                        .body(req)
+                        .retrieve()
+                        .body(String.class),
+                InternalAdminCreateRes.class
+        );
     }
 
     public InternalAdminDeleteRes softDeleteAdmin(Long userId) {
-        try {
-            String body = restClient()
-                    .patch()
-                    .uri(authServiceProperties.getUrl() + "/internal/auth/admins/" + userId + "/delete")
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (request, response) -> {
-                        throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-                    })
-                    .body(String.class);
-
-            return unwrapResponse(body, InternalAdminDeleteRes.class);
-        } catch (BusinessException exception) {
-            throw exception;
-        } catch (RestClientResponseException exception) {
-            throw mapAuthException(exception.getResponseBodyAsString());
-        } catch (RestClientException exception) {
-            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
-            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-        } catch (Exception exception) {
-            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
-            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-        }
+        String url = authServiceProperties.getUrl() + "/internal/auth/admins/" + userId + "/delete";
+        return executeAuthRequest(
+                "내부 관리자 삭제",
+                url,
+                () -> restClient()
+                        .patch()
+                        .uri(url)
+                        .retrieve()
+                        .body(String.class),
+                InternalAdminDeleteRes.class
+        );
     }
 
     public InternalAdminUpdateRes updateAdmin(Long userId, InternalAdminUpdateReq req) {
-        try {
-            String body = restClient()
-                    .patch()
-                    .uri(authServiceProperties.getUrl() + "/internal/auth/admins/" + userId)
-                    .body(req)
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (request, response) -> {
-                        throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-                    })
-                    .body(String.class);
-
-            return unwrapResponse(body, InternalAdminUpdateRes.class);
-        } catch (BusinessException exception) {
-            throw exception;
-        } catch (RestClientResponseException exception) {
-            throw mapAuthException(exception.getResponseBodyAsString());
-        } catch (RestClientException exception) {
-            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
-            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-        } catch (Exception exception) {
-            // 내부 호출 실패 시 예외를 단지 서비스 예외로 변환한다.
-            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
-        }
+        String url = authServiceProperties.getUrl() + "/internal/auth/admins/" + userId;
+        return executeAuthRequest(
+                "내부 관리자 수정",
+                url,
+                () -> restClient()
+                        .patch()
+                        .uri(url)
+                        .body(req)
+                        .retrieve()
+                        .body(String.class),
+                InternalAdminUpdateRes.class
+        );
     }
 
     private <T> T unwrapResponse(String body, Class<T> responseType) throws Exception {
@@ -151,6 +121,10 @@ public class AuthInternalClient {
                 return new BusinessException(CommonErrorCode.INVALID_PARAMETER);
             }
 
+            if ("AUTH_400_04".equals(code) || "PASSWORD_POLICY_INVALID".equals(code)) {
+                return new BusinessException(ApartmentComplexErrorCode.INVALID_ADMIN_PASSWORD);
+            }
+
             if ("AUTH_404_01".equals(code) || "USER_NOT_FOUND".equals(code)) {
                 return new BusinessException(ApartmentComplexErrorCode.USER_NOT_FOUND);
             }
@@ -167,6 +141,10 @@ public class AuthInternalClient {
                 return new BusinessException(CommonErrorCode.INVALID_PARAMETER);
             }
 
+            if (message.contains("비밀번호는 8자 이상")) {
+                return new BusinessException(ApartmentComplexErrorCode.INVALID_ADMIN_PASSWORD);
+            }
+
             if (message.contains("사용자를 찾을 수 없습니다")) {
                 return new BusinessException(ApartmentComplexErrorCode.USER_NOT_FOUND);
             }
@@ -179,5 +157,35 @@ public class AuthInternalClient {
         }
 
         return new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+    }
+
+    private <T> T executeAuthRequest(
+            String operationName,
+            String url,
+            Supplier<String> responseSupplier,
+            Class<T> responseType
+    ) {
+        try {
+            String body = responseSupplier.get();
+            return unwrapResponse(body, responseType);
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RestClientResponseException exception) {
+            log.error(
+                    "{} 실패. statusCode={}, responseBody={}, url={}",
+                    operationName,
+                    exception.getStatusCode(),
+                    exception.getResponseBodyAsString(),
+                    url,
+                    exception
+            );
+            throw mapAuthException(exception.getResponseBodyAsString());
+        } catch (RestClientException exception) {
+            log.error("{} 실패. url={}", operationName, url, exception);
+            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+        } catch (Exception exception) {
+            log.error("{} 실패. url={}", operationName, url, exception);
+            throw new BusinessException(ApartmentComplexErrorCode.AUTH_INTERNAL_API_ERROR);
+        }
     }
 }
