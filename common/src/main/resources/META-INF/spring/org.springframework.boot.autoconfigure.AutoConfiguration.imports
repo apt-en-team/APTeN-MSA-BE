@@ -1,3 +1,4 @@
+com.apten.common.config.JacksonFormatConfiguration
 com.apten.common.outbox.OutboxPackagesAutoConfiguration
 com.apten.common.outbox.OutboxAutoConfiguration
 com.apten.common.enumcode.EnumAutoConfiguration
