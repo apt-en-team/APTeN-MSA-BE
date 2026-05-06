@@ -548,10 +548,10 @@ public class ApartmentComplexService {
 
     private String resolveAdminRoleName(String adminRole) {
         if ("01".equals(adminRole) || "MANAGER".equalsIgnoreCase(adminRole)) {
-            return "총관리자";
+            return "매니저";
         }
         if ("02".equals(adminRole) || "ADMIN".equalsIgnoreCase(adminRole)) {
-            return "관리자";
+            return "스태프";
         }
         return "";
     }
