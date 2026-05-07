@@ -1,5 +1,6 @@
 package com.apten.parkingvehicle.application.controller;
 
+import com.apten.common.constants.HeaderConstants;
 import com.apten.common.response.ResultResponse;
 import com.apten.parkingvehicle.application.model.request.ParkingFloorListReq;
 import com.apten.parkingvehicle.application.model.request.ParkingFloorPatchReq;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,14 +39,30 @@ public class ParkingController {
 
     //입출차 기록 조회 API-326
     @GetMapping("/api/admin/parking-logs")
-    public ResultResponse<PageResponse<ParkingLogListRes>> getParkingLogList(@ModelAttribute ParkingLogListReq request) {
-        return ResultResponse.success("입출차 기록 조회 성공", parkingService.getParkingLogList(request));
+    public ResultResponse<PageResponse<ParkingLogListRes>> getParkingLogList(
+            @ModelAttribute ParkingLogListReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success(
+                "입출차 기록 조회 성공",
+                parkingService.getParkingLogList(request, userRole, complexId, selectedComplexId)
+        );
     }
 
     //주차 현황 조회 API-327
     @GetMapping("/api/admin/parking/status")
-    public ResultResponse<ParkingStatusRes> getParkingStatus(@RequestParam(required = false) Long complexId) {
-        return ResultResponse.success("주차 현황 조회 성공", parkingService.getParkingStatus(complexId));
+    public ResultResponse<ParkingStatusRes> getParkingStatus(
+            @RequestParam(required = false) Long complexId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long headerComplexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success(
+                "주차 현황 조회 성공",
+                parkingService.getParkingStatus(userRole, headerComplexId != null ? headerComplexId : complexId, selectedComplexId)
+        );
     }
 
     //층별 주차 관리 조회 API-328
@@ -75,14 +93,30 @@ public class ParkingController {
 
     //주차 통계 조회 API-331
     @GetMapping("/api/admin/parking/statistics")
-    public ResultResponse<ParkingStatisticsRes> getParkingStatistics(@ModelAttribute ParkingStatisticsReq request) {
-        return ResultResponse.success("주차 통계 조회 성공", parkingService.getParkingStatistics(request));
+    public ResultResponse<ParkingStatisticsRes> getParkingStatistics(
+            @ModelAttribute ParkingStatisticsReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success(
+                "주차 통계 조회 성공",
+                parkingService.getParkingStatistics(request, userRole, complexId, selectedComplexId)
+        );
     }
 
     //입출차 등록 API-332
     @PostMapping("/api/admin/parking-logs")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<ParkingLogCreateRes> createParkingLog(@RequestBody ParkingLogCreateReq request) {
-        return ResultResponse.success("입출차 등록 성공", parkingService.createParkingLog(request));
+    public ResultResponse<ParkingLogCreateRes> createParkingLog(
+            @RequestBody ParkingLogCreateReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success(
+                "입출차 등록 성공",
+                parkingService.createParkingLog(request, userRole, complexId, selectedComplexId)
+        );
     }
 }

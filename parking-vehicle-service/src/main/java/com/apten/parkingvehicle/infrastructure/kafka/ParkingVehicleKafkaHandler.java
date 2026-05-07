@@ -2,6 +2,7 @@ package com.apten.parkingvehicle.infrastructure.kafka;
 
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.KafkaTopics;
+import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
@@ -38,6 +39,23 @@ public class ParkingVehicleKafkaHandler {
             parkingVehicleReferenceCacheService.upsertUserCache(eventEnvelope.getPayload());
         } catch (Exception exception) {
             log.error("Failed to consume user event. message={}", message, exception);
+        }
+    }
+
+    // apartment complex 이벤트를 받아 단지 cache와 기능 cache를 갱신한다
+    @KafkaListener(topics = KafkaTopics.APARTMENT_COMPLEX, groupId = "parking-vehicle-service-apartment-complex-cache")
+    public void consumeApartmentComplexEvent(String message) {
+        try {
+            EventEnvelope<ApartmentComplexEventPayload> eventEnvelope =
+                    objectMapper.readValue(
+                            message,
+                            new TypeReference<EventEnvelope<ApartmentComplexEventPayload>>() {}
+                    );
+            log.info("Consumed apartment complex event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
+            parkingVehicleReferenceCacheService.upsertApartmentComplexCache(eventEnvelope.getPayload());
+            parkingVehicleReferenceCacheService.upsertComplexFeatureCache(eventEnvelope.getPayload());
+        } catch (Exception exception) {
+            log.error("Failed to consume apartment complex event. message={}", message, exception);
         }
     }
 

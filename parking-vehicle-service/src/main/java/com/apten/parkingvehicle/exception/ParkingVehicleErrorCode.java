@@ -29,6 +29,7 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     VISITOR_VEHICLE_STATUS_INVALID(HttpStatus.BAD_REQUEST, "PVH_400_04", "방문차량 상태가 올바르지 않습니다."),
     REGULAR_VISITOR_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_05", "고정 방문차량을 찾을 수 없습니다."),
     REGULAR_VISITOR_OWNER_MISMATCH(HttpStatus.FORBIDDEN, "PVH_403_03", "고정 방문차량 소유자가 아닙니다."),
+    FEATURE_DISABLED(HttpStatus.FORBIDDEN, "PVH_403_04", "현재 단지에서 주차 현황 기능을 사용할 수 없습니다."),
     PARKING_FLOOR_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_06", "주차층 정보를 찾을 수 없습니다."),
     DUPLICATE_PARKING_FLOOR(HttpStatus.CONFLICT, "PVH_409_02", "이미 등록된 주차층입니다."),
     DUPLICATE_IN_ENTRY(HttpStatus.CONFLICT, "PVH_409_03", "이미 입차 처리된 차량입니다."),
