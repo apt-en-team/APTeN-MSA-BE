@@ -2,6 +2,7 @@ package com.apten.auth.infrastructure.kafka;
 
 import com.apten.auth.domain.entity.User;
 import com.apten.auth.domain.enums.UserStatus;
+import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class HouseholdMatchConsumer {
 
     private final UserRepository userRepository;
+    private final ResidentProfileRepository residentProfileRepository;
     private final ObjectMapper objectMapper;
 
     // 세대 매칭 승인/거절 이벤트 수신
@@ -29,6 +31,7 @@ public class HouseholdMatchConsumer {
             topics = KafkaTopics.HOUSEHOLD,
             groupId = "auth-service"
     )
+    @Transactional
     public void consume(String message) {
         try {
             EventEnvelope<HouseholdMatchResultEventPayload> envelope = objectMapper.readValue(
@@ -54,6 +57,15 @@ public class HouseholdMatchConsumer {
             } else if (eventType == EventType.HOUSEHOLD_MATCH_REJECTED) {
                 user.updateStatus(UserStatus.REJECTED);
             }
+
+            // resident_profile.status도 함께 갱신 — user와 resident_profile 상태를 동기화한다
+            residentProfileRepository.findByUserId(user.getId()).ifPresent(resident -> {
+                if (eventType == EventType.HOUSEHOLD_MATCH_APPROVED) {
+                    resident.activate();
+                } else if (eventType == EventType.HOUSEHOLD_MATCH_REJECTED) {
+                    resident.reject();
+                }
+            });
 
         } catch (Exception e) {
             log.error("HouseholdMatchConsumer 처리 실패 — message={}", message, e);

@@ -82,7 +82,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     + "&role=" + tokenResponse.getRole()
                     + "&status=" + tokenResponse.getStatus()
                     + "&building=" + java.net.URLEncoder.encode(building, "UTF-8")
-                    + "&unit=" + java.net.URLEncoder.encode(unit, "UTF-8");
+                    + "&unit=" + java.net.URLEncoder.encode(unit, "UTF-8")
+                    + "&complexId=" + tokenResponse.getComplexId();
 
             getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         }

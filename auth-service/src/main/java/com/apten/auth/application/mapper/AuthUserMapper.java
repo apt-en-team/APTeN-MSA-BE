@@ -62,6 +62,7 @@ public class AuthUserMapper {
                 .name(userPrincipal.getDisplayName())
                 .role(userPrincipal.getRole().name())
                 .status(userPrincipal.getStatus())
+                .complexId(userPrincipal.getComplexId()) // 단지 ID
                 .build();
     }
 }
