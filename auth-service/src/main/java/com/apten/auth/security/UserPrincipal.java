@@ -43,6 +43,9 @@ public class UserPrincipal implements OAuth2User {
     // OAuth2 공급자가 내려준 원본 사용자 속성
     private final Map<String, Object> attributes;
 
+    // 소셜 로그인 공급자
+    private final String provider;
+
     @Override
     // Security 또는 후속 매핑 과정에서 원본 속성을 다시 읽을 때 사용
     public Map<String, Object> getAttributes() {

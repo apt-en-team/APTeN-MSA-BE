@@ -79,6 +79,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .complexId(isNewUser ? null : resolveComplexId(user))
                 .nameAttributeKey(resolveNameAttributeKey(registrationId))
                 .attributes(oAuth2User.getAttributes())
+                .provider(registrationId.toUpperCase())
                 .build();
     }
 
