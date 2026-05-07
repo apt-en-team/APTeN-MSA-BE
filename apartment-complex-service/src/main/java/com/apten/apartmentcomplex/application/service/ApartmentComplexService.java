@@ -501,7 +501,7 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 마스터 단지 선택 화면에는 code, 상태, 관리자 화면 URL을 함께 내려준다.
+    // 마스터 단지 선택 화면에는 complexId와 상태, 관리자 화면 URL을 함께 내려준다.
     @Transactional(readOnly = true)
     public ApartmentComplexSelectRes selectApartmentComplex(String code) {
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
@@ -511,10 +511,11 @@ public class ApartmentComplexService {
             throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
         }
 
-        // TODO: 프론트 공통 관리자 화면 전환 후 /admin/dashboard 기준으로 변경한다.
-        String adminPageUrl = "/admin/master/complexes/" + complex.getCode() + "/dashboard";
+        // 선택 단지 정보는 공통 관리자 화면으로 진입할 수 있게 내려준다.
+        String adminPageUrl = "/admin/dashboard";
 
         return ApartmentComplexSelectRes.builder()
+                .complexId(complex.getId())
                 .code(complex.getCode())
                 .name(complex.getName())
                 .status(toStatusCode(complex.getStatus()))

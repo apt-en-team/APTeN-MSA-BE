@@ -9,6 +9,7 @@ import lombok.Getter;
 @Builder
 public class ApartmentComplexSelectRes {
 
+    private final Long complexId;
     private final String code;
     private final String name;
     private final String status;
