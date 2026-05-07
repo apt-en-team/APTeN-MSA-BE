@@ -25,6 +25,7 @@ import com.apten.board.domain.repository.VoteParticipationRepository;
 import com.apten.board.domain.repository.VoteRepository;
 import com.apten.board.exception.BoardErrorCode;
 import com.apten.board.infrastructure.kafka.BoardOutboxService;
+import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.security.UserContext;
 import com.apten.common.security.UserContextHolder;
@@ -56,14 +57,18 @@ public class VoteService {
     // 투표 outbox 서비스이다.
     private final BoardOutboxService boardOutboxService;
 
+    // 기능 접근 제어 서비스이다.
+    private final FeatureAccessService featureAccessService;
+
     //투표 생성
     @Transactional
     public VoteCreateRes createVote(VoteCreateReq request) {
+        Long complexId = validateVoteFeatureAndGetComplexId();
         validateVoteDate(request.getStartAt(), request.getEndAt());
-        validateNotice(request.getNoticeId());
+        validateNotice(request.getNoticeId(), complexId);
 
         Vote vote = voteRepository.save(Vote.builder()
-                .complexId(currentComplexId())
+                .complexId(complexId)
                 .noticeId(request.getNoticeId())
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -87,6 +92,7 @@ public class VoteService {
     //투표 참여
     @Transactional
     public VoteParticipationRes participateVote(Long voteId, VoteParticipationReq request) {
+        validateVoteFeatureAndGetComplexId();
         Vote vote = getVote(voteId);
         HouseholdMemberCache memberCache = householdMemberCacheRepository.findByUserIdAndIsActiveTrue(currentUserId())
                 .orElseThrow(() -> new BusinessException(BoardErrorCode.VOTE_HEAD_ONLY));
@@ -135,6 +141,7 @@ public class VoteService {
     //투표 결과 조회
     @Transactional(readOnly = true)
     public VoteResultRes getVoteResult(Long voteId) {
+        validateVoteFeatureAndGetComplexId();
         Vote vote = getVote(voteId);
         return VoteResultRes.builder()
                 .voteId(vote.getId())
@@ -149,8 +156,9 @@ public class VoteService {
     //투표 목록 조회
     @Transactional(readOnly = true)
     public PageResponse<VoteListRes> getVoteList(VoteListReq request) {
+        Long complexId = validateVoteFeatureAndGetComplexId();
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<Vote> page = voteRepository.findByComplexId(currentComplexId(), pageable);
+        Page<Vote> page = voteRepository.findByComplexId(complexId, pageable);
 
         return toVotePage(page);
     }
@@ -158,6 +166,7 @@ public class VoteService {
     //투표 상세 조회
     @Transactional(readOnly = true)
     public VoteDetailRes getVoteDetail(Long voteId) {
+        validateVoteFeatureAndGetComplexId();
         Vote vote = getVote(voteId);
         return toVoteDetailRes(vote);
     }
@@ -177,6 +186,7 @@ public class VoteService {
     //투표 수정
     @Transactional
     public VotePatchRes updateVote(Long voteId, VotePatchReq request) {
+        validateVoteFeatureAndGetComplexId();
         Vote vote = getVote(voteId);
         validateVoteDate(request.getStartAt(), request.getEndAt());
         vote.update(request.getTitle(), request.getDescription(), request.getStartAt(), request.getEndAt());
@@ -193,6 +203,7 @@ public class VoteService {
     //투표 삭제
     @Transactional
     public VoteDeleteRes deleteVote(Long voteId) {
+        validateVoteFeatureAndGetComplexId();
         Vote vote = getVote(voteId);
         voteRepository.delete(vote);
 
@@ -205,6 +216,7 @@ public class VoteService {
     //투표 종료 처리
     @Transactional
     public VoteCloseRes closeVote(Long voteId) {
+        validateVoteFeatureAndGetComplexId();
         Vote vote = getVote(voteId);
         vote.close();
         boardOutboxService.saveVoteClosedEvent(vote);
@@ -223,10 +235,17 @@ public class VoteService {
     }
 
     //연결 공지 존재 여부를 검증한다.
-    private void validateNotice(Long noticeId) {
-        if (noticeRepository.findByIdAndComplexIdAndIsDeletedFalse(noticeId, currentComplexId()).isEmpty()) {
+    private void validateNotice(Long noticeId, Long complexId) {
+        if (noticeRepository.findByIdAndComplexIdAndIsDeletedFalse(noticeId, complexId).isEmpty()) {
             throw new BusinessException(BoardErrorCode.NOTICE_NOT_FOUND);
         }
+    }
+
+    // 현재 단지에서 전자투표 기능 사용 가능 여부를 검증한다.
+    private Long validateVoteFeatureAndGetComplexId() {
+        Long complexId = currentComplexId();
+        featureAccessService.validateEnabled(complexId, FeatureCode.VOTE);
+        return complexId;
     }
 
     //투표 기간 검증이다.

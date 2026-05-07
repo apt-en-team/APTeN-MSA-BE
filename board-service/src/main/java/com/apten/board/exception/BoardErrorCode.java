@@ -49,6 +49,9 @@ public enum BoardErrorCode implements ErrorCode {
     // 세대주만 투표할 수 있다.
     VOTE_HEAD_ONLY(HttpStatus.FORBIDDEN, "BRD_403_03", "세대주만 투표할 수 있습니다."),
 
+    // 단지 기능 설정상 전자투표가 비활성화되어 있다.
+    FEATURE_DISABLED(HttpStatus.FORBIDDEN, "BRD_403_04", "현재 단지에서 전자투표 기능을 사용할 수 없습니다."),
+
     // 세대당 중복 투표이다.
     DUPLICATE_VOTE(HttpStatus.CONFLICT, "BRD_409_01", "이미 투표에 참여했습니다."),
 
