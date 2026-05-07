@@ -13,7 +13,6 @@ public class ApartmentComplexDto {
     private final String code;
     private final String name;
     private final String address;
-    private final String addressDetail;
     private final String zipCode;
     private final ApartmentComplexStatus status;
     private final String description;

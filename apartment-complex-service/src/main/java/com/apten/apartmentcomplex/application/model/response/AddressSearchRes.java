@@ -14,6 +14,5 @@ public class AddressSearchRes {
 
     private String apartmentName;
     private String address;
-    private String addressDetail;
     private String zipCode;
 }

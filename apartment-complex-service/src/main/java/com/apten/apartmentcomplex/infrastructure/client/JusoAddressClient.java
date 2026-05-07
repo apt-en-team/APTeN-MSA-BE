@@ -25,7 +25,7 @@ public class JusoAddressClient {
     private final RestClient.Builder restClientBuilder;
     private final JusoProperties jusoProperties;
 
-    public JusoAddressApiResponse searchAddress(String keyword) {
+    public JusoAddressApiResponse searchAddress(String keyword, int currentPage, int countPerPage) {
         URI requestUri = null;
 
         try {
@@ -49,8 +49,8 @@ public class JusoAddressClient {
 
             requestUri = UriComponentsBuilder.fromUriString(jusoProperties.getSearchUrl())
                     .queryParam("confmKey", jusoProperties.getApiKey())
-                    .queryParam("currentPage", 1)
-                    .queryParam("countPerPage", 10)
+                    .queryParam("currentPage", currentPage)
+                    .queryParam("countPerPage", countPerPage)
                     .queryParam("keyword", keyword)
                     .queryParam("resultType", "json")
                     .encode(StandardCharsets.UTF_8)
@@ -59,10 +59,12 @@ public class JusoAddressClient {
             URI finalRequestUri = requestUri;
 
             log.info(
-                    "행안부 주소 검색 API 호출 준비. searchUrl={}, requestUri={}, keyword={}, apiKeyMasked={}",
+                    "행안부 주소 검색 API 호출 준비. searchUrl={}, requestUri={}, keyword={}, currentPage={}, countPerPage={}, apiKeyMasked={}",
                     jusoProperties.getSearchUrl(),
                     finalRequestUri,
                     keyword,
+                    currentPage,
+                    countPerPage,
                     maskApiKey(jusoProperties.getApiKey())
             );
 
@@ -87,42 +89,50 @@ public class JusoAddressClient {
                     .body(JusoAddressApiResponse.class);
         } catch (BusinessException exception) {
             log.error(
-                    "행안부 주소 검색 API 호출 중 BusinessException이 발생했습니다. searchUrl={}, requestUri={}, keyword={}, apiKeyMasked={}",
+                    "행안부 주소 검색 API 호출 중 BusinessException이 발생했습니다. searchUrl={}, requestUri={}, keyword={}, currentPage={}, countPerPage={}, apiKeyMasked={}",
                     jusoProperties.getSearchUrl(),
                     requestUri,
                     keyword,
+                    currentPage,
+                    countPerPage,
                     maskApiKey(jusoProperties.getApiKey()),
                     exception
             );
             throw exception;
         } catch (RestClientResponseException exception) {
             log.error(
-                    "행안부 주소 검색 API HTTP 오류. statusCode={}, responseBody={}, searchUrl={}, requestUri={}, keyword={}, apiKeyMasked={}",
+                    "행안부 주소 검색 API HTTP 오류. statusCode={}, responseBody={}, searchUrl={}, requestUri={}, keyword={}, currentPage={}, countPerPage={}, apiKeyMasked={}",
                     exception.getStatusCode(),
                     exception.getResponseBodyAsString(),
                     jusoProperties.getSearchUrl(),
                     requestUri,
                     keyword,
+                    currentPage,
+                    countPerPage,
                     maskApiKey(jusoProperties.getApiKey()),
                     exception
             );
             throw new BusinessException(ApartmentComplexErrorCode.EXTERNAL_ADDRESS_API_ERROR);
         } catch (RestClientException exception) {
             log.error(
-                    "행안부 주소 검색 API 호출 중 클라이언트 오류가 발생했습니다. searchUrl={}, requestUri={}, keyword={}, apiKeyMasked={}",
+                    "행안부 주소 검색 API 호출 중 클라이언트 오류가 발생했습니다. searchUrl={}, requestUri={}, keyword={}, currentPage={}, countPerPage={}, apiKeyMasked={}",
                     jusoProperties.getSearchUrl(),
                     requestUri,
                     keyword,
+                    currentPage,
+                    countPerPage,
                     maskApiKey(jusoProperties.getApiKey()),
                     exception
             );
             throw new BusinessException(ApartmentComplexErrorCode.EXTERNAL_ADDRESS_API_ERROR);
         } catch (Exception exception) {
             log.error(
-                    "행안부 주소 검색 API 호출 중 예기치 못한 오류가 발생했습니다. searchUrl={}, requestUri={}, keyword={}, apiKeyMasked={}",
+                    "행안부 주소 검색 API 호출 중 예기치 못한 오류가 발생했습니다. searchUrl={}, requestUri={}, keyword={}, currentPage={}, countPerPage={}, apiKeyMasked={}",
                     jusoProperties.getSearchUrl(),
                     requestUri,
                     keyword,
+                    currentPage,
+                    countPerPage,
                     maskApiKey(jusoProperties.getApiKey()),
                     exception
             );

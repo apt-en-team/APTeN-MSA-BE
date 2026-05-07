@@ -45,10 +45,6 @@ public class ApartmentComplex extends BaseEntity {
     @Column(name = "address", nullable = false)
     private String address;
 
-    // 상세 주소
-    @Column(name = "address_detail")
-    private String addressDetail;
-
     // 우편번호
     @Column(name = "zip_code")
     private String zipCode;
@@ -65,13 +61,11 @@ public class ApartmentComplex extends BaseEntity {
     public void update(
             String name,
             String address,
-            String addressDetail,
             String zipCode,
             String description
     ) {
         this.name = name;
         this.address = address;
-        this.addressDetail = addressDetail;
         this.zipCode = zipCode;
         this.description = description;
     }

@@ -7,7 +7,7 @@ constants:
     secret-key: ${JWT_SECRET_KEY:CHANGE-ME-IN-ENV}
     access-token:
       name: access-token
-      expiration-seconds: 3600 #1시간
+      expiration-seconds: 1209600 #1시간 3600
     refresh-token:
       name: refresh-token
       expiration-seconds: 1209600 #14일
@@ -15,5 +15,5 @@ constants:
 security:
   jwt:
     secret: ${constants.jwt.secret-key}
-    access-token-expiration: 3600000 #1시간
+    access-token-expiration: 1209600000 #1시간 3600000
     refresh-token-expiration: 1209600000 #14일
