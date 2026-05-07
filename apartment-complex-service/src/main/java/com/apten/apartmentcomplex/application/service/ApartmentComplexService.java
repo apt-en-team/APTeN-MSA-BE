@@ -19,9 +19,11 @@ import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
+import com.apten.apartmentcomplex.domain.entity.ComplexFeature;
 import com.apten.apartmentcomplex.domain.entity.ComplexAdmin;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
+import com.apten.apartmentcomplex.domain.repository.ComplexFeatureRepository;
 import com.apten.apartmentcomplex.domain.repository.ComplexAdminRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.client.AuthInternalClient;
@@ -31,11 +33,16 @@ import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminDelet
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminUpdateReq;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.apartmentcomplex.infrastructure.mapper.ApartmentComplexMapper;
+import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.common.exception.BusinessException;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -54,6 +61,7 @@ public class ApartmentComplexService {
     private final ApartmentComplexRepository apartmentComplexRepository;
     private final ObjectProvider<ApartmentComplexMapper> apartmentComplexMapper;
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
+    private final ComplexFeatureRepository complexFeatureRepository;
     private final ComplexAdminRepository complexAdminRepository;
     private final AuthInternalClient authInternalClient;
 
@@ -92,6 +100,8 @@ public class ApartmentComplexService {
 
         // 단지 등록 요청에 포함된 최초 관리자 정보를 검증한다.
         validateInitialManager(req);
+        // 단지 기능 설정은 등록 전에 기본값과 허용 코드 기준으로 정규화한다.
+        Map<FeatureCode, Boolean> normalizedFeatures = normalizeFeatures(req.getFeatures());
 
         //중복 체크
         if (apartmentComplexRepository.existsByName(req.getName())) {
@@ -110,6 +120,8 @@ public class ApartmentComplexService {
                 .description(req.getDescription())
                 .build();
         ApartmentComplex savedApartmentComplex = apartmentComplexRepository.save(apartmentComplex);
+        // 단지 저장 직후 complex_feature 원본을 함께 저장한다.
+        saveFeatures(savedApartmentComplex, normalizedFeatures);
 
         // Auth Service 내부 API를 호출해 최초 관리자 계정을 생성한다.
         InternalAdminCreateRes createdAdmin = authInternalClient.createAdmin(
@@ -151,6 +163,7 @@ public class ApartmentComplexService {
                 .managerName(createdAdmin.getName())
                 .managerEmail(createdAdmin.getEmail())
                 .managerPhone(defaultIfBlank(createdAdmin.getPhone(), req.getManagerPhone()))
+                .features(toFeatureResponseMap(normalizedFeatures))
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -170,6 +183,10 @@ public class ApartmentComplexService {
         Page<ApartmentComplex> result = status == null
                 ? apartmentComplexRepository.findPageByKeyword(req.getKeyword(), pageRequest)
                 : apartmentComplexRepository.findPageByKeywordAndStatus(req.getKeyword(), status, pageRequest);
+        // 목록 응답의 기능 정보는 현재 페이지 단지들만 일괄 조회해 N+1을 줄인다.
+        Map<Long, Map<String, Boolean>> featureMaps = getFeatureMaps(
+                result.getContent().stream().map(ApartmentComplex::getId).toList()
+        );
 
         // 조회된 엔티티 목록을 API 응답 DTO 목록으로 변환한다.
         List<ApartmentComplexGetRes> content = result.getContent()
@@ -181,6 +198,7 @@ public class ApartmentComplexService {
                         .status(toStatusCode(complex.getStatus()))
                         .statusName(toStatusName(complex.getStatus()))
                         .description(complex.getDescription())
+                        .features(featureMaps.getOrDefault(complex.getId(), getDefaultFeatureMap()))
                         .createdAt(complex.getCreatedAt())
                         .build())
                 .toList();
@@ -210,6 +228,7 @@ public class ApartmentComplexService {
                 .status(toStatusCode(complex.getStatus()))
                 .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
+                .features(getFeatureMap(complex.getId()))
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
@@ -228,6 +247,8 @@ public class ApartmentComplexService {
 
         // 단지 수정에서는 주소와 우편번호를 보존하고 이름과 설명만 변경한다.
         complex.updateSummary(req.getName(), req.getDescription());
+        // 기능 설정 요청이 있으면 단지 기능 사용 여부도 함께 갱신한다.
+        upsertFeatures(complex, req.getFeatures());
 
         // Kafka 직접 발행 대신 수정 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
         apartmentComplexOutboxService.saveUpdatedEvent(complex);
@@ -243,14 +264,24 @@ public class ApartmentComplexService {
     // 관리자 단지 소속 지정 서비스 API-206이다.
     @Transactional
     public ComplexAdminPostRes assignAdminToComplex(String code, ComplexAdminPostReq req) {
-        // 단지 코드로 배정 대상을 먼저 찾는다.
-        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
-                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+        ApartmentComplex complex = getManagedComplexByCode(code);
+        return assignAdminToComplex(complex, req);
+    }
 
-        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
-            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
-        }
+    // 일반 관리자는 헤더의 complexId 기준으로 자기 단지에만 접근한다.
+    @Transactional
+    public ComplexAdminPostRes assignAdminToMyComplex(
+            Long complexId,
+            Long selectedComplexId,
+            String userRole,
+            ComplexAdminPostReq req
+    ) {
+        validateManagerOrMasterRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
+        return assignAdminToComplex(complex, req);
+    }
 
+    private ComplexAdminPostRes assignAdminToComplex(ApartmentComplex complex, ComplexAdminPostReq req) {
         // 관리자 생성 요청의 필수값과 역할 코드를 검증한다.
         if (req == null
                 || isBlank(req.getEmail())
@@ -295,7 +326,7 @@ public class ApartmentComplexService {
         // user_cache는 Auth 이벤트를 통해 비동기로 동기화되므로 여기서 직접 저장하지 않는다.
 
         return ComplexAdminPostRes.builder()
-                .code(code)
+                .code(complex.getCode())
                 .userId(admin.getAdminUserId())
                 .name(admin.getAdminName())
                 .email(admin.getAdminEmail())
@@ -307,17 +338,20 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 단지 관리자 배정을 해제한다.
+    // 일반 관리자는 자기 단지 관리자 소속만 해제할 수 있다.
     @Transactional
-    public ComplexAdminDeleteRes unassignAdminFromComplex(String code, Long userId) {
-        // 단지 코드로 해제 대상을 먼저 찾는다.
-        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
-                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+    public ComplexAdminDeleteRes unassignAdminFromMyComplex(
+            Long complexId,
+            Long selectedComplexId,
+            String userRole,
+            Long userId
+    ) {
+        validateManagerOrMasterRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
+        return unassignAdminFromComplex(complex, userId);
+    }
 
-        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
-            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
-        }
-
+    private ComplexAdminDeleteRes unassignAdminFromComplex(ApartmentComplex complex, Long userId) {
         // complex_admin에서 현재 또는 과거 배정 이력을 조회한다.
         ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), userId)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_ADMIN_NOT_FOUND));
@@ -339,7 +373,7 @@ public class ApartmentComplexService {
         // TODO: 내부 호출과 DB 상태 변경 사이의 보상 처리 정책을 정리한다.
 
         return ComplexAdminDeleteRes.builder()
-                .code(code)
+                .code(complex.getCode())
                 .userId(admin.getAdminUserId())
                 .isActive(admin.getIsActive())
                 .unassignedAt(admin.getUnassignedAt())
@@ -347,13 +381,15 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 단지별 현재 활성 관리자 목록을 조회한다.
+    // 일반 관리자는 자기 단지 관리자 목록만 조회할 수 있다.
     @Transactional(readOnly = true)
-    public List<ComplexAdminGetRes> getComplexAdminList(String code) {
-        // 단지 코드로 조회 대상을 먼저 찾는다.
-        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
-                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+    public List<ComplexAdminGetRes> getMyComplexAdminList(Long complexId, Long selectedComplexId, String userRole) {
+        validateAdminWorkspaceRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
+        return getComplexAdminList(complex);
+    }
 
+    private List<ComplexAdminGetRes> getComplexAdminList(ApartmentComplex complex) {
         // 프론트에서 현재 상태를 함께 보여줄 수 있도록 전체 관리자 현황을 내려준다.
         return complexAdminRepository.findByComplexIdOrderByAssignedAtDesc(complex.getId()).stream()
                 .map(admin -> ComplexAdminGetRes.builder()
@@ -371,16 +407,21 @@ public class ApartmentComplexService {
                 .toList();
     }
 
-    // 관리자 권한 수정 서비스 API-212이다.
+    // 일반 관리자는 자기 단지 관리자 정보만 수정할 수 있다.
     @Transactional
-    public ComplexAdminPatchRes updateComplexAdmin(String code, Long userId, ComplexAdminPatchReq req) {
-        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
-                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+    public ComplexAdminPatchRes updateMyComplexAdmin(
+            Long complexId,
+            Long selectedComplexId,
+            String userRole,
+            Long userId,
+            ComplexAdminPatchReq req
+    ) {
+        validateManagerOrMasterRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
+        return updateComplexAdmin(complex, userId, req);
+    }
 
-        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
-            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
-        }
-
+    private ComplexAdminPatchRes updateComplexAdmin(ApartmentComplex complex, Long userId, ComplexAdminPatchReq req) {
         // complex_admin 조회
         ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), userId)
                 .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_ADMIN_NOT_FOUND));
@@ -428,6 +469,27 @@ public class ApartmentComplexService {
                 .build();
     }
 
+    // 일반 관리자는 자기 단지 기본 정보만 code 없이 조회한다.
+    @Transactional(readOnly = true)
+    public ApartmentComplexGetDetailRes getMyApartmentComplex(Long complexId, Long selectedComplexId, String userRole) {
+        validateAdminWorkspaceRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
+        return ApartmentComplexGetDetailRes.builder()
+                .complexId(complex.getId())
+                .code(complex.getCode())
+                .name(complex.getName())
+                .address(complex.getAddress())
+                // 외부 응답 필드명은 zipCode로 통일한다.
+                .zipCode(complex.getZipCode())
+                .status(toStatusCode(complex.getStatus()))
+                .statusName(toStatusName(complex.getStatus()))
+                .description(complex.getDescription())
+                .features(getFeatureMap(complex.getId()))
+                .createdAt(complex.getCreatedAt())
+                .updatedAt(complex.getUpdatedAt())
+                .build();
+    }
+
     // 단지 활성 상태를 별도 API에서 변경한다.
     @Transactional
     public ApartmentComplexStatusPatchRes changeApartmentComplexStatus(String code, ApartmentComplexStatusPatchReq req) {
@@ -461,7 +523,7 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 마스터 단지 선택 화면에는 code, 상태, 관리자 화면 URL을 함께 내려준다.
+    // 마스터 단지 선택 화면에는 complexId와 상태, 관리자 화면 URL을 함께 내려준다.
     @Transactional(readOnly = true)
     public ApartmentComplexSelectRes selectApartmentComplex(String code) {
         ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
@@ -471,14 +533,16 @@ public class ApartmentComplexService {
             throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
         }
 
-        // 관리자 화면 이동 경로는 단지 코드 기준으로 고정 생성한다.
-        String adminPageUrl = "/admin/master/complexes/" + complex.getCode() + "/dashboard";
+        // 선택 단지 정보는 공통 관리자 화면으로 진입할 수 있게 내려준다.
+        String adminPageUrl = "/admin/dashboard";
 
         return ApartmentComplexSelectRes.builder()
+                .complexId(complex.getId())
                 .code(complex.getCode())
                 .name(complex.getName())
                 .status(toStatusCode(complex.getStatus()))
                 .statusName(toStatusName(complex.getStatus()))
+                .features(getFeatureMap(complex.getId()))
                 .adminPageUrl(adminPageUrl)
                 .build();
     }
@@ -512,6 +576,215 @@ public class ApartmentComplexService {
         if (!"01".equals(adminRole) && !"02".equals(adminRole)) {
             throw new BusinessException(ApartmentComplexErrorCode.INVALID_ADMIN_ROLE);
         }
+    }
+
+    // 단지 기능 기본값은 모든 기능을 사용으로 둔다.
+    private Map<String, Boolean> getDefaultFeatureMap() {
+        LinkedHashMap<String, Boolean> defaults = new LinkedHashMap<>();
+        for (FeatureCode featureCode : FeatureCode.values()) {
+            defaults.put(featureCode.name(), true);
+        }
+        return defaults;
+    }
+
+    // 단지 등록 기능 요청은 허용 코드와 null 여부를 검증하고 누락값을 true로 보정한다.
+    private Map<FeatureCode, Boolean> normalizeFeatures(Map<String, Boolean> requestFeatures) {
+        LinkedHashMap<FeatureCode, Boolean> normalized = new LinkedHashMap<>();
+        for (FeatureCode featureCode : FeatureCode.values()) {
+            normalized.put(featureCode, true);
+        }
+
+        if (requestFeatures == null) {
+            return normalized;
+        }
+
+        for (Map.Entry<String, Boolean> entry : requestFeatures.entrySet()) {
+            FeatureCode featureCode = parseFeatureCode(entry.getKey());
+            if (entry.getValue() == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            normalized.put(featureCode, entry.getValue());
+        }
+
+        return normalized;
+    }
+
+    // 단지 수정 기능 요청은 넘어온 키만 검증하고 기존값에 덮어쓸 준비를 한다.
+    private Map<FeatureCode, Boolean> normalizeFeatureUpdates(Map<String, Boolean> requestFeatures) {
+        if (requestFeatures == null) {
+            return Map.of();
+        }
+
+        LinkedHashMap<FeatureCode, Boolean> normalized = new LinkedHashMap<>();
+        for (Map.Entry<String, Boolean> entry : requestFeatures.entrySet()) {
+            FeatureCode featureCode = parseFeatureCode(entry.getKey());
+            if (entry.getValue() == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            normalized.put(featureCode, entry.getValue());
+        }
+        return normalized;
+    }
+
+    // 문자열 기능 코드는 enum name 기준으로 검증하고 통일한다.
+    private FeatureCode parseFeatureCode(String rawFeatureCode) {
+        if (isBlank(rawFeatureCode)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        try {
+            return FeatureCode.valueOf(rawFeatureCode.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    // 정규화된 기능 설정을 complex_feature 원본 테이블에 저장한다.
+    private void saveFeatures(ApartmentComplex complex, Map<FeatureCode, Boolean> features) {
+        List<ComplexFeature> featureEntities = features.entrySet().stream()
+                .map(entry -> ComplexFeature.builder()
+                        .complex(complex)
+                        .featureCode(entry.getKey())
+                        .enabled(entry.getValue())
+                        .build())
+                .toList();
+        complexFeatureRepository.saveAll(featureEntities);
+    }
+
+    // 단지 수정에서는 전달된 기능만 변경하고 누락된 기능은 기존값을 유지한다.
+    private void upsertFeatures(ApartmentComplex complex, Map<String, Boolean> requestFeatures) {
+        if (requestFeatures == null) {
+            return;
+        }
+
+        Map<FeatureCode, Boolean> updates = normalizeFeatureUpdates(requestFeatures);
+        List<ComplexFeature> existingFeatures = complexFeatureRepository.findByComplex_Id(complex.getId());
+        Map<FeatureCode, ComplexFeature> existingFeatureMap = existingFeatures.stream()
+                .collect(Collectors.toMap(ComplexFeature::getFeatureCode, Function.identity()));
+
+        for (Map.Entry<FeatureCode, Boolean> entry : updates.entrySet()) {
+            ComplexFeature existingFeature = existingFeatureMap.get(entry.getKey());
+            if (existingFeature != null) {
+                existingFeature.updateEnabled(entry.getValue());
+                continue;
+            }
+
+            complexFeatureRepository.save(
+                    ComplexFeature.builder()
+                            .complex(complex)
+                            .featureCode(entry.getKey())
+                            .enabled(entry.getValue())
+                            .build()
+            );
+        }
+    }
+
+    // 단일 단지 기능 응답은 누락된 row가 있어도 모든 기능 키가 내려가게 보정한다.
+    private Map<String, Boolean> getFeatureMap(Long complexId) {
+        LinkedHashMap<String, Boolean> featureMap = new LinkedHashMap<>(getDefaultFeatureMap());
+        complexFeatureRepository.findByComplex_Id(complexId)
+                .forEach(feature -> featureMap.put(feature.getFeatureCode().name(), feature.isEnabled()));
+        return featureMap;
+    }
+
+    // 목록 응답에서는 현재 페이지 단지들만 한 번에 조회해 feature map을 만든다.
+    private Map<Long, Map<String, Boolean>> getFeatureMaps(List<Long> complexIds) {
+        if (complexIds == null || complexIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, LinkedHashMap<String, Boolean>> featureMaps = complexIds.stream()
+                .distinct()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        ignored -> new LinkedHashMap<>(getDefaultFeatureMap()),
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        complexFeatureRepository.findByComplex_IdIn(complexIds).forEach(feature -> {
+            LinkedHashMap<String, Boolean> featureMap = featureMaps.get(feature.getComplex().getId());
+            if (featureMap != null) {
+                featureMap.put(feature.getFeatureCode().name(), feature.isEnabled());
+            }
+        });
+
+        return featureMaps.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> Map.copyOf(entry.getValue())));
+    }
+
+    // 저장 직후 기능 응답은 enum key를 문자열 key로 변환해 내려준다.
+    private Map<String, Boolean> toFeatureResponseMap(Map<FeatureCode, Boolean> features) {
+        LinkedHashMap<String, Boolean> response = new LinkedHashMap<>();
+        for (FeatureCode featureCode : FeatureCode.values()) {
+            response.put(featureCode.name(), features.getOrDefault(featureCode, true));
+        }
+        return response;
+    }
+
+    private void validateAdminWorkspaceRole(String userRole) {
+        if (!"MASTER".equalsIgnoreCase(userRole)
+                && !"MANAGER".equalsIgnoreCase(userRole)
+                && !"ADMIN".equalsIgnoreCase(userRole)) {
+            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateManagerOrMasterRole(String userRole) {
+        if (!"MASTER".equalsIgnoreCase(userRole) && !"MANAGER".equalsIgnoreCase(userRole)) {
+            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private ApartmentComplex getManagedComplexByCode(String code) {
+        ApartmentComplex complex = apartmentComplexRepository.findByCode(code)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+
+        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
+            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
+        }
+
+        return complex;
+    }
+
+    private ApartmentComplex getManagedComplexById(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        ApartmentComplex complex = apartmentComplexRepository.findById(complexId)
+                .orElseThrow(() -> new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND));
+
+        if (complex.getStatus() == ApartmentComplexStatus.DELETED) {
+            throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
+        }
+
+        return complex;
+    }
+
+    // 관리자 업무용 단지 컨텍스트는 MASTER와 일반 관리자의 헤더 규칙으로 결정한다.
+    private ApartmentComplex getManagedComplexForAdminContext(String userRole, Long complexId, Long selectedComplexId) {
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        return getManagedComplexById(targetComplexId);
+    }
+
+    // MASTER는 선택 단지 헤더를, MANAGER/ADMIN은 토큰 단지 헤더를 사용한다.
+    private Long resolveAdminContextComplexId(String userRole, Long complexId, Long selectedComplexId) {
+        if ("MASTER".equalsIgnoreCase(userRole)) {
+            if (selectedComplexId == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            return selectedComplexId;
+        }
+
+        if ("MANAGER".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole)) {
+            if (complexId == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            return complexId;
+        }
+
+        throw new BusinessException(CommonErrorCode.FORBIDDEN);
     }
 
     // 상태 요청은 code, enum name, 한글 표시명까지 허용한다.
@@ -551,7 +824,7 @@ public class ApartmentComplexService {
             return "매니저";
         }
         if ("02".equals(adminRole) || "ADMIN".equalsIgnoreCase(adminRole)) {
-            return "스태프";
+            return "어드민";
         }
         return "";
     }

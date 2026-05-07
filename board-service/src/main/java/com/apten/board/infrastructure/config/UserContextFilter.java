@@ -45,25 +45,46 @@ public class UserContextFilter extends OncePerRequestFilter {
         String userIdHeader = request.getHeader(HeaderConstants.X_USER_ID);
         String userRoleHeader = request.getHeader(HeaderConstants.X_USER_ROLE);
         String complexIdHeader = request.getHeader(HeaderConstants.X_COMPLEX_ID);
+        String selectedComplexIdHeader = request.getHeader(HeaderConstants.X_SELECTED_COMPLEX_ID);
 
         if (userIdHeader == null || userRoleHeader == null) {
             return null;
         }
 
         try {
+            UserRole userRole = UserRole.valueOf(userRoleHeader);
             return UserContext.builder()
                     .userId(Long.valueOf(userIdHeader))
-                    .userRole(UserRole.valueOf(userRoleHeader))
-                    .complexId(complexIdHeader == null || complexIdHeader.isBlank() ? null : Long.valueOf(complexIdHeader))
+                    .userRole(userRole)
+                    .complexId(resolveComplexId(userRole, complexIdHeader, selectedComplexIdHeader))
                     .build();
         } catch (IllegalArgumentException exception) {
             log.warn(
-                    "Invalid user headers. userId={}, userRole={}, complexId={}",
+                    "Invalid user headers. userId={}, userRole={}, complexId={}, selectedComplexId={}",
                     userIdHeader,
                     userRoleHeader,
-                    complexIdHeader
+                    complexIdHeader,
+                    selectedComplexIdHeader
             );
             return null;
         }
+    }
+
+    // MASTER는 선택 단지 헤더를 현재 단지 컨텍스트로 사용한다.
+    // 일반 관리자와 입주민은 토큰 단지 헤더를 사용한다.
+    private Long resolveComplexId(UserRole userRole, String complexIdHeader, String selectedComplexIdHeader) {
+        if (userRole == UserRole.MASTER) {
+            return parseLongHeader(selectedComplexIdHeader);
+        }
+
+        return parseLongHeader(complexIdHeader);
+    }
+
+    // 비어 있는 헤더는 null로 본다.
+    private Long parseLongHeader(String headerValue) {
+        if (headerValue == null || headerValue.isBlank()) {
+            return null;
+        }
+        return Long.valueOf(headerValue);
     }
 }

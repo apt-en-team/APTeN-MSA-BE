@@ -1,5 +1,6 @@
 package com.apten.common.kafka.payload;
 
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,4 +24,7 @@ public class ApartmentComplexEventPayload {
 
     // 단지 사용 상태
     private String status;
+
+    // 단지별 기능 사용 여부
+    private Map<String, Boolean> features;
 }

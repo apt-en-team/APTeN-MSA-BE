@@ -4,7 +4,6 @@ import com.apten.apartmentcomplex.application.model.request.ApartmentComplexReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexSearchReq;
 import com.apten.apartmentcomplex.application.model.request.ApartmentComplexStatusPatchReq;
-import com.apten.apartmentcomplex.application.model.request.ComplexAdminPatchReq;
 import com.apten.apartmentcomplex.application.model.request.ComplexAdminPostReq;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetDetailRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexGetPageRes;
@@ -12,17 +11,12 @@ import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPat
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexPostRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexSelectRes;
 import com.apten.apartmentcomplex.application.model.response.ApartmentComplexStatusPatchRes;
-import com.apten.apartmentcomplex.application.model.response.ComplexAdminDeleteRes;
-import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
-import com.apten.apartmentcomplex.application.model.response.ComplexAdminPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.application.service.ApartmentComplexService;
 import com.apten.common.response.ResultResponse;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -108,46 +102,12 @@ public class AdminApartmentComplexController {
         );
     }
 
-    //관리자 단지 소속 조회 API-207
-    @GetMapping("/{code}/admins")
-    public ResultResponse<List<ComplexAdminGetRes>> getComplexAdminList(@PathVariable String code) {
-        return ResultResponse.success(
-                "단지 관리자 목록 조회 성공",
-                apartmentComplexService.getComplexAdminList(code)
-        );
-    }
-
-    //관리자 단지 소속 해제 API-208
-    @DeleteMapping("/{code}/admins/{userId}")
-    public ResultResponse<ComplexAdminDeleteRes> unassignAdminFromComplex(
-            @PathVariable String code,
-            @PathVariable Long userId
-    ) {
-        return ResultResponse.success(
-                "단지 관리자 해제 성공",
-                apartmentComplexService.unassignAdminFromComplex(code, userId)
-        );
-    }
-
     //마스터 단지 선택 API-210
     @GetMapping("/{code}/select")
     public ResultResponse<ApartmentComplexSelectRes> selectApartmentComplex(@PathVariable String code) {
         return ResultResponse.success(
                 "단지 선택 정보 조회 성공",
                 apartmentComplexService.selectApartmentComplex(code)
-        );
-    }
-
-    //관리자 권한 수정 API-212
-    @PatchMapping("/{code}/admins/{userId}")
-    public ResultResponse<ComplexAdminPatchRes> updateComplexAdmin(
-            @PathVariable String code,
-            @PathVariable Long userId,
-            @RequestBody ComplexAdminPatchReq req
-    ) {
-        return ResultResponse.success(
-                "단지 관리자 수정 성공",
-                apartmentComplexService.updateComplexAdmin(code, userId, req)
         );
     }
 }

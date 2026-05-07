@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.application.model.response;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -9,9 +10,11 @@ import lombok.Getter;
 @Builder
 public class ApartmentComplexSelectRes {
 
+    private final Long complexId;
     private final String code;
     private final String name;
     private final String status;
     private final String statusName;
+    private final Map<String, Boolean> features;
     private final String adminPageUrl;
 }

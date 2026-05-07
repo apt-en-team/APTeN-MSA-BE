@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.application.model.request;
 
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -15,4 +16,5 @@ public class ApartmentComplexPatchReq {
 
     private String name;
     private String description;
+    private Map<String, Boolean> features;
 }

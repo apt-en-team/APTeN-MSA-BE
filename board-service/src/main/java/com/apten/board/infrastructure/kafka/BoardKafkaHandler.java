@@ -58,6 +58,7 @@ public class BoardKafkaHandler {
                     eventEnvelope.getEventId()
             );
             boardReferenceCacheService.upsertApartmentComplexCache(eventEnvelope.getPayload());
+            boardReferenceCacheService.upsertComplexFeatureCache(eventEnvelope.getPayload());
         } catch (Exception exception) {
             log.error("Failed to consume apartment complex event. message={}", message, exception);
         }

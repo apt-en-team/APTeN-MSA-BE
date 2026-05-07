@@ -1,7 +1,9 @@
 package com.apten.apartmentcomplex.infrastructure.kafka;
 
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
+import com.apten.apartmentcomplex.domain.entity.ComplexFeature;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
+import com.apten.apartmentcomplex.domain.repository.ComplexFeatureRepository;
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
 import com.apten.common.kafka.KafkaTopics;
@@ -11,6 +13,8 @@ import com.apten.common.outbox.OutboxRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,6 +30,8 @@ public class ApartmentComplexOutboxService {
     private final OutboxRepository outboxRepository;
     // 공통 이벤트 envelope와 payload를 JSON 문자열로 바꿀 때 사용한다.
     private final ObjectMapper objectMapper;
+    // 단지 기능 설정을 payload에 함께 담기 위해 원본 저장소를 조회한다.
+    private final ComplexFeatureRepository complexFeatureRepository;
 
     // 단지 생성 직후 같은 트랜잭션에서 생성 이벤트를 Outbox에 적재한다.
     public void saveCreatedEvent(ApartmentComplex apartmentComplex) {
@@ -50,6 +56,7 @@ public class ApartmentComplexOutboxService {
                 .name(apartmentComplex.getName())
                 .address(apartmentComplex.getAddress())
                 .status(resolveStatus(eventType, apartmentComplex))
+                .features(resolveFeatures(apartmentComplex.getId()))
                 .build();
 
         // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
@@ -62,6 +69,20 @@ public class ApartmentComplexOutboxService {
             return ApartmentComplexStatus.INACTIVE.name();
         }
         return apartmentComplex.getStatus().name();
+    }
+
+    // 단지 이벤트는 기능 row가 일부 비어 있어도 기본값 true를 포함한 전체 map으로 보낸다.
+    private Map<String, Boolean> resolveFeatures(Long complexId) {
+        LinkedHashMap<String, Boolean> features = new LinkedHashMap<>();
+        for (com.apten.common.enums.FeatureCode featureCode : com.apten.common.enums.FeatureCode.values()) {
+            features.put(featureCode.name(), true);
+        }
+
+        for (ComplexFeature feature : complexFeatureRepository.findByComplex_Id(complexId)) {
+            features.put(feature.getFeatureCode().name(), feature.isEnabled());
+        }
+
+        return features;
     }
 
     // payload를 공통 envelope로 감싸고 JSON 변환 후 Outbox row로 저장하는 공통 메서드이다.

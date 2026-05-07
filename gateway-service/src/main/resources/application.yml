@@ -25,11 +25,11 @@ spring:
           predicates:
             - Path=/api/auth/**,/login/**,/oauth2/**
 
-        # /api/admin/master/apartment-complexes/** 는 complex-service로 — auth-service보다 먼저 선언해야 충돌 안 남
+        # /api/admin/master/apartment-complexes/** 와 /api/admin/apartment-complex/** 는 complex-service로 라우팅한다.
         - id: apartment-complex-service
           uri: http://localhost:${COMPLEX_SERVER_PORT:9082}
           predicates:
-            - Path=/api/admin/master/apartment-complexes/**,/api/apartment-complexes/**
+            - Path=/api/admin/master/apartment-complexes/**,/api/admin/apartment-complex/**,/api/apartment-complexes/**
 
         # MASTER -> MANAGER 생성, MANAGER → ADMIN 생성 API — auth-service로 라우팅
         - id: auth-service-admin
