@@ -25,6 +25,7 @@ import com.apten.auth.security.JwtTokenProvider;
 import com.apten.auth.security.UserPrincipal;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.security.UserContext;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -175,22 +176,29 @@ public class AuthService {
         // Authorization 헤더에서 토큰 추출
         String accessToken = jwtTokenProvider.resolveToken(authorizationHeader);
 
-        // JWT 파싱해서 만료 시각 계산
-        Long userId = jwtTokenProvider.getUserId(accessToken);
+        try {
+            // JWT 파싱해서 만료 시각 계산
+            Long userId = jwtTokenProvider.getUserId(accessToken);
 
-        // AT 남은 유효시간 계산 — 블랙리스트 TTL로 사용
-        // AT가 만료되면 Gateway에서 이미 차단되므로 남은 시간만큼만 저장
-        long remainMs = jwtTokenProvider.getExpiration(accessToken).getTime() - System.currentTimeMillis();
-        if (remainMs > 0) {
-            redisTemplate.opsForValue().set(
-                    "blacklist:" + accessToken,
-                    "logout",
-                    Duration.ofMillis(remainMs)
-            );
+            // AT 남은 유효시간 계산 — 블랙리스트 TTL로 사용
+            // AT가 만료되면 Gateway에서 이미 차단되므로 남은 시간만큼만 저장
+            long remainMs = jwtTokenProvider.getExpiration(accessToken).getTime() - System.currentTimeMillis();
+            if (remainMs > 0) {
+                redisTemplate.opsForValue().set(
+                        "blacklist:" + accessToken,
+                        "logout",
+                        Duration.ofMillis(remainMs)
+                );
+            }
+
+            // Redis에서 RefreshToken 삭제
+            redisTemplate.delete("refresh:" + userId);
+
+        } catch (ExpiredJwtException e) {
+            // 만료된 AT도 claims에서 userId 추출 가능 — RT만 삭제
+            Long userId = Long.valueOf(e.getClaims().getSubject());
+            redisTemplate.delete("refresh:" + userId);
         }
-
-        // Redis에서 RefreshToken 삭제
-        redisTemplate.delete("refresh:" + userId);
 
         return AuthLogoutPostRes.builder()
                 .message("로그아웃 완료")
