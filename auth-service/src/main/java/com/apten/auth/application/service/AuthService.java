@@ -94,8 +94,9 @@ public class AuthService {
             throw new BusinessException(AuthErrorCode.ACCOUNT_LOCKED);
         }
 
-        // 계정 활성화 상태 확인 — PENDING, REJECTED, DELETED 계정 차단
-        if (user.getStatus() != UserStatus.ACTIVE) {
+        // PENDING은 로그인 허용 — 대기 페이지로 이동시킬 것
+        // REJECTED, DELETED만 차단
+        if (user.getStatus() == UserStatus.REJECTED || user.getStatus() == UserStatus.DELETED) {
             throw new BusinessException(AuthErrorCode.ACCOUNT_NOT_ACTIVE);
         }
 
@@ -167,6 +168,7 @@ public class AuthService {
                 .status(user.getStatus().name()) // "ACTIVE"
                 .building(building)  // 입주민 동
                 .unit(unit) // 입주민 호
+                .complexId(complexId) // 단지ID
                 .build();
     }
 

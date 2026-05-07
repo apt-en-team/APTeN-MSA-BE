@@ -25,4 +25,6 @@ public class AuthLoginPostRes {
     private final String building;
     // 호 (USER만 존재)
     private final String unit;
+    // 단지 ID
+    private final Long complexId;
 }
