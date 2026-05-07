@@ -317,13 +317,6 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 단지 관리자 배정을 해제한다.
-    @Transactional
-    public ComplexAdminDeleteRes unassignAdminFromComplex(String code, Long userId) {
-        ApartmentComplex complex = getManagedComplexByCode(code);
-        return unassignAdminFromComplex(complex, userId);
-    }
-
     // 일반 관리자는 자기 단지 관리자 소속만 해제할 수 있다.
     @Transactional
     public ComplexAdminDeleteRes unassignAdminFromMyComplex(
@@ -367,13 +360,6 @@ public class ApartmentComplexService {
                 .build();
     }
 
-    // 단지별 현재 활성 관리자 목록을 조회한다.
-    @Transactional(readOnly = true)
-    public List<ComplexAdminGetRes> getComplexAdminList(String code) {
-        ApartmentComplex complex = getManagedComplexByCode(code);
-        return getComplexAdminList(complex);
-    }
-
     // 일반 관리자는 자기 단지 관리자 목록만 조회할 수 있다.
     @Transactional(readOnly = true)
     public List<ComplexAdminGetRes> getMyComplexAdminList(Long complexId, Long selectedComplexId, String userRole) {
@@ -398,13 +384,6 @@ public class ApartmentComplexService {
                         .unassignedAt(admin.getUnassignedAt())
                         .build())
                 .toList();
-    }
-
-    // 관리자 권한 수정 서비스 API-212이다.
-    @Transactional
-    public ComplexAdminPatchRes updateComplexAdmin(String code, Long userId, ComplexAdminPatchReq req) {
-        ApartmentComplex complex = getManagedComplexByCode(code);
-        return updateComplexAdmin(complex, userId, req);
     }
 
     // 일반 관리자는 자기 단지 관리자 정보만 수정할 수 있다.
