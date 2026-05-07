@@ -1,14 +1,11 @@
 package com.apten.auth.application.controller;
 
-import com.apten.auth.application.model.request.AuthBlacklistPostReq;
 import com.apten.auth.application.model.request.InternalAdminCreateReq;
 import com.apten.auth.application.model.request.InternalAdminPatchReq;
 import com.apten.auth.application.model.response.InternalAdminCreateRes;
 import com.apten.auth.application.model.response.InternalAdminDeleteRes;
 import com.apten.auth.application.model.response.InternalAdminPatchRes;
 import com.apten.auth.application.service.AdminService;
-import com.apten.auth.application.model.response.AuthBlacklistPostRes;
-import com.apten.auth.application.service.AuthSupportService;
 import com.apten.common.response.ResultResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,27 +25,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/internal/auth")
 public class InternalAuthController {
 
-    // 인증 보조 서비스
-    private final AuthSupportService authSupportService;
-
-    //추가 단지 서비스 내부 연동용 관리자 서비스
+    // 단지 서비스 내부 연동용 관리자 서비스
     private final AdminService adminService;
 
-    // Access Token 블랙리스트 등록 API
-    @PostMapping("/blacklist")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<AuthBlacklistPostRes> blacklistAccessToken(@RequestBody AuthBlacklistPostReq request) {
-        return ResultResponse.success("블랙리스트 등록 성공", authSupportService.blacklistAccessToken(request));
-    }
-
-    //추가 단지 서비스가 최초 MANAGER 또는 ADMIN을 생성할 때 사용하는 내부 API
+    // 단지 서비스가 최초 MANAGER 또는 ADMIN을 생성할 때 사용하는 내부 API
     @PostMapping("/admins")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<InternalAdminCreateRes> createAdminInternal(@Valid @RequestBody InternalAdminCreateReq request) {
         return ResultResponse.success("내부 관리자 생성 성공", adminService.createAdminInternal(request));
     }
 
-    //추가 단지 서비스가 관리자 정보를 수정할 때 사용하는 내부 API
+    // 단지 서비스가 관리자 정보를 수정할 때 사용하는 내부 API
     @PatchMapping("/admins/{userId}")
     public ResultResponse<InternalAdminPatchRes> updateAdminInternal(
             @PathVariable Long userId,
@@ -57,7 +44,7 @@ public class InternalAuthController {
         return ResultResponse.success("내부 관리자 수정 성공", adminService.updateAdminInternal(userId, request));
     }
 
-    //추가 단지 서비스가 관리자 계정을 비활성할 때 사용하는 내부 API
+    // 단지 서비스가 관리자 계정을 비활성할 때 사용하는 내부 API
     @PatchMapping("/admins/{userId}/delete")
     public ResultResponse<InternalAdminDeleteRes> deleteAdminInternal(@PathVariable Long userId) {
         return ResultResponse.success("내부 관리자 삭제 성공", adminService.deleteAdminInternal(userId));
