@@ -1,6 +1,7 @@
 package com.apten.apartmentcomplex.application.model.response;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -15,5 +16,6 @@ public class ApartmentComplexGetRes {
     private final String status;
     private final String statusName;
     private final String description;
+    private final Map<String, Boolean> features;
     private final LocalDateTime createdAt;
 }

@@ -19,9 +19,11 @@ import com.apten.apartmentcomplex.application.model.response.ComplexAdminGetRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPatchRes;
 import com.apten.apartmentcomplex.application.model.response.ComplexAdminPostRes;
 import com.apten.apartmentcomplex.domain.entity.ApartmentComplex;
+import com.apten.apartmentcomplex.domain.entity.ComplexFeature;
 import com.apten.apartmentcomplex.domain.entity.ComplexAdmin;
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
+import com.apten.apartmentcomplex.domain.repository.ComplexFeatureRepository;
 import com.apten.apartmentcomplex.domain.repository.ComplexAdminRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
 import com.apten.apartmentcomplex.infrastructure.client.AuthInternalClient;
@@ -31,11 +33,16 @@ import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminDelet
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminUpdateReq;
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.apartmentcomplex.infrastructure.mapper.ApartmentComplexMapper;
+import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.common.exception.BusinessException;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -54,6 +61,7 @@ public class ApartmentComplexService {
     private final ApartmentComplexRepository apartmentComplexRepository;
     private final ObjectProvider<ApartmentComplexMapper> apartmentComplexMapper;
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
+    private final ComplexFeatureRepository complexFeatureRepository;
     private final ComplexAdminRepository complexAdminRepository;
     private final AuthInternalClient authInternalClient;
 
@@ -92,6 +100,8 @@ public class ApartmentComplexService {
 
         // 단지 등록 요청에 포함된 최초 관리자 정보를 검증한다.
         validateInitialManager(req);
+        // 단지 기능 설정은 등록 전에 기본값과 허용 코드 기준으로 정규화한다.
+        Map<FeatureCode, Boolean> normalizedFeatures = normalizeFeatures(req.getFeatures());
 
         //중복 체크
         if (apartmentComplexRepository.existsByName(req.getName())) {
@@ -110,6 +120,8 @@ public class ApartmentComplexService {
                 .description(req.getDescription())
                 .build();
         ApartmentComplex savedApartmentComplex = apartmentComplexRepository.save(apartmentComplex);
+        // 단지 저장 직후 complex_feature 원본을 함께 저장한다.
+        saveFeatures(savedApartmentComplex, normalizedFeatures);
 
         // Auth Service 내부 API를 호출해 최초 관리자 계정을 생성한다.
         InternalAdminCreateRes createdAdmin = authInternalClient.createAdmin(
@@ -151,6 +163,7 @@ public class ApartmentComplexService {
                 .managerName(createdAdmin.getName())
                 .managerEmail(createdAdmin.getEmail())
                 .managerPhone(defaultIfBlank(createdAdmin.getPhone(), req.getManagerPhone()))
+                .features(toFeatureResponseMap(normalizedFeatures))
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -170,6 +183,10 @@ public class ApartmentComplexService {
         Page<ApartmentComplex> result = status == null
                 ? apartmentComplexRepository.findPageByKeyword(req.getKeyword(), pageRequest)
                 : apartmentComplexRepository.findPageByKeywordAndStatus(req.getKeyword(), status, pageRequest);
+        // 목록 응답의 기능 정보는 현재 페이지 단지들만 일괄 조회해 N+1을 줄인다.
+        Map<Long, Map<String, Boolean>> featureMaps = getFeatureMaps(
+                result.getContent().stream().map(ApartmentComplex::getId).toList()
+        );
 
         // 조회된 엔티티 목록을 API 응답 DTO 목록으로 변환한다.
         List<ApartmentComplexGetRes> content = result.getContent()
@@ -181,6 +198,7 @@ public class ApartmentComplexService {
                         .status(toStatusCode(complex.getStatus()))
                         .statusName(toStatusName(complex.getStatus()))
                         .description(complex.getDescription())
+                        .features(featureMaps.getOrDefault(complex.getId(), getDefaultFeatureMap()))
                         .createdAt(complex.getCreatedAt())
                         .build())
                 .toList();
@@ -210,6 +228,7 @@ public class ApartmentComplexService {
                 .status(toStatusCode(complex.getStatus()))
                 .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
+                .features(getFeatureMap(complex.getId()))
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
@@ -228,6 +247,8 @@ public class ApartmentComplexService {
 
         // 단지 수정에서는 주소와 우편번호를 보존하고 이름과 설명만 변경한다.
         complex.updateSummary(req.getName(), req.getDescription());
+        // 기능 설정 요청이 있으면 단지 기능 사용 여부도 함께 갱신한다.
+        upsertFeatures(complex, req.getFeatures());
 
         // Kafka 직접 발행 대신 수정 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
         apartmentComplexOutboxService.saveUpdatedEvent(complex);
@@ -463,6 +484,7 @@ public class ApartmentComplexService {
                 .status(toStatusCode(complex.getStatus()))
                 .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
+                .features(getFeatureMap(complex.getId()))
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
@@ -520,6 +542,7 @@ public class ApartmentComplexService {
                 .name(complex.getName())
                 .status(toStatusCode(complex.getStatus()))
                 .statusName(toStatusName(complex.getStatus()))
+                .features(getFeatureMap(complex.getId()))
                 .adminPageUrl(adminPageUrl)
                 .build();
     }
@@ -553,6 +576,150 @@ public class ApartmentComplexService {
         if (!"01".equals(adminRole) && !"02".equals(adminRole)) {
             throw new BusinessException(ApartmentComplexErrorCode.INVALID_ADMIN_ROLE);
         }
+    }
+
+    // 단지 기능 기본값은 모든 기능을 사용으로 둔다.
+    private Map<String, Boolean> getDefaultFeatureMap() {
+        LinkedHashMap<String, Boolean> defaults = new LinkedHashMap<>();
+        for (FeatureCode featureCode : FeatureCode.values()) {
+            defaults.put(featureCode.name(), true);
+        }
+        return defaults;
+    }
+
+    // 단지 등록 기능 요청은 허용 코드와 null 여부를 검증하고 누락값을 true로 보정한다.
+    private Map<FeatureCode, Boolean> normalizeFeatures(Map<String, Boolean> requestFeatures) {
+        LinkedHashMap<FeatureCode, Boolean> normalized = new LinkedHashMap<>();
+        for (FeatureCode featureCode : FeatureCode.values()) {
+            normalized.put(featureCode, true);
+        }
+
+        if (requestFeatures == null) {
+            return normalized;
+        }
+
+        for (Map.Entry<String, Boolean> entry : requestFeatures.entrySet()) {
+            FeatureCode featureCode = parseFeatureCode(entry.getKey());
+            if (entry.getValue() == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            normalized.put(featureCode, entry.getValue());
+        }
+
+        return normalized;
+    }
+
+    // 단지 수정 기능 요청은 넘어온 키만 검증하고 기존값에 덮어쓸 준비를 한다.
+    private Map<FeatureCode, Boolean> normalizeFeatureUpdates(Map<String, Boolean> requestFeatures) {
+        if (requestFeatures == null) {
+            return Map.of();
+        }
+
+        LinkedHashMap<FeatureCode, Boolean> normalized = new LinkedHashMap<>();
+        for (Map.Entry<String, Boolean> entry : requestFeatures.entrySet()) {
+            FeatureCode featureCode = parseFeatureCode(entry.getKey());
+            if (entry.getValue() == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            normalized.put(featureCode, entry.getValue());
+        }
+        return normalized;
+    }
+
+    // 문자열 기능 코드는 enum name 기준으로 검증하고 통일한다.
+    private FeatureCode parseFeatureCode(String rawFeatureCode) {
+        if (isBlank(rawFeatureCode)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        try {
+            return FeatureCode.valueOf(rawFeatureCode.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    // 정규화된 기능 설정을 complex_feature 원본 테이블에 저장한다.
+    private void saveFeatures(ApartmentComplex complex, Map<FeatureCode, Boolean> features) {
+        List<ComplexFeature> featureEntities = features.entrySet().stream()
+                .map(entry -> ComplexFeature.builder()
+                        .complex(complex)
+                        .featureCode(entry.getKey())
+                        .enabled(entry.getValue())
+                        .build())
+                .toList();
+        complexFeatureRepository.saveAll(featureEntities);
+    }
+
+    // 단지 수정에서는 전달된 기능만 변경하고 누락된 기능은 기존값을 유지한다.
+    private void upsertFeatures(ApartmentComplex complex, Map<String, Boolean> requestFeatures) {
+        if (requestFeatures == null) {
+            return;
+        }
+
+        Map<FeatureCode, Boolean> updates = normalizeFeatureUpdates(requestFeatures);
+        List<ComplexFeature> existingFeatures = complexFeatureRepository.findByComplex_Id(complex.getId());
+        Map<FeatureCode, ComplexFeature> existingFeatureMap = existingFeatures.stream()
+                .collect(Collectors.toMap(ComplexFeature::getFeatureCode, Function.identity()));
+
+        for (Map.Entry<FeatureCode, Boolean> entry : updates.entrySet()) {
+            ComplexFeature existingFeature = existingFeatureMap.get(entry.getKey());
+            if (existingFeature != null) {
+                existingFeature.updateEnabled(entry.getValue());
+                continue;
+            }
+
+            complexFeatureRepository.save(
+                    ComplexFeature.builder()
+                            .complex(complex)
+                            .featureCode(entry.getKey())
+                            .enabled(entry.getValue())
+                            .build()
+            );
+        }
+    }
+
+    // 단일 단지 기능 응답은 누락된 row가 있어도 모든 기능 키가 내려가게 보정한다.
+    private Map<String, Boolean> getFeatureMap(Long complexId) {
+        LinkedHashMap<String, Boolean> featureMap = new LinkedHashMap<>(getDefaultFeatureMap());
+        complexFeatureRepository.findByComplex_Id(complexId)
+                .forEach(feature -> featureMap.put(feature.getFeatureCode().name(), feature.isEnabled()));
+        return featureMap;
+    }
+
+    // 목록 응답에서는 현재 페이지 단지들만 한 번에 조회해 feature map을 만든다.
+    private Map<Long, Map<String, Boolean>> getFeatureMaps(List<Long> complexIds) {
+        if (complexIds == null || complexIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, LinkedHashMap<String, Boolean>> featureMaps = complexIds.stream()
+                .distinct()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        ignored -> new LinkedHashMap<>(getDefaultFeatureMap()),
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        complexFeatureRepository.findByComplex_IdIn(complexIds).forEach(feature -> {
+            LinkedHashMap<String, Boolean> featureMap = featureMaps.get(feature.getComplex().getId());
+            if (featureMap != null) {
+                featureMap.put(feature.getFeatureCode().name(), feature.isEnabled());
+            }
+        });
+
+        return featureMaps.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> Map.copyOf(entry.getValue())));
+    }
+
+    // 저장 직후 기능 응답은 enum key를 문자열 key로 변환해 내려준다.
+    private Map<String, Boolean> toFeatureResponseMap(Map<FeatureCode, Boolean> features) {
+        LinkedHashMap<String, Boolean> response = new LinkedHashMap<>();
+        for (FeatureCode featureCode : FeatureCode.values()) {
+            response.put(featureCode.name(), features.getOrDefault(featureCode, true));
+        }
+        return response;
     }
 
     private void validateAdminWorkspaceRole(String userRole) {
