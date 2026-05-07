@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.service;
 
+import com.apten.common.enums.FeatureCode;
 import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
@@ -34,13 +35,17 @@ import com.apten.facilityreservation.application.model.response.PageResponse;
 import com.apten.facilityreservation.application.model.response.ResidentFacilityDetailRes;
 import com.apten.facilityreservation.application.model.response.ResidentFacilityListRes;
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
+import lombok.RequiredArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 // 시설과 시설 타입, 좌석, 차단 시간 관련 API 시그니처를 관리하는 서비스이다.
 @Service
+@RequiredArgsConstructor
 public class FacilityService {
+
+    private final FeatureAccessService featureAccessService;
 
     // 관리자 시설 등록을 처리한다.
     public FacilityPostRes createFacility(FacilityPostReq req) {
@@ -198,6 +203,8 @@ public class FacilityService {
 
     // 입주민 시설 목록을 조회한다.
     public List<ResidentFacilityListRes> getResidentFacilityList(ResidentFacilityListReq req) {
+        // 기능이 꺼진 단지는 시설 조회 API 접근을 차단한다.
+        featureAccessService.validateEnabled(req.getComplexId(), FeatureCode.FACILITY);
         //TODO 입주민 소속 단지 기준 활성 시설 목록 조회
         return List.of();
     }

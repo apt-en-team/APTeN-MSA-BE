@@ -57,6 +57,7 @@ public class FacilityReservationKafkaHandler {
                     eventEnvelope.getEventId()
             );
             facilityReservationReferenceCacheService.upsertApartmentComplexCache(eventEnvelope.getPayload());
+            facilityReservationReferenceCacheService.upsertComplexFeatureCache(eventEnvelope.getPayload());
         } catch (Exception exception) {
             log.error("Failed to consume apartment complex event. message={}", message, exception);
         }

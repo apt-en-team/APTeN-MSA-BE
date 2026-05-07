@@ -1,5 +1,7 @@
 package com.apten.facilityreservation.application.service;
 
+import com.apten.common.enums.FeatureCode;
+import com.apten.common.exception.BusinessException;
 import com.apten.facilityreservation.application.model.request.AdminReservationCancelReq;
 import com.apten.facilityreservation.application.model.request.AdminReservationListReq;
 import com.apten.facilityreservation.application.model.request.AvailableTimeListReq;
@@ -19,15 +21,23 @@ import com.apten.facilityreservation.application.model.response.ReservationCompl
 import com.apten.facilityreservation.application.model.response.ReservationPostRes;
 import com.apten.facilityreservation.application.model.response.TempHoldExpireRes;
 import com.apten.facilityreservation.application.model.response.SeatHoldPostRes;
+import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
+import com.apten.facilityreservation.domain.repository.FacilityRepository;
+import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 // 일반 시설 예약과 좌석 선점 관련 API 시그니처를 담당하는 서비스이다.
 @Service
+@RequiredArgsConstructor
 public class ReservationService {
+
+    private final FeatureAccessService featureAccessService;
+    private final FacilityRepository facilityRepository;
 
     // 예약 가능 시간 목록을 조회한다.
     public List<AvailableTimeListRes> getAvailableTimeList(AvailableTimeListReq req) {
@@ -75,6 +85,10 @@ public class ReservationService {
 
     // 예약 생성을 처리한다.
     public ReservationPostRes createReservation(ReservationPostReq req) {
+        // 예약 대상 시설에서 단지 ID를 해석한 뒤 기능 사용 여부를 확인한다.
+        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(req.getFacilityId())
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
+        featureAccessService.validateEnabled(facility.getComplexId(), FeatureCode.FACILITY);
         //TODO facility 활성 상태 확인
         //TODO 운영 시간/차단 시간/예약 단위 검증
         //TODO 동일 사용자 동일 시간 중복 예약 검증
