@@ -36,11 +36,12 @@ public class MyApartmentComplexAdminController {
     @GetMapping("/me")
     public ResultResponse<ApartmentComplexGetDetailRes> getMyApartmentComplex(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
-            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
         return ResultResponse.success(
                 "내 단지 정보 조회 성공",
-                apartmentComplexService.getMyApartmentComplex(complexId, userRole)
+                apartmentComplexService.getMyApartmentComplex(complexId, selectedComplexId, userRole)
         );
     }
 
@@ -48,11 +49,12 @@ public class MyApartmentComplexAdminController {
     @GetMapping("/admins")
     public ResultResponse<List<ComplexAdminGetRes>> getMyComplexAdminList(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
-            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
         return ResultResponse.success(
                 "내 단지 관리자 목록 조회 성공",
-                apartmentComplexService.getMyComplexAdminList(complexId, userRole)
+                apartmentComplexService.getMyComplexAdminList(complexId, selectedComplexId, userRole)
         );
     }
 
@@ -62,11 +64,12 @@ public class MyApartmentComplexAdminController {
     public ResultResponse<ComplexAdminPostRes> assignAdminToMyComplex(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @RequestBody ComplexAdminPostReq req
     ) {
         return ResultResponse.success(
                 "내 단지 관리자 지정 성공",
-                apartmentComplexService.assignAdminToMyComplex(complexId, userRole, req)
+                apartmentComplexService.assignAdminToMyComplex(complexId, selectedComplexId, userRole, req)
         );
     }
 
@@ -75,12 +78,13 @@ public class MyApartmentComplexAdminController {
     public ResultResponse<ComplexAdminPatchRes> updateMyComplexAdmin(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long userId,
             @RequestBody ComplexAdminPatchReq req
     ) {
         return ResultResponse.success(
                 "내 단지 관리자 수정 성공",
-                apartmentComplexService.updateMyComplexAdmin(complexId, userRole, userId, req)
+                apartmentComplexService.updateMyComplexAdmin(complexId, selectedComplexId, userRole, userId, req)
         );
     }
 
@@ -89,11 +93,12 @@ public class MyApartmentComplexAdminController {
     public ResultResponse<ComplexAdminDeleteRes> unassignAdminFromMyComplex(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long userId
     ) {
         return ResultResponse.success(
                 "내 단지 관리자 해제 성공",
-                apartmentComplexService.unassignAdminFromMyComplex(complexId, userRole, userId)
+                apartmentComplexService.unassignAdminFromMyComplex(complexId, selectedComplexId, userRole, userId)
         );
     }
 }

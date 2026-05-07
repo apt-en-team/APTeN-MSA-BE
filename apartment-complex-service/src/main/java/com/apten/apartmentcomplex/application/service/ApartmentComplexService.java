@@ -249,9 +249,14 @@ public class ApartmentComplexService {
 
     // 일반 관리자는 헤더의 complexId 기준으로 자기 단지에만 접근한다.
     @Transactional
-    public ComplexAdminPostRes assignAdminToMyComplex(Long complexId, String userRole, ComplexAdminPostReq req) {
-        validateManagerRole(userRole);
-        ApartmentComplex complex = getManagedComplexById(complexId);
+    public ComplexAdminPostRes assignAdminToMyComplex(
+            Long complexId,
+            Long selectedComplexId,
+            String userRole,
+            ComplexAdminPostReq req
+    ) {
+        validateManagerOrMasterRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
         return assignAdminToComplex(complex, req);
     }
 
@@ -321,9 +326,14 @@ public class ApartmentComplexService {
 
     // 일반 관리자는 자기 단지 관리자 소속만 해제할 수 있다.
     @Transactional
-    public ComplexAdminDeleteRes unassignAdminFromMyComplex(Long complexId, String userRole, Long userId) {
-        validateManagerRole(userRole);
-        ApartmentComplex complex = getManagedComplexById(complexId);
+    public ComplexAdminDeleteRes unassignAdminFromMyComplex(
+            Long complexId,
+            Long selectedComplexId,
+            String userRole,
+            Long userId
+    ) {
+        validateManagerOrMasterRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
         return unassignAdminFromComplex(complex, userId);
     }
 
@@ -366,9 +376,9 @@ public class ApartmentComplexService {
 
     // 일반 관리자는 자기 단지 관리자 목록만 조회할 수 있다.
     @Transactional(readOnly = true)
-    public List<ComplexAdminGetRes> getMyComplexAdminList(Long complexId, String userRole) {
-        validateManagerOrAdminRole(userRole);
-        ApartmentComplex complex = getManagedComplexById(complexId);
+    public List<ComplexAdminGetRes> getMyComplexAdminList(Long complexId, Long selectedComplexId, String userRole) {
+        validateAdminWorkspaceRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
         return getComplexAdminList(complex);
     }
 
@@ -399,9 +409,15 @@ public class ApartmentComplexService {
 
     // 일반 관리자는 자기 단지 관리자 정보만 수정할 수 있다.
     @Transactional
-    public ComplexAdminPatchRes updateMyComplexAdmin(Long complexId, String userRole, Long userId, ComplexAdminPatchReq req) {
-        validateManagerRole(userRole);
-        ApartmentComplex complex = getManagedComplexById(complexId);
+    public ComplexAdminPatchRes updateMyComplexAdmin(
+            Long complexId,
+            Long selectedComplexId,
+            String userRole,
+            Long userId,
+            ComplexAdminPatchReq req
+    ) {
+        validateManagerOrMasterRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
         return updateComplexAdmin(complex, userId, req);
     }
 
@@ -455,9 +471,9 @@ public class ApartmentComplexService {
 
     // 일반 관리자는 자기 단지 기본 정보만 code 없이 조회한다.
     @Transactional(readOnly = true)
-    public ApartmentComplexGetDetailRes getMyApartmentComplex(Long complexId, String userRole) {
-        validateManagerOrAdminRole(userRole);
-        ApartmentComplex complex = getManagedComplexById(complexId);
+    public ApartmentComplexGetDetailRes getMyApartmentComplex(Long complexId, Long selectedComplexId, String userRole) {
+        validateAdminWorkspaceRole(userRole);
+        ApartmentComplex complex = getManagedComplexForAdminContext(userRole, complexId, selectedComplexId);
         return ApartmentComplexGetDetailRes.builder()
                 .complexId(complex.getId())
                 .code(complex.getCode())
@@ -516,7 +532,7 @@ public class ApartmentComplexService {
             throw new BusinessException(ApartmentComplexErrorCode.COMPLEX_NOT_FOUND);
         }
 
-        // 관리자 화면 이동 경로는 단지 코드 기준으로 고정 생성한다.
+        // TODO: 프론트 공통 관리자 화면 전환 후 /admin/dashboard 기준으로 변경한다.
         String adminPageUrl = "/admin/master/complexes/" + complex.getCode() + "/dashboard";
 
         return ApartmentComplexSelectRes.builder()
@@ -559,14 +575,16 @@ public class ApartmentComplexService {
         }
     }
 
-    private void validateManagerOrAdminRole(String userRole) {
-        if (!"MANAGER".equalsIgnoreCase(userRole) && !"ADMIN".equalsIgnoreCase(userRole)) {
+    private void validateAdminWorkspaceRole(String userRole) {
+        if (!"MASTER".equalsIgnoreCase(userRole)
+                && !"MANAGER".equalsIgnoreCase(userRole)
+                && !"ADMIN".equalsIgnoreCase(userRole)) {
             throw new BusinessException(CommonErrorCode.FORBIDDEN);
         }
     }
 
-    private void validateManagerRole(String userRole) {
-        if (!"MANAGER".equalsIgnoreCase(userRole)) {
+    private void validateManagerOrMasterRole(String userRole) {
+        if (!"MASTER".equalsIgnoreCase(userRole) && !"MANAGER".equalsIgnoreCase(userRole)) {
             throw new BusinessException(CommonErrorCode.FORBIDDEN);
         }
     }
@@ -595,6 +613,31 @@ public class ApartmentComplexService {
         }
 
         return complex;
+    }
+
+    // 관리자 업무용 단지 컨텍스트는 MASTER와 일반 관리자의 헤더 규칙으로 결정한다.
+    private ApartmentComplex getManagedComplexForAdminContext(String userRole, Long complexId, Long selectedComplexId) {
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        return getManagedComplexById(targetComplexId);
+    }
+
+    // MASTER는 선택 단지 헤더를, MANAGER/ADMIN은 토큰 단지 헤더를 사용한다.
+    private Long resolveAdminContextComplexId(String userRole, Long complexId, Long selectedComplexId) {
+        if ("MASTER".equalsIgnoreCase(userRole)) {
+            if (selectedComplexId == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            return selectedComplexId;
+        }
+
+        if ("MANAGER".equalsIgnoreCase(userRole) || "ADMIN".equalsIgnoreCase(userRole)) {
+            if (complexId == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            return complexId;
+        }
+
+        throw new BusinessException(CommonErrorCode.FORBIDDEN);
     }
 
     // 상태 요청은 code, enum name, 한글 표시명까지 허용한다.
@@ -634,7 +677,7 @@ public class ApartmentComplexService {
             return "매니저";
         }
         if ("02".equals(adminRole) || "ADMIN".equalsIgnoreCase(adminRole)) {
-            return "스태프";
+            return "어드민";
         }
         return "";
     }

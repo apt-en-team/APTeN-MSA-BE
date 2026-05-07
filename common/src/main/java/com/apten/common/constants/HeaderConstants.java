@@ -16,4 +16,7 @@ public final class HeaderConstants {
 
     // gateway가 현재 로그인 사용자가 속한 단지 ID를 실어 보낼 때 사용하는 헤더
     public static final String X_COMPLEX_ID = "X-Complex-Id";
+
+    // MASTER가 관리자 업무에서 현재 선택한 단지 ID를 실어 보낼 때 사용하는 헤더
+    public static final String X_SELECTED_COMPLEX_ID = "X-Selected-Complex-Id";
 }
