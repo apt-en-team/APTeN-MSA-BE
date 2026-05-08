@@ -88,3 +88,10 @@ springdoc:
 apten:
   outbox:
     enabled: true
+  bootstrap:
+    master:
+      enabled: ${APTEN_BOOTSTRAP_MASTER_ENABLED:false}
+      email: ${APTEN_MASTER_EMAIL:}
+      password: ${APTEN_MASTER_PASSWORD:}
+      name: ${APTEN_MASTER_NAME:}
+      phone: ${APTEN_MASTER_PHONE:}
