@@ -39,7 +39,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             if ("NEW".equals(principal.getStatus())) {
                 String redirectUrl = "http://localhost:5173/social/signup"
                         + "?email=" + principal.getEmail()
-                        + "&name=" + java.net.URLEncoder.encode(principal.getDisplayName(), "UTF-8");
+                        + "&name=" + java.net.URLEncoder.encode(principal.getDisplayName(), "UTF-8")
+                        + "&provider=" + principal.getProvider();
                 getRedirectStrategy().sendRedirect(request, response, redirectUrl);
                 clearAuthenticationAttributes(request);
                 return;
@@ -77,6 +78,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     + "?accessToken=" + tokenResponse.getAccessToken()
                     + "&refreshToken=" + tokenResponse.getRefreshToken()
                     + "&userId=" + tokenResponse.getUserId()
+                    + "&userUid=" + tokenResponse.getUserUid()
                     + "&userUid=" + tokenResponse.getUserUid()
                     + "&name=" + java.net.URLEncoder.encode(tokenResponse.getName(), "UTF-8")
                     + "&role=" + tokenResponse.getRole()

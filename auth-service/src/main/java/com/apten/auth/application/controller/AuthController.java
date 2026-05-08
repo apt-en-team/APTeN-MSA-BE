@@ -69,6 +69,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<AuthSocialSignupPostRes> socialSignup(
             @Valid @RequestBody AuthSocialSignupPostReq request) {
+        System.out.println("provider 확인: " + request.getProvider());
         return ResultResponse.success("소셜 회원가입 성공", authService.socialSignup(request));
     }
 
