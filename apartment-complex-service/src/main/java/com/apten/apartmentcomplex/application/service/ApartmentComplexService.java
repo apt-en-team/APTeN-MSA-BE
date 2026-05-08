@@ -490,6 +490,26 @@ public class ApartmentComplexService {
                 .build();
     }
 
+    // 입주민은 토큰 단지 헤더 기준으로 자기 단지 기본 정보만 조회한다.
+    @Transactional(readOnly = true)
+    public ApartmentComplexGetDetailRes getMyApartmentComplexForResident(String userRole, Long complexId) {
+        validateResidentWorkspaceRole(userRole);
+        ApartmentComplex complex = getManagedComplexById(complexId);
+        return ApartmentComplexGetDetailRes.builder()
+                .complexId(complex.getId())
+                .code(complex.getCode())
+                .name(complex.getName())
+                .address(complex.getAddress())
+                .zipCode(complex.getZipCode())
+                .status(toStatusCode(complex.getStatus()))
+                .statusName(toStatusName(complex.getStatus()))
+                .description(complex.getDescription())
+                .features(getFeatureMap(complex.getId()))
+                .createdAt(complex.getCreatedAt())
+                .updatedAt(complex.getUpdatedAt())
+                .build();
+    }
+
     // 단지 활성 상태를 별도 API에서 변경한다.
     @Transactional
     public ApartmentComplexStatusPatchRes changeApartmentComplexStatus(String code, ApartmentComplexStatusPatchReq req) {
@@ -732,6 +752,16 @@ public class ApartmentComplexService {
 
     private void validateManagerOrMasterRole(String userRole) {
         if (!"MASTER".equalsIgnoreCase(userRole) && !"MANAGER".equalsIgnoreCase(userRole)) {
+            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        }
+    }
+
+    private void validateResidentWorkspaceRole(String userRole) {
+        if (isBlank(userRole)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (!"USER".equalsIgnoreCase(userRole)) {
             throw new BusinessException(CommonErrorCode.FORBIDDEN);
         }
     }
