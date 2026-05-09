@@ -26,6 +26,7 @@ import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
+import com.apten.facilityreservation.infrastructure.redis.ReservationTempHoldRedisService;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class ReservationService {
 
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
+    private final ReservationTempHoldRedisService reservationTempHoldRedisService;
 
     // 예약 가능 시간 목록을 조회한다.
     public List<AvailableTimeListRes> getAvailableTimeList(Long userId, Long complexId, AvailableTimeListReq req) {
@@ -57,12 +59,16 @@ public class ReservationService {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
         // TODO:
         // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId와 seatId가 현재 complexId 소속인지 검증한다.
-        // 3) 좌석형 시설인지, 좌석이 활성 상태인지 확인한다.
-        // 4) 예약 가능 시간과 차단 시간 여부를 검증한다.
-        // 5) 기존 CONFIRMED 예약과 HOLDING temp hold를 조회한다.
-        // 6) Redis TEMP_HOLD 저장/만료/중복 제어는 2단계에서 구현한다.
-        // 7) reservation_temp_hold는 이력/상태 저장 테이블로 사용한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) facility가 SEAT 예약 방식인지 검증한다.
+        // 4) seatId가 facility에 속하고 활성 상태인지 검증한다.
+        // 5) 운영 시간, 차단 시간, 예약 가능 시간 범위를 검증한다.
+        // 6) reservationTempHoldRedisService.buildHoldKey(...)로 Redis key를 생성한다.
+        // 7) reservationTempHoldRedisService.tryHoldSeat(...)로 setIfAbsent + TTL 선점을 시도한다.
+        // 8) 이미 key가 있으면 SEAT_TEMP_HOLD_EXISTS 또는 TIME_SLOT_NOT_AVAILABLE 예외를 반환한다.
+        // 9) 선점 성공 시 reservation_temp_hold에 HOLDING 상태 이력을 저장한다.
+        // 10) holdId, expiresAt을 응답으로 반환한다.
+        // 11) Redis value 설계와 TTL 분 단위 정책은 2단계에서 확정한다.
         return SeatHoldPostRes.builder()
                 .holdId(0L)
                 .facilityId(req.getFacilityId())
@@ -75,9 +81,11 @@ public class ReservationService {
     // 만료된 좌석 임시 선점을 자동 해제한다.
     public TempHoldExpireRes expireSeatHolds() {
         // TODO:
-        // 1) expiresAt이 지난 HOLDING 선점을 조회한다.
-        // 2) holdStatus를 EXPIRED로 변경한다.
-        // 3) Redis TEMP_HOLD 정리와 DB 상태 동기화는 2단계에서 구현한다.
+        // 1) holdStatus=HOLDING 이고 expiresAt이 지난 reservation_temp_hold 목록을 조회한다.
+        // 2) reservationTempHoldRedisService.existsHold(...)로 Redis key 존재 여부를 확인한다.
+        // 3) 만료된 데이터는 holdStatus를 EXPIRED로 변경한다.
+        // 4) Redis TTL 만료와 DB 상태 정합성 보정 전략은 2단계에서 구현한다.
+        // 5) expiredCount를 집계해 반환한다.
         return TempHoldExpireRes.builder()
                 .expiredCount(0)
                 .processedAt(LocalDateTime.now())
@@ -91,15 +99,18 @@ public class ReservationService {
         featureAccessService.validateEnabled(facility.getComplexId(), FeatureCode.FACILITY);
         // TODO:
         // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) household_member_cache에서 userId 기준 ACTIVE 세대원 정보를 조회한다.
-        // 4) household_cache의 complexId와 요청 complexId 일치 여부를 검증한다.
-        // 5) reservation.householdId에 현재 세대 ID를 저장한다.
-        // 6) facility 활성 상태와 운영 시간, 차단 시간을 검증한다.
-        // 7) 동일 사용자 동일 시간 중복 예약을 검증한다.
-        // 8) 좌석형이면 holdId 유효성과 HOLDING 상태를 확인한다.
-        // 9) Redis TEMP_HOLD 검증/확정 처리와 COUNT형 잔여 정원 계산은 2단계에서 구현한다.
-        // 10) reservation 저장 및 상태 변경 outbox 적재를 수행한다.
+        // 2) household_member_cache에서 userId 기준 ACTIVE 세대원 정보를 조회한다.
+        // 3) household_cache의 complexId와 요청 complexId 일치 여부를 검증한다.
+        // 4) facilityId가 현재 complexId 소속인지 검증한다.
+        // 5) facility/seat/날짜/시간 유효성을 검증한다.
+        // 6) 좌석형이면 holdId로 reservation_temp_hold를 조회하고 userId, facilityId, seatId, 날짜/시간 일치 여부를 검증한다.
+        // 7) reservationTempHoldRedisService.validateHold(...)로 Redis key 유효성을 검증한다.
+        // 8) 기존 CONFIRMED 예약 중복을 조회한다.
+        // 9) COUNT형이면 정원 초과 여부를 계산한다.
+        // 10) reservation 저장 후 reservation.householdId에 현재 세대 ID를 함께 저장한다.
+        // 11) reservation_temp_hold 상태를 CONFIRMED로 변경한다.
+        // 12) reservationTempHoldRedisService.releaseHold(...)로 Redis key 삭제 또는 확정 처리를 수행한다.
+        // 13) 예약 상태 변경 outbox 적재는 2단계에서 구현한다.
         return ReservationPostRes.builder()
                 .reservationId(0L)
                 .facilityId(req.getFacilityId())
