@@ -83,7 +83,8 @@ public class HouseholdBillService {
     }
 
     // 월별 비용 확정 서비스이다.
-    public BillConfirmRes confirmBill(Long billId) {
+    public BillConfirmRes confirmBill(Long complexId, Long billId) {
+        //TODO billId가 현재 complexId 소속 청구인지 검증
         //TODO 청구 존재 여부 확인
         //TODO 이미 확정된 청구인지 확인
         //TODO household_bill 상태를 CONFIRMED로 변경
@@ -95,8 +96,9 @@ public class HouseholdBillService {
     }
 
     // 관리자 관리비 목록 조회 서비스이다.
-    public AdminHouseholdBillListRes getAdminBills(AdminHouseholdBillListReq request) {
-        //TODO billYear, billMonth, status, building, unit 조건으로 관리비 목록 조회
+    public AdminHouseholdBillListRes getAdminBills(Long complexId, AdminHouseholdBillListReq request) {
+        //TODO Header에서 해석한 complexId 기준으로 billYear, billMonth, status, building, unit 조건 조회
+        //TODO request.complexId는 더 이상 외부 관리자 조회 기준으로 사용하지 않는다.
         //TODO 페이지 메타데이터 계산
         return AdminHouseholdBillListRes.builder()
                 .content(List.of())
@@ -109,7 +111,8 @@ public class HouseholdBillService {
     }
 
     // 관리자 관리비 상세 조회 서비스이다.
-    public AdminHouseholdBillDetailRes getAdminBillDetail(Long billId) {
+    public AdminHouseholdBillDetailRes getAdminBillDetail(Long complexId, Long billId) {
+        //TODO billId가 현재 complexId 소속 청구인지 검증
         //TODO billId 기준 관리비 헤더 조회
         //TODO 세대 동호수와 청구 항목 목록 조회
         return AdminHouseholdBillDetailRes.builder()
@@ -133,8 +136,9 @@ public class HouseholdBillService {
     }
 
     // 세대 비용 조회 서비스이다.
-    public MyBillListRes getMyBills(MyBillListReq request) {
-        //TODO 로그인 사용자 기준 세대 조회
+    public MyBillListRes getMyBills(Long userId, Long complexId, MyBillListReq request) {
+        //TODO 로그인 사용자 기준 활성 세대원과 household를 조회한다.
+        //TODO household의 complexId와 Header에서 해석한 complexId가 일치하는지 검증한다.
         //TODO 확정된 청구 목록 조회
         return MyBillListRes.builder()
                 .content(List.of())

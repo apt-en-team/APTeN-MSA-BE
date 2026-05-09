@@ -100,13 +100,16 @@ public class BoardReferenceCacheService {
 
     // 제거 이벤트도 물리 삭제 대신 상태값을 포함한 upsert로 반영한다
     public void upsertHouseholdMemberCache(HouseholdMemberEventPayload payload) {
-        // 세대원 이벤트에는 complexId가 없으므로 세대 캐시에서 먼저 단지 ID를 찾는다.
-        HouseholdCache householdCache = householdCacheRepository.findById(payload.getHouseholdId())
-                .orElseThrow(() -> new BusinessException(com.apten.board.exception.BoardErrorCode.INVALID_PARAMETER));
+        // 세대원 이벤트에는 complexId가 없으므로 우선 user cache에서 단지 ID를 찾고, 없으면 세대 캐시를 사용한다.
+        Long complexId = userCacheRepository.findById(payload.getUserId())
+                .map(UserCache::getComplexId)
+                .orElseGet(() -> householdCacheRepository.findById(payload.getHouseholdId())
+                        .map(HouseholdCache::getApartmentComplexId)
+                        .orElseThrow(() -> new BusinessException(com.apten.board.exception.BoardErrorCode.INVALID_PARAMETER)));
 
         HouseholdMemberCache householdMemberCache = householdMemberCacheRepository.findById(payload.getHouseholdMemberId())
                 .orElseGet(() -> HouseholdMemberCache.builder().id(payload.getHouseholdMemberId()).build());
-        householdMemberCache.apply(payload, householdCache.getApartmentComplexId());
+        householdMemberCache.apply(payload, complexId);
         householdMemberCacheRepository.save(householdMemberCache);
     }
 

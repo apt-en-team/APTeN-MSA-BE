@@ -60,6 +60,10 @@ public class Household extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private HouseholdStatus status = HouseholdStatus.VACANT;
 
+    // 현재 세대주 사용자 ID
+    @Column(name = "head_user_id")
+    private Long headUserId;
+
     // 세대 기본 정보를 수정한다
     public void update(Long complexId, String building, String unit, Long typeId) {
         this.complexId = complexId;
@@ -71,5 +75,10 @@ public class Household extends BaseEntity {
     // 세대 상태를 변경한다
     public void changeStatus(HouseholdStatus status) {
         this.status = status;
+    }
+
+    // 세대주 사용자 ID를 변경한다.
+    public void changeHeadUserId(Long headUserId) {
+        this.headUserId = headUserId;
     }
 }

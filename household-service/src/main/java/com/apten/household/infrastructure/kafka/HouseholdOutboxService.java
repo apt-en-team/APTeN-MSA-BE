@@ -91,6 +91,7 @@ public class HouseholdOutboxService {
                 .buildingNo(household.getBuilding())
                 .unitNo(household.getUnit())
                 .status(household.getStatus().name())
+                .headUserId(household.getHeadUserId())
                 .build();
 
         // 공통 Outbox 저장 메서드로 위임한다.

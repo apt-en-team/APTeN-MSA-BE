@@ -113,6 +113,8 @@ public class BoardOutboxService {
 
     // payload를 공통 envelope로 감싸서 Outbox에 저장한다.
     private <T> void saveOutboxEvent(String topic, String eventType, Long aggregateId, T payload) {
+        // TODO board-service는 현재 자체 BoardEventEnvelope와 문자열 topic 계약을 사용한다.
+        // TODO common EventEnvelope와 KafkaTopics로의 전면 통일은 소비자 계약 영향이 있어 팀 합의 후 진행한다.
         BoardEventEnvelope<T> eventEnvelope = BoardEventEnvelope.<T>builder()
                 .eventId(UUID.randomUUID().toString())
                 .eventType(eventType)

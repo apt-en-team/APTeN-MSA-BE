@@ -36,8 +36,9 @@ public class HouseholdMatchService {
     }
 
     // 수동 승인 대상 조회 서비스이다.
-    public HouseholdMatchListRes getMatchRequestList(HouseholdMatchListReq request) {
-        //TODO PENDING 상태 수동 승인 대상 조회
+    public HouseholdMatchListRes getMatchRequestList(Long complexId, HouseholdMatchListReq request) {
+        //TODO Header에서 해석한 complexId 기준으로 PENDING 상태 수동 승인 대상 조회
+        //TODO request.complexId는 더 이상 조회 기준으로 사용하지 않는다.
         //TODO 페이지 메타데이터 계산
         return HouseholdMatchListRes.builder()
                 .content(List.of())
@@ -50,7 +51,8 @@ public class HouseholdMatchService {
     }
 
     // 수동 승인 처리 서비스이다.
-    public HouseholdMatchApproveRes approveMatchRequest(Long matchRequestId) {
+    public HouseholdMatchApproveRes approveMatchRequest(Long complexId, Long matchRequestId) {
+        //TODO matchRequestId가 현재 complexId 소속인지 검증
         //TODO 매칭 요청 존재 여부 확인
         //TODO 승인 대상 세대 재검증
         //TODO match_status를 APPROVED로 변경
@@ -64,7 +66,8 @@ public class HouseholdMatchService {
     }
 
     // 수동 거절 처리 서비스이다.
-    public HouseholdMatchRejectRes rejectMatchRequest(Long matchRequestId, HouseholdMatchRejectReq request) {
+    public HouseholdMatchRejectRes rejectMatchRequest(Long complexId, Long matchRequestId, HouseholdMatchRejectReq request) {
+        //TODO matchRequestId가 현재 complexId 소속인지 검증
         //TODO 매칭 요청 존재 여부 확인
         //TODO 거절 사유 반영
         //TODO match_status를 REJECTED로 변경
