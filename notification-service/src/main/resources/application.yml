@@ -1,0 +1,24 @@
+server:
+  port: ${NOTIFICATION_SERVER_PORT}
+
+spring:
+  application:
+    name: notification-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka.yml
+      - optional:file:../.env[.properties]
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${NOTIFICATION_DB_URL}
+    username: ${NOTIFICATION_DB_USERNAME}
+    password: ${NOTIFICATION_DB_PASSWORD}
+  kafka:
+    consumer:
+#      group-id: notification-service-group
+
+constants:
+  api:
+    prefix: /api/notifications

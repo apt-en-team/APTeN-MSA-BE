@@ -1,0 +1,36 @@
+package com.apten.facilityreservation.application.model.response;
+
+import com.apten.facilityreservation.domain.enums.ReservationType;
+import java.time.LocalTime;
+import lombok.Builder;
+import lombok.Getter;
+
+// 관리자 시설 목록 응답 DTO이다.
+@Getter
+@Builder
+public class FacilityListRes {
+
+    // 시설 ID이다.
+    private Long facilityId;
+
+    // 시설 타입 ID이다.
+    private Long typeId;
+
+    // 시설명이다.
+    private String name;
+
+    // 예약 방식이다.
+    private ReservationType reservationType;
+
+    // 최대 인원이다.
+    private Integer maxCount;
+
+    // 운영 시작 시간이다.
+    private LocalTime openTime;
+
+    // 운영 종료 시간이다.
+    private LocalTime closeTime;
+
+    // 활성 여부이다.
+    private Boolean isActive;
+}

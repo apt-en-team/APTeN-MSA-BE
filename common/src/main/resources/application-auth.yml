@@ -1,0 +1,19 @@
+# 공통 JWT 설정
+constants:
+  jwt:
+    issuer: apten-auth-service
+    bearer-format: Bearer
+    claim-key: role
+    secret-key: ${JWT_SECRET_KEY:CHANGE-ME-IN-ENV}
+    access-token:
+      name: access-token
+      expiration-seconds: 1209600 #1시간 3600
+    refresh-token:
+      name: refresh-token
+      expiration-seconds: 1209600 #14일
+
+security:
+  jwt:
+    secret: ${constants.jwt.secret-key}
+    access-token-expiration: 1209600000 #1시간 3600000
+    refresh-token-expiration: 1209600000 #14일

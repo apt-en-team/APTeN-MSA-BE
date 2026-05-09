@@ -1,0 +1,21 @@
+# 공통 웹 실행 설정
+server:
+  tomcat:
+    threads:
+      max: 200
+
+spring:
+  jackson:
+    default-property-inclusion: non_null
+  web:
+    resources:
+      add-mappings: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always

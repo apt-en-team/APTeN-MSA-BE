@@ -1,0 +1,13 @@
+# 공통 JPA 설정
+spring:
+  jpa:
+    database: mysql
+    show-sql: ${JPA_SHOW_SQL}
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO}
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 50
+        order_updates: true

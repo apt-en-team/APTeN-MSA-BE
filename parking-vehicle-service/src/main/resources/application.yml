@@ -1,0 +1,28 @@
+server:
+  port: ${PARKING_SERVER_PORT}
+
+spring:
+  application:
+    name: parking-vehicle-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka.yml
+      - optional:file:../.env[.properties]
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${PARKING_DB_URL}
+    username: ${PARKING_DB_USERNAME}
+    password: ${PARKING_DB_PASSWORD}
+  kafka:
+    consumer:
+#      group-id: parking-vehicle-service-group
+
+constants:
+  api:
+    prefix: /api
+
+apten:
+  outbox:
+    enabled: true

@@ -1,0 +1,28 @@
+server:
+  port: ${HOUSEHOLD_SERVER_PORT}
+
+spring:
+  application:
+    name: household-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka.yml
+      - optional:file:../.env[.properties]
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${HOUSEHOLD_DB_URL}
+    username: ${HOUSEHOLD_DB_USERNAME}
+    password: ${HOUSEHOLD_DB_PASSWORD}
+#  kafka:
+#    consumer:
+#      group-id: household-service-group
+
+constants:
+  api:
+    prefix: /api/households
+
+apten:
+  outbox:
+    enabled: true
