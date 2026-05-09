@@ -29,6 +29,9 @@ public class FacilityBlockTimePostRes {
     // 사유이다.
     private String reason;
 
+    // 활성 여부이다.
+    private Boolean isActive;
+
     // 생성 시각이다.
     private LocalDateTime createdAt;
 }

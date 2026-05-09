@@ -14,9 +14,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AdminReservationListReq {
 
-    // 단지 ID이다.
-    private Long complexId;
-
     // 시설 ID 필터이다.
     private Long facilityId;
 

@@ -14,8 +14,11 @@ public enum UserCacheRole implements EnumMapperType {
     // 단지 관리자 권한이다.
     ADMIN("02", "관리자"),
 
+    // 단지 운영 책임자 권한이다.
+    MANAGER("03", "매니저"),
+
     // 플랫폼 마스터 권한이다.
-    MASTER("03", "마스터");
+    MASTER("04", "마스터");
 
     // DB에 저장하는 코드값이다.
     private final String code;

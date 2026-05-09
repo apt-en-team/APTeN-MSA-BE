@@ -13,9 +13,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityPolicyListReq {
 
-    // 단지 ID이다.
-    private Long complexId;
-
     // 시설 타입 코드 필터이다.
     private FacilityTypeCode facilityTypeCode;
 }

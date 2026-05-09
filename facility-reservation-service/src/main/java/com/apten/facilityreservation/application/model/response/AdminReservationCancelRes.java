@@ -17,7 +17,7 @@ public class AdminReservationCancelRes {
     private ReservationStatus status;
 
     // 취소 사유이다.
-    private String reason;
+    private String cancelReason;
 
     // 취소 시각이다.
     private LocalDateTime cancelledAt;

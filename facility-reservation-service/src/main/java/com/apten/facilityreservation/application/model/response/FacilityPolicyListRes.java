@@ -14,9 +14,6 @@ public class FacilityPolicyListRes {
     // 정책 ID이다.
     private Long facilityPolicyId;
 
-    // 단지 ID이다.
-    private Long complexId;
-
     // 시설 타입 코드이다.
     private FacilityTypeCode facilityTypeCode;
 

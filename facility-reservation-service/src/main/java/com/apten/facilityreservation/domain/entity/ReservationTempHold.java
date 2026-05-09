@@ -8,7 +8,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -22,13 +21,8 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
         name = "reservation_temp_hold",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_reservation_hold_slot",
-                        columnNames = {"facility_id", "seat_id", "reservation_date", "start_time", "end_time"}
-                )
-        },
         indexes = {
+                @Index(name = "idx_reservation_temp_hold_slot", columnList = "facility_id,seat_id,reservation_date,start_time,end_time"),
                 @Index(name = "idx_reservation_temp_hold_user_id", columnList = "user_id"),
                 @Index(name = "idx_reservation_temp_hold_expires_at", columnList = "expires_at"),
                 @Index(name = "idx_reservation_temp_hold_status", columnList = "hold_status")

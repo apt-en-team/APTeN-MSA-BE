@@ -18,6 +18,9 @@ public class ReservationPostRes {
     // 시설 ID이다.
     private Long facilityId;
 
+    // 좌석 ID이다.
+    private Long seatId;
+
     // 예약일이다.
     private LocalDate reservationDate;
 

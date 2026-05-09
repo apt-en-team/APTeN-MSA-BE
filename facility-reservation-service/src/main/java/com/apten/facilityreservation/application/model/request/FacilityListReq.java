@@ -12,11 +12,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityListReq {
 
-    // 단지 ID 필터이다.
-    private Long complexId;
-
     // 시설 타입 ID 필터이다.
     private Long typeId;
+
+    // 예약 방식 필터이다.
+    private com.apten.facilityreservation.domain.enums.ReservationType reservationType;
 
     // 활성 여부 필터이다.
     private Boolean isActive;

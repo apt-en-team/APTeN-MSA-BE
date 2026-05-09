@@ -1,6 +1,7 @@
 package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.ReservationType;
+import java.time.LocalTime;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -20,6 +21,15 @@ public class FacilityListRes {
 
     // 예약 방식이다.
     private ReservationType reservationType;
+
+    // 최대 인원이다.
+    private Integer maxCount;
+
+    // 운영 시작 시간이다.
+    private LocalTime openTime;
+
+    // 운영 종료 시간이다.
+    private LocalTime closeTime;
 
     // 활성 여부이다.
     private Boolean isActive;

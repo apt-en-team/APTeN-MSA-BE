@@ -15,8 +15,8 @@ public class GxMinimumCheckRes {
     private Integer minCount;
 
     // 현재 확정 인원이다.
-    private Integer currentCount;
+    private Integer confirmedCount;
 
-    // 최소 인원 충족 여부이다.
-    private Boolean satisfied;
+    // 취소 가능 여부이다.
+    private Boolean cancellable;
 }

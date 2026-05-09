@@ -27,4 +27,14 @@ public interface ReservationTempHoldRepository extends JpaRepository<Reservation
 
     // 특정 사용자의 HOLDING 선점을 조회한다.
     Optional<ReservationTempHold> findByIdAndUserIdAndHoldStatus(Long id, Long userId, ReservationHoldStatus holdStatus);
+
+    // 같은 좌석 시간대의 HOLDING 선점 목록을 조회한다.
+    List<ReservationTempHold> findByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndHoldStatus(
+            Long facilityId,
+            Long seatId,
+            LocalDate reservationDate,
+            LocalTime startTime,
+            LocalTime endTime,
+            ReservationHoldStatus holdStatus
+    );
 }

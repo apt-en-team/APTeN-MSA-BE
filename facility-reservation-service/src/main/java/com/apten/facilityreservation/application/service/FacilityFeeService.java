@@ -13,31 +13,32 @@ public class FacilityFeeService {
 
     // 시설 이용 비용을 산정한다.
     public FacilityFeeCalculateRes calculateFacilityFees(FacilityFeeCalculateReq req) {
-        //TODO usageYear/usageMonth 기준 COMPLETED 예약 조회
-        //TODO 예약별 facility.baseFee 또는 facility_policy.baseFee 적용
-        //TODO userId로 householdId 매핑 필요
-        //TODO 세대별 facilityFee 합산
-        //TODO facility_usage_monthly upsert
-        //TODO isPublished=false로 저장
+        // TODO:
+        // 1) usageYear/usageMonth 기준 COMPLETED 예약을 조회한다.
+        // 2) reservation.householdId 기준으로 세대별 비용을 집계한다.
+        // 3) facility override baseFee와 facility_policy.baseFee 우선순위를 적용한다.
+        // 4) facility_usage_monthly를 upsert하고 isPublished=false로 저장한다.
+        // 5) 특정 단지 대상 실행 여부는 추후 내부 API 계약 확정 후 결정한다.
         return FacilityFeeCalculateRes.builder()
-                .complexId(req.getComplexId())
                 .usageYear(req.getUsageYear())
                 .usageMonth(req.getUsageMonth())
-                .calculatedCount(0)
+                .processedCount(0)
                 .calculatedAt(LocalDateTime.now())
                 .build();
     }
 
     // 시설 이용 비용을 Household Service로 발행한다.
     public FacilityFeePublishRes publishFacilityFees(FacilityFeePublishReq req) {
-        //TODO usageYear/usageMonth 기준 미발행 facility_usage_monthly 조회
-        //TODO Household Service로 시설 비용 이벤트 발행 outbox 적재
-        //TODO 발행 성공 시 isPublished=true, publishedAt 저장
+        // TODO:
+        // 1) usageYear/usageMonth 기준 미발행 facility_usage_monthly를 조회한다.
+        // 2) Household Service로 비용 발행 outbox 적재는 2단계에서 구현한다.
+        // 3) 발행 성공 후 isPublished=true, publishedAt 저장을 수행한다.
+        // 4) 특정 단지 대상 발행 여부는 추후 내부 API 계약 확정 후 결정한다.
         return FacilityFeePublishRes.builder()
-                .complexId(req.getComplexId())
                 .usageYear(req.getUsageYear())
                 .usageMonth(req.getUsageMonth())
                 .publishedCount(0)
+                .published(false)
                 .publishedAt(LocalDateTime.now())
                 .build();
     }

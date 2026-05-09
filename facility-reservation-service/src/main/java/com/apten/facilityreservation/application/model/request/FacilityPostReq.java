@@ -15,9 +15,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityPostReq {
 
-    // 소속 단지 ID이다.
-    private Long complexId;
-
     // 시설 타입 ID이다.
     private Long typeId;
 
@@ -44,4 +41,7 @@ public class FacilityPostReq {
 
     // 시설 override 기본 요금이다.
     private BigDecimal baseFee;
+
+    // 활성 여부이다.
+    private Boolean isActive;
 }

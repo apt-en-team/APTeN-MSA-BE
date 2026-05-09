@@ -12,9 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityFeePublishReq {
 
-    // 단지 ID이다.
-    private Long complexId;
-
     // 이용 연도이다.
     private Integer usageYear;
 

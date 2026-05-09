@@ -5,16 +5,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 시설 이용 비용 산정 요청 DTO이다.
+// 시설 타입 목록 조회 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FacilityFeeCalculateReq {
+public class FacilityTypeListReq {
 
-    // 이용 연도이다.
-    private Integer usageYear;
-
-    // 이용 월이다.
-    private Integer usageMonth;
+    // 활성 여부 필터이다.
+    private Boolean isActive;
 }

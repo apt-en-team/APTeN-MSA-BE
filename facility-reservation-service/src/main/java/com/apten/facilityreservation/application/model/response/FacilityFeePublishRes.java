@@ -9,9 +9,6 @@ import lombok.Getter;
 @Builder
 public class FacilityFeePublishRes {
 
-    // 단지 ID이다.
-    private Long complexId;
-
     // 이용 연도이다.
     private Integer usageYear;
 
@@ -20,6 +17,9 @@ public class FacilityFeePublishRes {
 
     // 발행 건수이다.
     private Integer publishedCount;
+
+    // 발행 여부이다.
+    private Boolean published;
 
     // 발행 시각이다.
     private LocalDateTime publishedAt;

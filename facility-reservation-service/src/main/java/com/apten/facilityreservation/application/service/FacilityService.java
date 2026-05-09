@@ -11,6 +11,7 @@ import com.apten.facilityreservation.application.model.request.FacilityPostReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPatchReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityTypeListReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityUsageStatusReq;
 import com.apten.facilityreservation.application.model.request.ResidentFacilityListReq;
@@ -48,41 +49,56 @@ public class FacilityService {
     private final FeatureAccessService featureAccessService;
 
     // 관리자 시설 등록을 처리한다.
-    public FacilityPostRes createFacility(FacilityPostReq req) {
-        //TODO complex_cache에서 단지 활성 상태 확인
-        //TODO facility_type 존재 및 활성 여부 확인
-        //TODO facility_policy 기준 기본 정책 확인
-        //TODO 시설 예약 방식별 필수값 검증
-        //TODO facility 저장
+    public FacilityPostRes createFacility(Long complexId, FacilityPostReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) complex_cache에서 단지 활성 상태를 확인한다.
+        // 3) typeId가 현재 단지 정책과 함께 사용할 수 있는 시설 타입인지 검증한다.
+        // 4) facility_policy의 기본 정책과 시설 override 값의 우선순위를 검증한다.
+        // 5) reservationType별 필수값(maxCount, slotMin, baseFee)을 검증한다.
+        // 6) facility 저장 및 응답 DTO 변환을 수행한다.
         return FacilityPostRes.builder()
                 .facilityId(0L)
-                .complexId(req.getComplexId())
                 .name(req.getName())
+                .reservationType(req.getReservationType())
+                .isActive(req.getIsActive())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
 
     // 관리자 시설 목록을 조회한다.
-    public PageResponse<FacilityListRes> getAdminFacilityList(FacilityListReq req) {
-        //TODO complexId와 typeId 기준 목록 필터링
-        //TODO 삭제되지 않은 시설만 조회
-        //TODO 페이지 응답으로 변환
+    public PageResponse<FacilityListRes> getAdminFacilityList(Long complexId, FacilityListReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) 관리자 단지 컨텍스트 complexId 기준으로만 시설을 조회한다.
+        // 3) typeId, reservationType, isActive 필터를 적용한다.
+        // 4) 삭제되지 않은 시설만 조회한다.
+        // 5) PageResponse 형태로 매핑한다.
         return PageResponse.empty(req.getPage(), req.getSize());
     }
 
     // 관리자 시설 상세를 조회한다.
-    public FacilityDetailRes getAdminFacilityDetail(Long facilityId) {
-        //TODO facilityId 기준 시설 상세 조회
-        //TODO 시설 타입과 정책 override 정보 조합
-        return FacilityDetailRes.builder().facilityId(facilityId).build();
+    public FacilityDetailRes getAdminFacilityDetail(Long complexId, Long facilityId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 시설 타입명과 시설 정책 override 정보를 함께 조합한다.
+        // 4) 좌석형 시설이면 좌석 목록을 함께 조회한다.
+        return FacilityDetailRes.builder().facilityId(facilityId).seats(List.of()).build();
     }
 
     // 관리자 시설 수정을 처리한다.
-    public FacilityPatchRes updateFacility(Long facilityId, FacilityPatchReq req) {
-        //TODO 시설 존재 여부 확인
-        //TODO 시설 타입 변경 시 type 활성 여부 확인
-        //TODO 시설별 override 값과 시설 타입 기본 정책의 우선순위를 함께 관리
-        //TODO 시설 수정 저장
+    public FacilityPatchRes updateFacility(Long complexId, Long facilityId, FacilityPatchReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) openTime, closeTime, slotMin, baseFee 등 수정값의 유효성을 검증한다.
+        // 4) 시설 정책 기본값과 override 값의 적용 우선순위를 정리한다.
+        // 5) Entity 저장 및 응답 DTO 변환을 수행한다.
         return FacilityPatchRes.builder()
                 .facilityId(facilityId)
                 .name(req.getName())
@@ -91,21 +107,29 @@ public class FacilityService {
     }
 
     // 관리자 시설 삭제를 처리한다.
-    public FacilityDeleteRes deleteFacility(Long facilityId) {
-        //TODO 시설 존재 여부 확인
-        //TODO 진행 중 예약 또는 향후 예약 존재 여부 확인
-        //TODO 예약이 있으면 FACILITY_HAS_RESERVATION 처리
-        //TODO isDeleted와 deletedAt으로 소프트 삭제
+    public FacilityDeleteRes deleteFacility(Long complexId, Long facilityId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 진행 중 또는 미래 예약 존재 여부를 확인한다.
+        // 4) 예약이 있으면 FACILITY_HAS_RESERVATION을 반환한다.
+        // 5) soft delete 처리 후 응답 DTO를 반환한다.
         return FacilityDeleteRes.builder()
                 .facilityId(facilityId)
+                .isDeleted(true)
                 .deletedAt(LocalDateTime.now())
                 .build();
     }
 
     // 관리자 시설 활성 상태를 변경한다.
-    public FacilityActivePatchRes changeFacilityActive(Long facilityId, FacilityActivePatchReq req) {
-        //TODO 시설 존재 여부 확인
-        //TODO 활성 또는 비활성 상태 변경
+    public FacilityActivePatchRes changeFacilityActive(Long complexId, Long facilityId, FacilityActivePatchReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 활성/비활성 상태 변경 가능 여부를 검증한다.
+        // 4) 상태 변경 저장 및 응답 DTO 변환을 수행한다.
         return FacilityActivePatchRes.builder()
                 .facilityId(facilityId)
                 .isActive(req.getIsActive())
@@ -114,9 +138,12 @@ public class FacilityService {
     }
 
     // 시설 타입을 등록한다.
-    public FacilityTypePostRes createFacilityType(FacilityTypePostReq req) {
-        //TODO typeCode 중복 여부 확인
-        //TODO 시설 타입 저장
+    public FacilityTypePostRes createFacilityType(Long complexId, FacilityTypePostReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) typeCode 중복 여부와 공통 분류 정책을 검증한다.
+        // 3) 시설 타입 저장 및 응답 DTO 변환을 수행한다.
         return FacilityTypePostRes.builder()
                 .facilityTypeId(0L)
                 .typeCode(req.getTypeCode())
@@ -126,15 +153,23 @@ public class FacilityService {
     }
 
     // 시설 타입 목록을 조회한다.
-    public List<FacilityTypeListRes> getFacilityTypeList() {
-        //TODO 활성 여부 기준 시설 타입 목록 조회
+    public List<FacilityTypeListRes> getFacilityTypeList(Long complexId, FacilityTypeListReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) 공통 시설 타입 목록을 isActive 기준으로 조회한다.
+        // 3) 응답 DTO로 변환한다.
         return List.of();
     }
 
     // 시설 타입을 수정한다.
-    public FacilityTypePatchRes updateFacilityType(Long facilityTypeId, FacilityTypePatchReq req) {
-        //TODO 시설 타입 존재 여부 확인
-        //TODO 타입명과 설명, 활성 여부 수정
+    public FacilityTypePatchRes updateFacilityType(Long complexId, Long facilityTypeId, FacilityTypePatchReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) 시설 타입 존재 여부를 검증한다.
+        // 3) typeName, description, isActive 수정 가능 여부를 검증한다.
+        // 4) Entity 저장 및 응답 DTO 변환을 수행한다.
         return FacilityTypePatchRes.builder()
                 .facilityTypeId(facilityTypeId)
                 .typeName(req.getTypeName())
@@ -144,10 +179,13 @@ public class FacilityService {
     }
 
     // 시설 차단 시간을 등록한다.
-    public FacilityBlockTimePostRes createFacilityBlockTime(Long facilityId, FacilityBlockTimePostReq req) {
-        //TODO 시설 존재 여부 확인
-        //TODO 차단일과 시간대 유효성 검증
-        //TODO 차단 시간 저장
+    public FacilityBlockTimePostRes createFacilityBlockTime(Long complexId, Long facilityId, FacilityBlockTimePostReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) blockDate, startTime, endTime의 유효성을 검증한다.
+        // 4) 하루 전체 차단과 부분 차단 정책을 구분해 저장한다.
         return FacilityBlockTimePostRes.builder()
                 .facilityBlockTimeId(0L)
                 .facilityId(facilityId)
@@ -155,22 +193,30 @@ public class FacilityService {
                 .startTime(req.getStartTime())
                 .endTime(req.getEndTime())
                 .reason(req.getReason())
+                .isActive(true)
                 .createdAt(LocalDateTime.now())
                 .build();
     }
 
     // 시설 차단 시간 목록을 조회한다.
-    public List<FacilityBlockTimeListRes> getFacilityBlockTimeList(Long facilityId, FacilityBlockTimeListReq req) {
-        //TODO 시설 존재 여부 확인
-        //TODO blockDate 기준 차단 시간 목록 조회
+    public List<FacilityBlockTimeListRes> getFacilityBlockTimeList(Long complexId, Long facilityId, FacilityBlockTimeListReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) fromDate, toDate, isActive 기준 차단 시간 목록을 조회한다.
         return List.of();
     }
 
     // 시설 좌석을 등록한다.
-    public FacilitySeatPostRes createFacilitySeat(Long facilityId, FacilitySeatPostReq req) {
-        //TODO facility가 SEAT 방식인지 확인
-        //TODO 좌석번호 중복 여부 확인
-        //TODO 좌석 등록 처리
+    public FacilitySeatPostRes createFacilitySeat(Long complexId, Long facilityId, FacilitySeatPostReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) facility가 SEAT 예약 방식인지 확인한다.
+        // 4) seatNo 중복 여부를 검증한다.
+        // 5) 좌석 저장 및 응답 DTO 변환을 수행한다.
         return FacilitySeatPostRes.builder()
                 .seatId(0L)
                 .facilityId(facilityId)
@@ -182,16 +228,23 @@ public class FacilityService {
     }
 
     // 시설 좌석 목록을 조회한다.
-    public List<FacilitySeatListRes> getFacilitySeatList(Long facilityId) {
-        //TODO 시설 존재 여부 확인
-        //TODO 시설별 좌석 목록 조회
+    public List<FacilitySeatListRes> getFacilitySeatList(Long complexId, Long facilityId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 시설별 좌석 목록을 조회한다.
         return List.of();
     }
 
     // 시설 좌석을 수정한다.
-    public FacilitySeatPatchRes updateFacilitySeat(Long seatId, FacilitySeatPatchReq req) {
-        //TODO 좌석 존재 여부 확인
-        //TODO 좌석 등록 또는 수정 처리
+    public FacilitySeatPatchRes updateFacilitySeat(Long complexId, Long seatId, FacilitySeatPatchReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) seatId가 현재 complexId 소속 시설의 좌석인지 검증한다.
+        // 3) seatName, sortOrder, isActive 수정 가능 여부를 검증한다.
+        // 4) Entity 저장 및 응답 DTO 변환을 수행한다.
         return FacilitySeatPatchRes.builder()
                 .seatId(seatId)
                 .seatName(req.getSeatName())
@@ -202,53 +255,71 @@ public class FacilityService {
     }
 
     // 입주민 시설 목록을 조회한다.
-    public List<ResidentFacilityListRes> getResidentFacilityList(ResidentFacilityListReq req) {
-        // 기능이 꺼진 단지는 시설 조회 API 접근을 차단한다.
-        featureAccessService.validateEnabled(req.getComplexId(), FeatureCode.FACILITY);
-        //TODO 입주민 소속 단지 기준 활성 시설 목록 조회
+    public List<ResidentFacilityListRes> getResidentFacilityList(Long complexId, ResidentFacilityListReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) 입주민 단지 컨텍스트 complexId 기준으로 활성 시설 목록을 조회한다.
+        // 3) typeId 필터를 적용한다.
+        // 4) 시설 정책 기본값과 시설 override 값을 합쳐 응답 DTO를 구성한다.
         return List.of();
     }
 
     // 입주민 시설 상세를 조회한다.
-    public ResidentFacilityDetailRes getResidentFacilityDetail(Long facilityId) {
-        //TODO 시설 활성 상태 확인
-        //TODO 시설 상세와 적용 정책 조회
+    public ResidentFacilityDetailRes getResidentFacilityDetail(Long complexId, Long facilityId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 시설 활성 상태를 확인한다.
+        // 4) facility_policy와 facility override를 합쳐 slotMin, baseFee, cancelDeadlineHours를 계산한다.
         return ResidentFacilityDetailRes.builder().facilityId(facilityId).build();
     }
 
     // 시설 이용 현황을 조회한다.
-    public FacilityUsageStatusRes getFacilityUsageStatus(FacilityUsageStatusReq req) {
-        //TODO complexId 기준 시설 이용 현황 조회
+    public FacilityUsageStatusRes getFacilityUsageStatus(Long complexId, FacilityUsageStatusReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) targetDate 기준 reserved/completed/cancelled 집계를 계산한다.
         return FacilityUsageStatusRes.builder()
-                .complexId(req.getComplexId())
+                .facilityId(req.getFacilityId())
                 .targetDate(req.getTargetDate())
-                .items(List.of())
+                .reservedCount(0)
+                .completedCount(0)
+                .cancelledCount(0)
                 .build();
     }
 
     // 좌석 상태를 조회한다.
-    public SeatStatusRes getSeatStatus(Long facilityId, SeatStatusReq req) {
-        //TODO 좌석형 시설인지 확인
-        //TODO 좌석 상태와 예약 현황 조회
-        return SeatStatusRes.builder()
-                .facilityId(facilityId)
-                .reservationDate(req.getReservationDate())
-                .seats(List.of())
-                .build();
+    public List<SeatStatusRes> getSeatStatus(Long complexId, Long facilityId, SeatStatusReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 좌석형 시설인지 확인한다.
+        // 4) targetDate/startTime/endTime 기준 좌석 상태를 계산한다.
+        // 5) Redis TEMP_HOLD와 reservation_temp_hold 상태를 함께 해석하도록 2단계에서 확장한다.
+        return List.of();
     }
 
     // 정원형 이용 현황을 조회한다.
-    public CountStatusRes getCountStatus(Long facilityId, CountStatusReq req) {
-        //TODO 정원형 시설인지 확인
-        //TODO 같은 시간대 예약 수와 잔여 정원 계산
+    public CountStatusRes getCountStatus(Long complexId, Long facilityId, CountStatusReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        // TODO:
+        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
+        // 2) facilityId가 현재 complexId 소속인지 검증한다.
+        // 3) 정원형 시설인지 확인한다.
+        // 4) targetDate/startTime/endTime 기준 예약 수와 잔여 정원을 계산한다.
+        // 5) 사용자 목록은 reservation + user_cache를 조합해 구성한다.
         return CountStatusRes.builder()
                 .facilityId(facilityId)
-                .reservationDate(req.getReservationDate())
-                .startTime(req.getStartTime())
-                .endTime(req.getEndTime())
+                .targetDate(req.getTargetDate())
                 .maxCount(0)
                 .reservedCount(0)
                 .availableCount(0)
+                .users(List.of())
                 .build();
     }
 }

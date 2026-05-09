@@ -26,6 +26,7 @@ import lombok.NoArgsConstructor;
         },
         indexes = {
                 @Index(name = "idx_gx_reservation_user_id", columnList = "user_id"),
+                @Index(name = "idx_gx_reservation_household_id", columnList = "household_id"),
                 @Index(name = "idx_gx_reservation_program_id", columnList = "program_id"),
                 @Index(name = "idx_gx_reservation_status", columnList = "status"),
                 @Index(name = "idx_gx_reservation_wait_no", columnList = "wait_no")
@@ -54,6 +55,10 @@ public class GxReservation extends BaseEntity {
     // 사용자 ID이다.
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    // 세대 ID이다.
+    @Column(name = "household_id", nullable = false)
+    private Long householdId;
 
     // 예약 상태이다.
     @Builder.Default

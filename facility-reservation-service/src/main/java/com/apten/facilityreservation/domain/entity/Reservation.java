@@ -23,19 +23,15 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
         name = "reservation",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_reservation_slot_status",
-                        columnNames = {"facility_id", "seat_id", "reservation_date", "start_time", "end_time", "status"}
-                )
-        },
         indexes = {
                 @Index(name = "idx_reservation_user_id", columnList = "user_id"),
+                @Index(name = "idx_reservation_household_id", columnList = "household_id"),
                 @Index(name = "idx_reservation_facility_id", columnList = "facility_id"),
                 @Index(name = "idx_reservation_seat_id", columnList = "seat_id"),
                 @Index(name = "idx_reservation_complex_id", columnList = "complex_id"),
                 @Index(name = "idx_reservation_date", columnList = "reservation_date"),
-                @Index(name = "idx_reservation_status", columnList = "status")
+                @Index(name = "idx_reservation_status", columnList = "status"),
+                @Index(name = "idx_reservation_slot", columnList = "facility_id,seat_id,reservation_date,start_time,end_time")
         }
 )
 @Getter
@@ -57,6 +53,10 @@ public class Reservation extends BaseEntity {
     // 예약 사용자 ID이다.
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    // 예약 세대 ID이다.
+    @Column(name = "household_id", nullable = false)
+    private Long householdId;
 
     // 시설 ID이다.
     @Column(name = "facility_id", nullable = false)

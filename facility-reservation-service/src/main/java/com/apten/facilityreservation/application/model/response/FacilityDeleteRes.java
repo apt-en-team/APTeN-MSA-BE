@@ -12,6 +12,9 @@ public class FacilityDeleteRes {
     // 시설 ID이다.
     private Long facilityId;
 
+    // 삭제 여부이다.
+    private Boolean isDeleted;
+
     // 삭제 시각이다.
     private LocalDateTime deletedAt;
 }
