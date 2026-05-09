@@ -1,5 +1,6 @@
 package com.apten.household.application.service;
 
+import com.apten.common.exception.BusinessException;
 import com.apten.household.application.model.request.HouseholdCreateReq;
 import com.apten.household.application.model.request.HouseholdHeadPatchReq;
 import com.apten.household.application.model.request.HouseholdListReq;
@@ -19,15 +20,34 @@ import com.apten.household.application.model.response.HouseholdMemberPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberPostRes;
 import com.apten.household.application.model.response.HouseholdStatusPatchRes;
 import com.apten.household.application.model.response.MyHouseholdRes;
+import com.apten.household.domain.entity.Household;
+import com.apten.household.domain.entity.HouseholdMember;
+import com.apten.household.domain.entity.UserCache;
+import com.apten.household.domain.enums.HouseholdMemberRole;
+import com.apten.household.domain.repository.HouseholdMemberRepository;
+import com.apten.household.domain.repository.HouseholdRepository;
+import com.apten.household.domain.repository.UserCacheRepository;
+import com.apten.household.exception.HouseholdErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 // 세대와 세대원 도메인 API 시그니처를 모아두는 서비스이다.
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class HouseholdService {
+
+    // 세대 저장소이다.
+    private final HouseholdRepository householdRepository;
+
+    // 세대원 저장소이다.
+    private final HouseholdMemberRepository householdMemberRepository;
+
+    // 사용자 캐시 저장소이다.
+    private final UserCacheRepository userCacheRepository;
 
     // Outbox 적재 전용 서비스이다.
     private final com.apten.household.infrastructure.kafka.HouseholdOutboxService householdOutboxService;
@@ -101,13 +121,36 @@ public class HouseholdService {
 
     // 세대원 등록 서비스이다.
     public HouseholdMemberPostRes addHouseholdMember(Long householdId, HouseholdMemberPostReq request) {
-        //TODO 세대 존재 여부 확인
-        //TODO 사용자 존재 여부 확인
-        //TODO 세대원 중복 여부 확인
-        //TODO 세대원 저장
-        //TODO 세대원 생성 이벤트 outbox 적재
+        Household household = getHouseholdOrThrow(householdId);
+        UserCache userCache = getUserCacheOrThrow(request.getUserId());
+        HouseholdMemberRole role = request.getRole() != null ? request.getRole() : HouseholdMemberRole.MEMBER;
+
+        // 세대와 사용자 조합 중복 등록을 막는다.
+        if (householdMemberRepository.existsByHouseholdIdAndUserId(householdId, request.getUserId())) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_ALREADY_LINKED);
+        }
+
+        // 활성 세대주는 한 명만 유지한다.
+        validateHeadDuplication(householdId, role, null);
+
+        HouseholdMember householdMember = householdMemberRepository.save(
+                HouseholdMember.builder()
+                        .householdId(household.getId())
+                        .userId(userCache.getId())
+                        .role(role)
+                        .isActive(true)
+                        .build()
+        );
+
+        // 세대원 저장과 같은 트랜잭션 안에서 생성 이벤트를 outbox에 적재한다.
+        householdOutboxService.saveHouseholdMemberCreatedEvent(householdMember);
+
         return HouseholdMemberPostRes.builder()
+                .householdMemberId(householdMember.getId())
                 .householdId(householdId)
+                .userId(householdMember.getUserId())
+                .role(householdMember.getRole())
+                .isActive(householdMember.getIsActive())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -120,26 +163,42 @@ public class HouseholdService {
 
     // 세대원 수정 서비스이다.
     public HouseholdMemberPatchRes updateHouseholdMember(Long householdMemberId, HouseholdMemberPatchReq request) {
-        //TODO 세대원 존재 여부 확인
-        //TODO 세대주 공백 여부 검증
-        //TODO 세대원 정보 수정
-        //TODO 세대원 수정 이벤트 outbox 적재
+        HouseholdMember householdMember = getHouseholdMemberOrThrow(householdMemberId);
+        HouseholdMemberRole nextRole = request.getRole() != null ? request.getRole() : householdMember.getRole();
+        Boolean nextIsActive = request.getIsActive() != null ? request.getIsActive() : householdMember.getIsActive();
+
+        validateHeadRemoval(householdMember, nextRole, nextIsActive);
+        validateHeadDuplication(householdMember.getHouseholdId(), nextRole, householdMember.getId());
+
+        householdMember.update(nextRole, nextIsActive);
+        HouseholdMember savedHouseholdMember = householdMemberRepository.save(householdMember);
+
+        // 세대원 수정과 같은 트랜잭션 안에서 수정 이벤트를 outbox에 적재한다.
+        householdOutboxService.saveHouseholdMemberUpdatedEvent(savedHouseholdMember);
+
         return HouseholdMemberPatchRes.builder()
-                .householdMemberId(householdMemberId)
-                .role(request.getRole())
-                .isActive(request.getIsActive())
+                .householdMemberId(savedHouseholdMember.getId())
+                .role(savedHouseholdMember.getRole())
+                .isActive(savedHouseholdMember.getIsActive())
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
 
     // 세대원 삭제 서비스이다.
     public HouseholdMemberDeleteRes deleteHouseholdMember(Long householdMemberId) {
-        //TODO 세대원 존재 여부 확인
-        //TODO 세대주 공백 여부 검증
-        //TODO 세대원 비활성 처리
-        //TODO 세대원 삭제 이벤트 outbox 적재
+        HouseholdMember householdMember = getHouseholdMemberOrThrow(householdMemberId);
+
+        validateHeadRemoval(householdMember, householdMember.getRole(), false);
+
+        // 물리 삭제 대신 비활성 처리 후 removed 이벤트를 적재한다.
+        householdMember.changeActive(false);
+        HouseholdMember savedHouseholdMember = householdMemberRepository.save(householdMember);
+
+        // 세대원 비활성 처리와 같은 트랜잭션 안에서 제거 이벤트를 outbox에 적재한다.
+        householdOutboxService.saveHouseholdMemberRemovedEvent(savedHouseholdMember);
+
         return HouseholdMemberDeleteRes.builder()
-                .householdMemberId(householdMemberId)
+                .householdMemberId(savedHouseholdMember.getId())
                 .message("세대원 삭제 완료")
                 .deletedAt(LocalDateTime.now())
                 .build();
@@ -147,13 +206,29 @@ public class HouseholdService {
 
     // 세대주 권한 변경 서비스이다.
     public HouseholdHeadPatchRes changeHouseholdHead(Long householdId, HouseholdHeadPatchReq request) {
-        //TODO 세대 존재 여부 확인
-        //TODO 새 세대주 대상 세대원 확인
-        //TODO 기존 세대주와 새 세대주 역할 교체
-        //TODO 세대주 변경 이벤트 outbox 적재
+        getHouseholdOrThrow(householdId);
+
+        HouseholdMember newHead = householdMemberRepository.findByHouseholdIdAndUserIdAndIsActiveTrue(householdId, request.getUserId())
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+
+        HouseholdMember currentHead = householdMemberRepository.findByHouseholdIdAndRoleAndIsActiveTrue(householdId, HouseholdMemberRole.HEAD)
+                .orElse(null);
+
+        if (currentHead != null && !currentHead.getId().equals(newHead.getId())) {
+            currentHead.update(HouseholdMemberRole.MEMBER, true);
+            HouseholdMember savedCurrentHead = householdMemberRepository.save(currentHead);
+            // 기존 세대주의 역할 변경도 별도 이벤트로 반영한다.
+            householdOutboxService.saveHouseholdHeadChangedEvent(savedCurrentHead);
+        }
+
+        newHead.update(HouseholdMemberRole.HEAD, true);
+        HouseholdMember savedNewHead = householdMemberRepository.save(newHead);
+        // 신규 세대주의 역할 변경도 별도 이벤트로 반영한다.
+        householdOutboxService.saveHouseholdHeadChangedEvent(savedNewHead);
+
         return HouseholdHeadPatchRes.builder()
                 .householdId(householdId)
-                .headUserId(request.getUserId())
+                .headUserId(savedNewHead.getUserId())
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
@@ -166,5 +241,50 @@ public class HouseholdService {
         return MyHouseholdRes.builder()
                 .members(List.of())
                 .build();
+    }
+
+    // 세대 존재 여부를 확인하고 없으면 예외를 던진다.
+    private Household getHouseholdOrThrow(Long householdId) {
+        return householdRepository.findById(householdId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND));
+    }
+
+    // 사용자 캐시 존재 여부를 확인하고 없으면 예외를 던진다.
+    private UserCache getUserCacheOrThrow(Long userId) {
+        return userCacheRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.USER_NOT_FOUND));
+    }
+
+    // 세대원 존재 여부를 확인하고 없으면 예외를 던진다.
+    private HouseholdMember getHouseholdMemberOrThrow(Long householdMemberId) {
+        return householdMemberRepository.findById(householdMemberId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+    }
+
+    // 활성 세대주 중복을 막는다.
+    private void validateHeadDuplication(Long householdId, HouseholdMemberRole nextRole, Long currentMemberId) {
+        if (nextRole != HouseholdMemberRole.HEAD) {
+            return;
+        }
+
+        householdMemberRepository.findByHouseholdIdAndRoleAndIsActiveTrue(householdId, HouseholdMemberRole.HEAD)
+                .filter(existingHead -> currentMemberId == null || !existingHead.getId().equals(currentMemberId))
+                .ifPresent(existingHead -> {
+                    throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_HEAD_DUPLICATED);
+                });
+    }
+
+    // 세대주 제거로 인해 세대주가 공백이 되는 상황을 막는다.
+    private void validateHeadRemoval(HouseholdMember householdMember, HouseholdMemberRole nextRole, Boolean nextIsActive) {
+        if (householdMember.getRole() != HouseholdMemberRole.HEAD) {
+            return;
+        }
+
+        boolean roleChanged = nextRole != HouseholdMemberRole.HEAD;
+        boolean deactivated = !Boolean.TRUE.equals(nextIsActive);
+
+        if (roleChanged || deactivated) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_HEAD_REQUIRED);
+        }
     }
 }
