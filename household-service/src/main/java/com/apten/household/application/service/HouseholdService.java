@@ -24,6 +24,7 @@ import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdMember;
 import com.apten.household.domain.entity.UserCache;
 import com.apten.household.domain.enums.HouseholdMemberRole;
+import com.apten.household.domain.enums.HouseholdStatus;
 import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.HouseholdRepository;
 import com.apten.household.domain.repository.UserCacheRepository;
@@ -53,18 +54,40 @@ public class HouseholdService {
     private final com.apten.household.infrastructure.kafka.HouseholdOutboxService householdOutboxService;
 
     // 세대 마스터 등록 서비스이다.
-    public HouseholdCreateRes createHousehold(HouseholdCreateReq request) {
-        //TODO 세대 중복 여부 확인
-        //TODO complex_cache에서 단지 활성 상태 확인
-        //TODO household 저장
-        //TODO household_history 초기 이력 저장
-        //TODO 세대 생성 이벤트 outbox 적재
-        return HouseholdCreateRes.builder().createdAt(LocalDateTime.now()).build();
+    public HouseholdCreateRes createHousehold(Long complexId, HouseholdCreateReq request) {
+        // TODO Gateway Header에서 해석한 complexId를 기준으로 권한과 단지 범위를 최종 검증한다.
+        // TODO request.complexId 필드는 하위 호환용으로만 남겨두고 더 이상 신뢰하지 않는다.
+        // TODO complex_cache에서 단지 활성 상태를 확인한다.
+        if (householdRepository.existsByComplexIdAndBuildingAndUnit(complexId, request.getBuilding(), request.getUnit())) {
+            throw new BusinessException(HouseholdErrorCode.DUPLICATE_HOUSEHOLD);
+        }
+
+        Household household = householdRepository.save(Household.builder()
+                .complexId(complexId)
+                .building(request.getBuilding())
+                .unit(request.getUnit())
+                .typeId(request.getTypeId())
+                .status(HouseholdStatus.VACANT)
+                .headUserId(null)
+                .build());
+
+        // 세대 생성과 같은 트랜잭션 안에서 생성 이벤트를 outbox에 적재한다.
+        householdOutboxService.saveHouseholdCreatedEvent(household);
+
+        return HouseholdCreateRes.builder()
+                .householdId(household.getId())
+                .complexId(household.getComplexId())
+                .building(household.getBuilding())
+                .unit(household.getUnit())
+                .status(household.getStatus())
+                .createdAt(household.getCreatedAt())
+                .build();
     }
 
     // 세대 목록 조회 서비스이다.
-    public HouseholdListRes getHouseholdList(HouseholdListReq request) {
-        //TODO complexId, 동, 호, 상태 조건으로 세대 목록 조회
+    public HouseholdListRes getHouseholdList(Long complexId, HouseholdListReq request) {
+        //TODO Header에서 해석한 complexId 기준으로 동, 호, 상태 조건 조회
+        //TODO request.complexId는 더 이상 조회 기준으로 사용하지 않는다.
         //TODO 페이지 메타데이터 계산
         return HouseholdListRes.builder()
                 .content(List.of())
@@ -77,7 +100,8 @@ public class HouseholdService {
     }
 
     // 세대 상세 조회 서비스이다.
-    public HouseholdDetailRes getHouseholdDetail(Long householdId) {
+    public HouseholdDetailRes getHouseholdDetail(Long complexId, Long householdId) {
+        //TODO householdId가 현재 complexId 소속인지 검증
         //TODO 세대 기본 정보 조회
         //TODO 세대원 목록 조회
         //TODO 최근 청구 요약 조회
@@ -85,46 +109,73 @@ public class HouseholdService {
     }
 
     // 세대 정보 수정 서비스이다.
-    public HouseholdPatchRes updateHousehold(Long householdId, HouseholdPatchReq request) {
-        //TODO 세대 존재 여부 확인
-        //TODO building, unit, typeId, status 유효성 검증
-        //TODO 세대 기본 정보 수정
+    public HouseholdPatchRes updateHousehold(Long complexId, Long householdId, HouseholdPatchReq request) {
+        Household household = getHouseholdOrThrow(householdId);
+
+        // TODO householdId가 현재 complexId 소속인지 검증한다.
+        // TODO request의 단지 식별자 값이 있더라도 Header에서 해석한 complexId를 우선 사용한다.
+        household.update(
+                complexId,
+                request.getBuilding() != null ? request.getBuilding() : household.getBuilding(),
+                request.getUnit() != null ? request.getUnit() : household.getUnit(),
+                request.getTypeId() != null ? request.getTypeId() : household.getTypeId()
+        );
+        Household savedHousehold = householdRepository.save(household);
+
+        // 세대 기본 정보 수정과 같은 트랜잭션 안에서 수정 이벤트를 outbox에 적재한다.
+        householdOutboxService.saveHouseholdUpdatedEvent(savedHousehold);
+
         return HouseholdPatchRes.builder()
-                .householdId(householdId)
-                .building(request.getBuilding())
-                .unit(request.getUnit())
-                .typeId(request.getTypeId())
-                .status(request.getStatus())
-                .updatedAt(LocalDateTime.now())
+                .householdId(savedHousehold.getId())
+                .building(savedHousehold.getBuilding())
+                .unit(savedHousehold.getUnit())
+                .typeId(savedHousehold.getTypeId())
+                .status(savedHousehold.getStatus())
+                .updatedAt(savedHousehold.getUpdatedAt())
                 .build();
     }
 
     // 세대 상태 변경 서비스이다.
-    public HouseholdStatusPatchRes changeHouseholdStatus(Long householdId, HouseholdStatusPatchReq request) {
-        //TODO 세대 존재 여부 확인
-        //TODO 세대 상태 유효성 검증
-        //TODO 세대 상태 변경
+    public HouseholdStatusPatchRes changeHouseholdStatus(Long complexId, Long householdId, HouseholdStatusPatchReq request) {
+        Household household = getHouseholdOrThrow(householdId);
+
+        // TODO householdId가 현재 complexId 소속인지 검증한다.
+        // TODO 상태 변경에 따른 세대원/정산 연쇄 처리 정책은 담당자가 후속 구현한다.
+        if (request.getStatus() == null) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_STATUS_INVALID);
+        }
+        household.changeStatus(request.getStatus());
+        Household savedHousehold = householdRepository.save(household);
+
         //TODO household_history 저장
-        //TODO 세대 상태 변경 이벤트 outbox 적재
+        // 세대 상태 변경도 같은 트랜잭션 안에서 outbox에 적재한다.
+        if (request.getStatus() == HouseholdStatus.MOVED_OUT) {
+            householdOutboxService.saveHouseholdDeactivatedEvent(savedHousehold);
+        } else {
+            householdOutboxService.saveHouseholdUpdatedEvent(savedHousehold);
+        }
+
         return HouseholdStatusPatchRes.builder()
-                .householdId(householdId)
-                .status(request.getStatus())
-                .changedAt(LocalDateTime.now())
+                .householdId(savedHousehold.getId())
+                .status(savedHousehold.getStatus())
+                .changedAt(savedHousehold.getUpdatedAt())
                 .build();
     }
 
     // 입주와 퇴거 이력 조회 서비스이다.
-    public List<HouseholdHistoryRes> getHouseholdHistory(Long householdId) {
+    public List<HouseholdHistoryRes> getHouseholdHistory(Long complexId, Long householdId) {
+        //TODO householdId가 현재 complexId 소속인지 검증
         //TODO 세대 상태 변경 이력 조회
         return List.of();
     }
 
     // 세대원 등록 서비스이다.
-    public HouseholdMemberPostRes addHouseholdMember(Long householdId, HouseholdMemberPostReq request) {
+    public HouseholdMemberPostRes addHouseholdMember(Long complexId, Long householdId, HouseholdMemberPostReq request) {
         Household household = getHouseholdOrThrow(householdId);
         UserCache userCache = getUserCacheOrThrow(request.getUserId());
         HouseholdMemberRole role = request.getRole() != null ? request.getRole() : HouseholdMemberRole.MEMBER;
 
+        // TODO householdId가 현재 complexId 소속인지 검증한다.
         // 세대와 사용자 조합 중복 등록을 막는다.
         if (householdMemberRepository.existsByHouseholdIdAndUserId(householdId, request.getUserId())) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_ALREADY_LINKED);
@@ -156,17 +207,19 @@ public class HouseholdService {
     }
 
     // 세대원 조회 서비스이다.
-    public List<HouseholdMemberListRes> getHouseholdMembers(Long householdId) {
+    public List<HouseholdMemberListRes> getHouseholdMembers(Long complexId, Long householdId) {
+        //TODO householdId가 현재 complexId 소속인지 검증
         //TODO 세대원 목록 조회
         return List.of();
     }
 
     // 세대원 수정 서비스이다.
-    public HouseholdMemberPatchRes updateHouseholdMember(Long householdMemberId, HouseholdMemberPatchReq request) {
+    public HouseholdMemberPatchRes updateHouseholdMember(Long complexId, Long householdMemberId, HouseholdMemberPatchReq request) {
         HouseholdMember householdMember = getHouseholdMemberOrThrow(householdMemberId);
         HouseholdMemberRole nextRole = request.getRole() != null ? request.getRole() : householdMember.getRole();
         Boolean nextIsActive = request.getIsActive() != null ? request.getIsActive() : householdMember.getIsActive();
 
+        // TODO householdMember가 현재 complexId 소속 세대에 속하는지 검증한다.
         validateHeadRemoval(householdMember, nextRole, nextIsActive);
         validateHeadDuplication(householdMember.getHouseholdId(), nextRole, householdMember.getId());
 
@@ -185,9 +238,10 @@ public class HouseholdService {
     }
 
     // 세대원 삭제 서비스이다.
-    public HouseholdMemberDeleteRes deleteHouseholdMember(Long householdMemberId) {
+    public HouseholdMemberDeleteRes deleteHouseholdMember(Long complexId, Long householdMemberId) {
         HouseholdMember householdMember = getHouseholdMemberOrThrow(householdMemberId);
 
+        // TODO householdMember가 현재 complexId 소속 세대에 속하는지 검증한다.
         validateHeadRemoval(householdMember, householdMember.getRole(), false);
 
         // 물리 삭제 대신 비활성 처리 후 removed 이벤트를 적재한다.
@@ -205,9 +259,10 @@ public class HouseholdService {
     }
 
     // 세대주 권한 변경 서비스이다.
-    public HouseholdHeadPatchRes changeHouseholdHead(Long householdId, HouseholdHeadPatchReq request) {
-        getHouseholdOrThrow(householdId);
+    public HouseholdHeadPatchRes changeHouseholdHead(Long complexId, Long householdId, HouseholdHeadPatchReq request) {
+        Household household = getHouseholdOrThrow(householdId);
 
+        // TODO householdId가 현재 complexId 소속인지 검증한다.
         HouseholdMember newHead = householdMemberRepository.findByHouseholdIdAndUserIdAndIsActiveTrue(householdId, request.getUserId())
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
 
@@ -226,16 +281,22 @@ public class HouseholdService {
         // 신규 세대주의 역할 변경도 별도 이벤트로 반영한다.
         householdOutboxService.saveHouseholdHeadChangedEvent(savedNewHead);
 
+        // 세대주가 바뀌면 세대 캐시가 참조하는 headUserId도 함께 갱신한다.
+        household.changeHeadUserId(savedNewHead.getUserId());
+        Household savedHousehold = householdRepository.save(household);
+        householdOutboxService.saveHouseholdUpdatedEvent(savedHousehold);
+
         return HouseholdHeadPatchRes.builder()
                 .householdId(householdId)
                 .headUserId(savedNewHead.getUserId())
-                .updatedAt(LocalDateTime.now())
+                .updatedAt(savedHousehold.getUpdatedAt())
                 .build();
     }
 
     // 내 세대 정보 조회 서비스이다.
-    public MyHouseholdRes getMyHousehold() {
+    public MyHouseholdRes getMyHousehold(Long userId, Long complexId) {
         //TODO 로그인 사용자 기준 활성 세대원 조회
+        //TODO householdId가 현재 complexId 소속인지 재검증
         //TODO 세대 기본 정보 조회
         //TODO 세대원 이름과 연락처를 user_cache에서 조합
         return MyHouseholdRes.builder()

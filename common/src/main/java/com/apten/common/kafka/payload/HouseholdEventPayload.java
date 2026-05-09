@@ -26,4 +26,7 @@ public class HouseholdEventPayload {
 
     // 세대 상태값
     private String status;
+
+    // 현재 세대주 사용자 식별자
+    private Long headUserId;
 }
