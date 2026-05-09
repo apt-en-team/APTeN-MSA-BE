@@ -99,18 +99,32 @@ public class HouseholdOutboxService {
 
     // 세대원 이벤트 payload를 만들어 Outbox에 저장한다.
     private void saveHouseholdMemberEvent(EventType eventType, HouseholdMember householdMember) {
-        // 세대원 상태는 활성 여부를 기반으로 단순 문자열로 적재한다.
+        // 세대원 상태는 이벤트 유형과 활성 여부를 함께 보고 캐시 친화적인 값으로 적재한다.
         HouseholdMemberEventPayload payload = HouseholdMemberEventPayload.builder()
                 .householdMemberId(householdMember.getId())
                 .householdId(householdMember.getHouseholdId())
                 .userId(householdMember.getUserId())
                 .memberRole(householdMember.getRole().name())
-                .status(Boolean.TRUE.equals(householdMember.getIsActive()) ? "ACTIVE" : "INACTIVE")
+                .status(resolveHouseholdMemberStatus(eventType, householdMember))
                 .isPrimary(householdMember.getRole().name().equals("HEAD"))
                 .build();
 
         // 공통 Outbox 저장 메서드로 위임한다.
         saveOutboxEvent(KafkaTopics.HOUSEHOLD_MEMBER, eventType, householdMember.getId(), payload);
+    }
+
+    // 세대원 이벤트 상태를 최신 캐시 계약에 맞춰 정규화한다.
+    private String resolveHouseholdMemberStatus(EventType eventType, HouseholdMember householdMember) {
+        if (eventType == EventType.HOUSEHOLD_MEMBER_REMOVED || eventType == EventType.HOUSEHOLD_MEMBER_DELETED) {
+            return "MOVED_OUT";
+        }
+
+        if (Boolean.TRUE.equals(householdMember.getIsActive())) {
+            return "ACTIVE";
+        }
+
+        // TODO household-service가 세대원 상태 enum을 도입하면 REJECTED/PENDING 등을 구분해 적재한다.
+        return "REJECTED";
     }
 
     // payload를 EventEnvelope로 감싼 뒤 Outbox row로 저장한다.

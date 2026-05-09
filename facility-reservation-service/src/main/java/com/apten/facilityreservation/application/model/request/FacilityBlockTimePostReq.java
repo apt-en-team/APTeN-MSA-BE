@@ -26,6 +26,4 @@ public class FacilityBlockTimePostReq {
     // 차단 사유이다.
     private String reason;
 
-    // 활성 여부이다.
-    private Boolean isActive;
 }

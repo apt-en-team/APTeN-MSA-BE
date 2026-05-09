@@ -14,6 +14,9 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // 상태 기준 예약 수를 센다.
     long countByProgramIdAndStatus(Long programId, GxReservationStatus status);
 
+    // 프로그램과 상태 기준 예약 목록을 조회한다.
+    List<GxReservation> findByProgramIdAndStatus(Long programId, GxReservationStatus status);
+
     // 대기 순번 기준으로 예약 목록을 조회한다.
     List<GxReservation> findByProgramIdAndStatusOrderByWaitNoAsc(Long programId, GxReservationStatus status);
 }

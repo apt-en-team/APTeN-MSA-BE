@@ -13,6 +13,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityBlockTimeListReq {
 
-    // 차단일 필터이다.
-    private LocalDate blockDate;
+    // 조회 시작일 필터이다.
+    private LocalDate fromDate;
+
+    // 조회 종료일 필터이다.
+    private LocalDate toDate;
+
+    // 활성 여부 필터이다.
+    private Boolean isActive;
 }

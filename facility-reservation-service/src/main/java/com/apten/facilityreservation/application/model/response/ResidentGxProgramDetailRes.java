@@ -1,6 +1,7 @@
 package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
+import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import lombok.Builder;
@@ -16,6 +17,9 @@ public class ResidentGxProgramDetailRes {
 
     // 프로그램명이다.
     private String name;
+
+    // 시설 ID이다.
+    private Long facilityId;
 
     // 설명이다.
     private String description;
@@ -40,6 +44,18 @@ public class ResidentGxProgramDetailRes {
 
     // 최소 인원이다.
     private Integer minCount;
+
+    // 확정 인원이다.
+    private Integer confirmedCount;
+
+    // 대기 인원이다.
+    private Integer waitingCount;
+
+    // 내 신청 상태이다.
+    private GxReservationStatus myStatus;
+
+    // 내 대기 순번이다.
+    private Integer myWaitNo;
 
     // 상태이다.
     private GxProgramStatus status;

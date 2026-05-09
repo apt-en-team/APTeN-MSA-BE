@@ -14,9 +14,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SeatStatusReq {
 
-    // 예약일이다.
-    private LocalDate reservationDate;
+    // 조회 기준일이다.
+    private LocalDate targetDate;
 
     // 조회 시작 시각이다.
     private LocalTime startTime;
+
+    // 조회 종료 시각이다.
+    private LocalTime endTime;
 }

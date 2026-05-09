@@ -1,6 +1,8 @@
 package com.apten.facilityreservation.application.controller;
 
 import com.apten.common.response.ResultResponse;
+import com.apten.common.constants.HeaderConstants;
+import com.apten.facilityreservation.application.model.dto.FacilityRequestContext;
 import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
@@ -11,6 +13,7 @@ import com.apten.facilityreservation.application.model.request.FacilityPostReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPatchReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityTypeListReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityUsageStatusReq;
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
@@ -33,6 +36,7 @@ import com.apten.facilityreservation.application.model.response.FacilityUsageSta
 import com.apten.facilityreservation.application.model.response.PageResponse;
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
 import com.apten.facilityreservation.application.service.FacilityService;
+import com.apten.facilityreservation.application.service.FacilityRequestContextResolver;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -43,6 +47,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,128 +57,239 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminFacilityController {
 
     private final FacilityService facilityService;
+    private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    //시설 등록 API-601
+    // API-601 시설 등록
     @PostMapping("/api/admin/facilities")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<FacilityPostRes> createFacility(@RequestBody FacilityPostReq req) {
-        return ResultResponse.success("시설 등록 성공", facilityService.createFacility(req));
+    public ResultResponse<FacilityPostRes> createFacility(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @RequestBody FacilityPostReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 등록 성공", facilityService.createFacility(context.getComplexId(), req));
     }
 
-    //관리자 시설 목록 조회 API-602
+    // API-602 관리자 시설 목록 조회
     @GetMapping("/api/admin/facilities")
-    public ResultResponse<PageResponse<FacilityListRes>> getAdminFacilityList(@ModelAttribute FacilityListReq req) {
-        return ResultResponse.success("관리자 시설 목록 조회 성공", facilityService.getAdminFacilityList(req));
+    public ResultResponse<PageResponse<FacilityListRes>> getAdminFacilityList(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @ModelAttribute FacilityListReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("관리자 시설 목록 조회 성공", facilityService.getAdminFacilityList(context.getComplexId(), req));
     }
 
-    //관리자 시설 상세 조회 API-603
+    // API-603 관리자 시설 상세 조회
     @GetMapping("/api/admin/facilities/{facilityId}")
-    public ResultResponse<FacilityDetailRes> getAdminFacilityDetail(@PathVariable Long facilityId) {
-        return ResultResponse.success("관리자 시설 상세 조회 성공", facilityService.getAdminFacilityDetail(facilityId));
+    public ResultResponse<FacilityDetailRes> getAdminFacilityDetail(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("관리자 시설 상세 조회 성공", facilityService.getAdminFacilityDetail(context.getComplexId(), facilityId));
     }
 
-    //시설 수정 API-604
+    // API-604 시설 수정
     @PatchMapping("/api/admin/facilities/{facilityId}")
-    public ResultResponse<FacilityPatchRes> updateFacility(@PathVariable Long facilityId, @RequestBody FacilityPatchReq req) {
-        return ResultResponse.success("시설 수정 성공", facilityService.updateFacility(facilityId, req));
+    public ResultResponse<FacilityPatchRes> updateFacility(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @RequestBody FacilityPatchReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 수정 성공", facilityService.updateFacility(context.getComplexId(), facilityId, req));
     }
 
-    //시설 삭제 API-605
+    // API-605 시설 삭제
     @DeleteMapping("/api/admin/facilities/{facilityId}")
-    public ResultResponse<FacilityDeleteRes> deleteFacility(@PathVariable Long facilityId) {
-        return ResultResponse.success("시설 삭제 성공", facilityService.deleteFacility(facilityId));
+    public ResultResponse<FacilityDeleteRes> deleteFacility(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 삭제 성공", facilityService.deleteFacility(context.getComplexId(), facilityId));
     }
 
-    //시설 활성/비활성 변경 API-606
+    // API-606 시설 활성/비활성 변경
     @PatchMapping("/api/admin/facilities/{facilityId}/active")
     public ResultResponse<FacilityActivePatchRes> changeFacilityActive(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long facilityId,
             @RequestBody FacilityActivePatchReq req
     ) {
-        return ResultResponse.success("시설 활성 상태 변경 성공", facilityService.changeFacilityActive(facilityId, req));
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 활성 상태 변경 성공", facilityService.changeFacilityActive(context.getComplexId(), facilityId, req));
     }
 
-    //시설 타입 등록 API-607
+    // API-607 시설 타입 등록
     @PostMapping("/api/admin/facility-types")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<FacilityTypePostRes> createFacilityType(@RequestBody FacilityTypePostReq req) {
-        return ResultResponse.success("시설 타입 등록 성공", facilityService.createFacilityType(req));
+    public ResultResponse<FacilityTypePostRes> createFacilityType(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @RequestBody FacilityTypePostReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 타입 등록 성공", facilityService.createFacilityType(context.getComplexId(), req));
     }
 
-    //시설 타입 목록 조회 API-608
+    // API-608 시설 타입 목록 조회
     @GetMapping("/api/admin/facility-types")
-    public ResultResponse<List<FacilityTypeListRes>> getFacilityTypeList() {
-        return ResultResponse.success("시설 타입 목록 조회 성공", facilityService.getFacilityTypeList());
+    public ResultResponse<List<FacilityTypeListRes>> getFacilityTypeList(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @ModelAttribute FacilityTypeListReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 타입 목록 조회 성공", facilityService.getFacilityTypeList(context.getComplexId(), req));
     }
 
-    //시설 타입 수정 API-609
+    // API-609 시설 타입 수정
     @PatchMapping("/api/admin/facility-types/{facilityTypeId}")
     public ResultResponse<FacilityTypePatchRes> updateFacilityType(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long facilityTypeId,
             @RequestBody FacilityTypePatchReq req
     ) {
-        return ResultResponse.success("시설 타입 수정 성공", facilityService.updateFacilityType(facilityTypeId, req));
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 타입 수정 성공", facilityService.updateFacilityType(context.getComplexId(), facilityTypeId, req));
     }
 
-    //시설 차단 시간 등록 API-612
+    // API-612 시설 차단 시간 등록
     @PostMapping("/api/admin/facilities/{facilityId}/block-times")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilityBlockTimePostRes> createFacilityBlockTime(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long facilityId,
             @RequestBody FacilityBlockTimePostReq req
     ) {
-        return ResultResponse.success("시설 차단 시간 등록 성공", facilityService.createFacilityBlockTime(facilityId, req));
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 차단 시간 등록 성공", facilityService.createFacilityBlockTime(context.getComplexId(), facilityId, req));
     }
 
-    //시설 차단 시간 조회 API-613
+    // API-613 시설 차단 시간 조회
     @GetMapping("/api/admin/facilities/{facilityId}/block-times")
     public ResultResponse<List<FacilityBlockTimeListRes>> getFacilityBlockTimeList(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long facilityId,
             @ModelAttribute FacilityBlockTimeListReq req
     ) {
-        return ResultResponse.success("시설 차단 시간 조회 성공", facilityService.getFacilityBlockTimeList(facilityId, req));
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 차단 시간 조회 성공", facilityService.getFacilityBlockTimeList(context.getComplexId(), facilityId, req));
     }
 
-    //시설 좌석 등록 API-614
+    // API-614 시설 좌석 등록
     @PostMapping("/api/admin/facilities/{facilityId}/seats")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilitySeatPostRes> createFacilitySeat(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long facilityId,
             @RequestBody FacilitySeatPostReq req
     ) {
-        return ResultResponse.success("시설 좌석 등록 성공", facilityService.createFacilitySeat(facilityId, req));
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 좌석 등록 성공", facilityService.createFacilitySeat(context.getComplexId(), facilityId, req));
     }
 
-    //시설 좌석 목록 조회 API-615
+    // API-615 시설 좌석 목록 조회
     @GetMapping("/api/admin/facilities/{facilityId}/seats")
-    public ResultResponse<List<FacilitySeatListRes>> getFacilitySeatList(@PathVariable Long facilityId) {
-        return ResultResponse.success("시설 좌석 목록 조회 성공", facilityService.getFacilitySeatList(facilityId));
+    public ResultResponse<List<FacilitySeatListRes>> getFacilitySeatList(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 좌석 목록 조회 성공", facilityService.getFacilitySeatList(context.getComplexId(), facilityId));
     }
 
-    //시설 좌석 수정 API-616
+    // API-616 시설 좌석 수정
     @PatchMapping("/api/admin/facility-seats/{seatId}")
     public ResultResponse<FacilitySeatPatchRes> updateFacilitySeat(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long seatId,
             @RequestBody FacilitySeatPatchReq req
     ) {
-        return ResultResponse.success("시설 좌석 수정 성공", facilityService.updateFacilitySeat(seatId, req));
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 좌석 수정 성공", facilityService.updateFacilitySeat(context.getComplexId(), seatId, req));
     }
 
-    //시설 이용 현황 조회 API-644
+    // API-644 시설 이용 현황 조회
     @GetMapping("/api/admin/facility-usage/status")
-    public ResultResponse<FacilityUsageStatusRes> getFacilityUsageStatus(@ModelAttribute FacilityUsageStatusReq req) {
-        return ResultResponse.success("시설 이용 현황 조회 성공", facilityService.getFacilityUsageStatus(req));
+    public ResultResponse<FacilityUsageStatusRes> getFacilityUsageStatus(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @ModelAttribute FacilityUsageStatusReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 이용 현황 조회 성공", facilityService.getFacilityUsageStatus(context.getComplexId(), req));
     }
 
-    //좌석 상태 조회 API-645
+    // API-645 좌석 상태 조회
     @GetMapping("/api/admin/facilities/{facilityId}/seat-status")
-    public ResultResponse<SeatStatusRes> getSeatStatus(@PathVariable Long facilityId, @ModelAttribute SeatStatusReq req) {
-        return ResultResponse.success("좌석 상태 조회 성공", facilityService.getSeatStatus(facilityId, req));
+    public ResultResponse<List<SeatStatusRes>> getSeatStatus(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @ModelAttribute SeatStatusReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("좌석 상태 조회 성공", facilityService.getSeatStatus(context.getComplexId(), facilityId, req));
     }
 
-    //정원형 이용 현황 조회 API-646
+    // API-646 정원형 이용 현황 조회
     @GetMapping("/api/admin/facilities/{facilityId}/count-status")
-    public ResultResponse<CountStatusRes> getCountStatus(@PathVariable Long facilityId, @ModelAttribute CountStatusReq req) {
-        return ResultResponse.success("정원형 이용 현황 조회 성공", facilityService.getCountStatus(facilityId, req));
+    public ResultResponse<CountStatusRes> getCountStatus(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @ModelAttribute CountStatusReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("정원형 이용 현황 조회 성공", facilityService.getCountStatus(context.getComplexId(), facilityId, req));
     }
 }

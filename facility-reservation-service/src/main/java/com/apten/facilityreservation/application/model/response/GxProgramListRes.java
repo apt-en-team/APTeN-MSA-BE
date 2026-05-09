@@ -2,6 +2,7 @@ package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -25,6 +26,18 @@ public class GxProgramListRes {
     // 종료일이다.
     private LocalDate endDate;
 
+    // 시작 시각이다.
+    private LocalTime startTime;
+
+    // 종료 시각이다.
+    private LocalTime endTime;
+
     // 상태이다.
     private GxProgramStatus status;
+
+    // 확정 인원이다.
+    private Integer confirmedCount;
+
+    // 대기 인원이다.
+    private Integer waitingCount;
 }

@@ -31,4 +31,7 @@ public class ReservationPostReq {
 
     // 종료 시각이다.
     private LocalTime endTime;
+
+    // 예약 수량이다.
+    private Integer quantity;
 }

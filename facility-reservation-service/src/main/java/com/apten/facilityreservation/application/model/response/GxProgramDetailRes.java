@@ -49,4 +49,13 @@ public class GxProgramDetailRes {
 
     // 상태이다.
     private GxProgramStatus status;
+
+    // 확정 인원이다.
+    private Integer confirmedCount;
+
+    // 대기 인원이다.
+    private Integer waitingCount;
+
+    // 거절 인원이다.
+    private Integer rejectedCount;
 }

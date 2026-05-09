@@ -13,5 +13,5 @@ import lombok.NoArgsConstructor;
 public class GxReservationRejectReq {
 
     // 거절 사유이다.
-    private String reason;
+    private String rejectReason;
 }

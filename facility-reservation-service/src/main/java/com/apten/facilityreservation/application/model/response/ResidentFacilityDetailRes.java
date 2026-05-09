@@ -41,6 +41,6 @@ public class ResidentFacilityDetailRes {
     // 적용 기본 요금이다.
     private BigDecimal baseFee;
 
-    // 활성 여부이다.
-    private Boolean isActive;
+    // 취소 마감 시간이다.
+    private Integer cancelDeadlineHours;
 }

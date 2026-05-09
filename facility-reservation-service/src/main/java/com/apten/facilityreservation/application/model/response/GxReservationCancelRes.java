@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.GxReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -15,6 +16,9 @@ public class GxReservationCancelRes {
 
     // 상태이다.
     private GxReservationStatus status;
+
+    // 취소 사유이다.
+    private GxReservationCancelReason cancelReason;
 
     // 취소 시각이다.
     private LocalDateTime cancelledAt;

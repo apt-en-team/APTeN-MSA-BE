@@ -1,5 +1,7 @@
 package com.apten.facilityreservation.application.model.request;
 
+import com.apten.facilityreservation.domain.enums.GxProgramStatus;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,8 +14,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ResidentGxProgramListReq {
 
-    // 단지 ID이다.
-    private Long complexId;
+    // 조회 시작일 필터이다.
+    private LocalDate fromDate;
+
+    // 조회 종료일 필터이다.
+    private LocalDate toDate;
+
+    // 상태 필터이다.
+    private GxProgramStatus status;
 
     // 페이지 번호이다.
     @Builder.Default

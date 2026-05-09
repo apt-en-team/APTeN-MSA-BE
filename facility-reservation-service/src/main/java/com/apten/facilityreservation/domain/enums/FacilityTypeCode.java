@@ -18,7 +18,25 @@ public enum FacilityTypeCode implements EnumMapperType {
     GOLF("03", "골프연습장"),
 
     // GX 타입이다.
-    GX("04", "GX");
+    GX("04", "GX"),
+
+    // 수영장 타입이다.
+    POOL("05", "수영장"),
+
+    // 사우나 타입이다.
+    SAUNA("06", "사우나"),
+
+    // 게스트하우스 타입이다.
+    GUEST_HOUSE("07", "게스트하우스"),
+
+    // 세탁실 타입이다.
+    LAUNDRY("08", "세탁실"),
+
+    // 카페 타입이다.
+    CAFE("09", "카페"),
+
+    // 기타 타입이다.
+    ETC("10", "기타");
 
     // DB에 저장하는 코드값이다.
     private final String code;

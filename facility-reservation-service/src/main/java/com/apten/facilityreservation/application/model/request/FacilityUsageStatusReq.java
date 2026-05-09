@@ -13,8 +13,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityUsageStatusReq {
 
-    // 단지 ID이다.
-    private Long complexId;
+    // 시설 ID이다.
+    private Long facilityId;
 
     // 조회 기준일이다.
     private LocalDate targetDate;

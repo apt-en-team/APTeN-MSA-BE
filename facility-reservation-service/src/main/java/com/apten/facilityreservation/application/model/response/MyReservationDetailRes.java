@@ -1,8 +1,8 @@
 package com.apten.facilityreservation.application.model.response;
 
-import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,11 +21,8 @@ public class MyReservationDetailRes {
     // 시설명이다.
     private String facilityName;
 
-    // 좌석 ID이다.
-    private Long seatId;
-
-    // 좌석명이다.
-    private String seatName;
+    // 좌석 번호이다.
+    private Integer seatNo;
 
     // 예약일이다.
     private LocalDate reservationDate;
@@ -39,6 +36,9 @@ public class MyReservationDetailRes {
     // 예약 상태이다.
     private ReservationStatus status;
 
-    // 취소 사유이다.
-    private ReservationCancelReason cancelReason;
+    // 취소 가능 여부이다.
+    private Boolean cancelable;
+
+    // 생성 시각이다.
+    private LocalDateTime createdAt;
 }

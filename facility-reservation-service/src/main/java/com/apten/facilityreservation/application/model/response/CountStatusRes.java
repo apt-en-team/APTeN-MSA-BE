@@ -1,7 +1,7 @@
 package com.apten.facilityreservation.application.model.response;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -13,14 +13,8 @@ public class CountStatusRes {
     // 시설 ID이다.
     private Long facilityId;
 
-    // 예약일이다.
-    private LocalDate reservationDate;
-
-    // 시작 시각이다.
-    private LocalTime startTime;
-
-    // 종료 시각이다.
-    private LocalTime endTime;
+    // 조회 기준일이다.
+    private LocalDate targetDate;
 
     // 최대 정원이다.
     private Integer maxCount;
@@ -30,4 +24,14 @@ public class CountStatusRes {
 
     // 남은 정원이다.
     private Integer availableCount;
+
+    // 예약자 목록이다.
+    private List<UserItem> users;
+
+    @Getter
+    @Builder
+    public static class UserItem {
+        private Long reservationId;
+        private String residentName;
+    }
 }
