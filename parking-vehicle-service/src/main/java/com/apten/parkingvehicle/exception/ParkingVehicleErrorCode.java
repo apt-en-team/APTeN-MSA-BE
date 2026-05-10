@@ -30,8 +30,8 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     REGULAR_VISITOR_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_05", "고정 방문차량을 찾을 수 없습니다."),
     REGULAR_VISITOR_OWNER_MISMATCH(HttpStatus.FORBIDDEN, "PVH_403_03", "고정 방문차량 소유자가 아닙니다."),
     FEATURE_DISABLED(HttpStatus.FORBIDDEN, "PVH_403_04", "현재 단지에서 주차 현황 기능을 사용할 수 없습니다."),
-    PARKING_FLOOR_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_06", "주차층 정보를 찾을 수 없습니다."),
-    DUPLICATE_PARKING_FLOOR(HttpStatus.CONFLICT, "PVH_409_02", "이미 등록된 주차층입니다."),
+    PARKING_ZONE_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_06", "주차 구역을 찾을 수 없습니다."),
+    DUPLICATE_PARKING_ZONE(HttpStatus.CONFLICT, "PVH_409_02", "이미 등록된 주차 구역입니다."),
     DUPLICATE_IN_ENTRY(HttpStatus.CONFLICT, "PVH_409_03", "이미 입차 처리된 차량입니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_01", "이벤트 발행에 실패했습니다."),
     INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_02", "내부 서비스 처리 중 오류가 발생했습니다.");
