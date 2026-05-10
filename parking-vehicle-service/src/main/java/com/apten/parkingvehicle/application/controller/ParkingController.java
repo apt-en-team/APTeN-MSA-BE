@@ -19,11 +19,12 @@ import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
 import com.apten.parkingvehicle.application.service.ParkingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,7 +38,7 @@ public class ParkingController {
 
     private final ParkingService parkingService;
 
-    //입출차 기록 조회 API-326
+    //입출차 기록 조회
     @GetMapping("/api/admin/parking-logs")
     public ResultResponse<PageResponse<ParkingLogListRes>> getParkingLogList(
             @ModelAttribute ParkingLogListReq request,
@@ -51,7 +52,7 @@ public class ParkingController {
         );
     }
 
-    //주차 현황 조회 API-327
+    //주차 현황 조회
     @GetMapping("/api/admin/parking/status")
     public ResultResponse<ParkingStatusRes> getParkingStatus(
             @RequestParam(required = false) Long complexId,
@@ -65,33 +66,63 @@ public class ParkingController {
         );
     }
 
-    //주차 구역 목록 조회 API-328
+    //주차 구역 목록 조회
     @GetMapping("/api/admin/parking/zones")
-    public ResultResponse<PageResponse<ParkingZoneListRes>> getParkingZoneList(@ModelAttribute ParkingZoneListReq request) {
-        return ResultResponse.success("주차 구역 목록 조회 성공", parkingService.getParkingZoneList(request));
+    public ResultResponse<PageResponse<ParkingZoneListRes>> getParkingZoneList(
+            @ModelAttribute ParkingZoneListReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success(
+                "주차 구역 목록 조회 성공",
+                parkingService.getParkingZoneList(request, userRole, complexId, selectedComplexId)
+        );
     }
 
-    //주차 구역 등록 API-329
+    //주차 구역 등록
     @PostMapping("/api/admin/parking/zones")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ParkingZonePostRes> createParkingZone(
-            @RequestParam(required = false) Long complexId,
-            @RequestBody ParkingZonePostReq request
+            @RequestBody ParkingZonePostReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
-        return ResultResponse.success("주차 구역 등록 성공", parkingService.createParkingZone(complexId, request));
+        return ResultResponse.success(
+                "주차 구역 등록 성공",
+                parkingService.createParkingZone(request, userRole, complexId, selectedComplexId)
+        );
     }
 
-    //주차 구역 수정 API-330
+    //주차 구역 수정
     @PatchMapping("/api/admin/parking/zones/{zoneId}")
     public ResultResponse<ParkingZonePatchRes> updateParkingZone(
             @PathVariable Long zoneId,
-            @RequestParam(required = false) Long complexId,
-            @RequestBody ParkingZonePatchReq request
+            @RequestBody ParkingZonePatchReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
-        return ResultResponse.success("주차 구역 수정 성공", parkingService.updateParkingZone(zoneId, complexId, request));
+        return ResultResponse.success(
+                "주차 구역 수정 성공",
+                parkingService.updateParkingZone(zoneId, request, userRole, complexId, selectedComplexId)
+        );
     }
 
-    //주차 통계 조회 API-331
+    //주차 구역 삭제
+    @DeleteMapping("/api/admin/parking/zones/{zoneId}")
+    public ResultResponse<Void> deleteParkingZone(
+            @PathVariable Long zoneId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        parkingService.deleteParkingZone(zoneId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("주차 구역 삭제 성공", null);
+    }
+
+    //주차 통계 조회
     @GetMapping("/api/admin/parking/statistics")
     public ResultResponse<ParkingStatisticsRes> getParkingStatistics(
             @ModelAttribute ParkingStatisticsReq request,
@@ -105,7 +136,7 @@ public class ParkingController {
         );
     }
 
-    //입출차 등록 API-332
+    //입출차 등록
     @PostMapping("/api/admin/parking-logs")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ParkingLogCreateRes> createParkingLog(
