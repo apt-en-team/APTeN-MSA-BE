@@ -54,6 +54,7 @@ public class ParkingVehicleKafkaHandler {
             log.info("Consumed apartment complex event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
             parkingVehicleReferenceCacheService.upsertApartmentComplexCache(eventEnvelope.getPayload());
             parkingVehicleReferenceCacheService.upsertComplexFeatureCache(eventEnvelope.getPayload());
+            parkingVehicleReferenceCacheService.ensureParkingSetting(eventEnvelope.getPayload());
         } catch (Exception exception) {
             log.error("Failed to consume apartment complex event. message={}", message, exception);
         }
