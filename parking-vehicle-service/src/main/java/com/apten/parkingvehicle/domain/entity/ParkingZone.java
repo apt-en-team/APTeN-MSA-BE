@@ -66,4 +66,8 @@ public class ParkingZone extends BaseEntity {
         this.totalSlots = totalSlots;
         this.isActive = isActive;
     }
+
+    public void deactivate() {
+        this.isActive = false;
+    }
 }
