@@ -6,18 +6,24 @@ import com.apten.common.exception.CommonErrorCode;
 import com.apten.parkingvehicle.application.model.request.ParkingLogCreateReq;
 import com.apten.parkingvehicle.application.model.request.ParkingLogListReq;
 import com.apten.parkingvehicle.application.model.request.ParkingStatisticsReq;
+import com.apten.parkingvehicle.application.model.request.ParkingZoneListReq;
+import com.apten.parkingvehicle.application.model.request.ParkingZonePatchReq;
+import com.apten.parkingvehicle.application.model.request.ParkingZonePostReq;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.ParkingLogCreateRes;
 import com.apten.parkingvehicle.application.model.response.ParkingLogListRes;
 import com.apten.parkingvehicle.application.model.response.ParkingStatisticsRes;
 import com.apten.parkingvehicle.application.model.response.ParkingStatusRes;
+import com.apten.parkingvehicle.application.model.response.ParkingZoneListRes;
+import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
+import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-// 주차층, 입출차, 통계 API를 담당하는 응용 서비스이다.
+// 주차 구역, 입출차, 통계 API를 담당하는 응용 서비스이다.
 @Service
 @RequiredArgsConstructor
 public class ParkingService {
@@ -49,15 +55,15 @@ public class ParkingService {
     ) {
         Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
         featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
-        // TODO: 입출차 등록 시 parkingFloor의 complexId와 관리자 단지 컨텍스트 일치 여부를 검증한다.
-        //TODO 주차층 활성 상태 확인
+        // TODO: 입출차 등록 시 parkingZone의 complexId와 관리자 단지 컨텍스트 일치 여부를 검증한다.
+        //TODO 주차 구역 활성 상태 확인
         //TODO 차량번호로 입주민 차량/방문차량/고정 방문차량 매칭
         //TODO 동일 차량 중복 IN/OUT 여부 확인
         //TODO parking_log 저장
         //TODO 방문차량 OUT인 경우 이용시간 집계 대상 표시 또는 월집계 TODO 연결
         return ParkingLogCreateRes.builder()
                 .parkingLogId(null)
-                .parkingFloorId(request.getParkingFloorId())
+                .zoneId(request.getZoneId())
                 .licensePlate(request.getLicensePlate())
                 .entryType(request.getEntryType())
                 .loggedAt(request.getLoggedAt())
@@ -81,11 +87,11 @@ public class ParkingService {
                 .build();
     }
 
-    // 주차층 목록을 조회한다.
-    public PageResponse<ParkingFloorListRes> getParkingFloorList(ParkingFloorListReq request) {
-        //TODO 단지 기준 주차층 목록 조회
+    // 주차 구역 목록을 조회한다.
+    public PageResponse<ParkingZoneListRes> getParkingZoneList(ParkingZoneListReq request) {
+        //TODO 단지 기준 주차 구역 목록 조회
         //TODO 활성 여부 필터 적용
-        return PageResponse.<ParkingFloorListRes>builder()
+        return PageResponse.<ParkingZoneListRes>builder()
                 .content(List.of())
                 .page(0)
                 .size(20)
@@ -95,29 +101,31 @@ public class ParkingService {
                 .build();
     }
 
-    // 주차층을 등록한다.
-    public ParkingFloorPostRes createParkingFloor(Long complexId, ParkingFloorPostReq request) {
+    // 주차 구역을 등록한다.
+    public ParkingZonePostRes createParkingZone(Long complexId, ParkingZonePostReq request) {
         //TODO 관리자 소속 단지 확인
-        //TODO floorName 중복 여부 확인
-        //TODO 주차층 저장
-        return ParkingFloorPostRes.builder()
-                .parkingFloorId(null)
-                .floorName(request.getFloorName())
+        //TODO areaName + zoneName 조합 중복 여부 확인 (zoneName NULL 안전)
+        //TODO 주차 구역 저장
+        return ParkingZonePostRes.builder()
+                .zoneId(null)
+                .areaName(request.getAreaName())
+                .zoneName(request.getZoneName())
                 .totalSlots(request.getTotalSlots())
                 .isActive(request.getIsActive())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
 
-    // 주차층을 수정한다.
-    public ParkingFloorPatchRes updateParkingFloor(Long parkingFloorId, Long complexId, ParkingFloorPatchReq request) {
+    // 주차 구역을 수정한다.
+    public ParkingZonePatchRes updateParkingZone(Long zoneId, Long complexId, ParkingZonePatchReq request) {
         //TODO 관리자 소속 단지 확인
-        //TODO 주차층 존재 여부 확인
-        //TODO floorName 변경 시 중복 여부 확인
-        //TODO 주차층 기본 정보 수정
-        return ParkingFloorPatchRes.builder()
-                .parkingFloorId(parkingFloorId)
-                .floorName(request.getFloorName())
+        //TODO 주차 구역 존재 여부 확인
+        //TODO areaName 또는 zoneName 변경 시 중복 여부 확인 (zoneName NULL 안전)
+        //TODO 주차 구역 기본 정보 수정
+        return ParkingZonePatchRes.builder()
+                .zoneId(zoneId)
+                .areaName(request.getAreaName())
+                .zoneName(request.getZoneName())
                 .totalSlots(request.getTotalSlots())
                 .isActive(request.getIsActive())
                 .updatedAt(LocalDateTime.now())

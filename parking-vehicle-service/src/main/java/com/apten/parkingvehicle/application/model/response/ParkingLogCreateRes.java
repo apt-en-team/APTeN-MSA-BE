@@ -13,8 +13,8 @@ public class ParkingLogCreateRes {
     // 주차 로그 ID이다.
     private Long parkingLogId;
 
-    // 주차층 ID이다.
-    private Long parkingFloorId;
+    // 주차 구역 ID이다.
+    private Long zoneId;
 
     // 차량 번호이다.
     private String licensePlate;

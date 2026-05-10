@@ -13,8 +13,11 @@ public class ParkingLogListRes {
     // 주차 로그 ID이다.
     private Long parkingLogId;
 
-    // 주차층 이름이다.
-    private String floorName;
+    // 주차장 단위 이름이다.
+    private String areaName;
+
+    // 구역 단위 이름이다. (NULL 가능)
+    private String zoneName;
 
     // 차량 번호이다.
     private String licensePlate;

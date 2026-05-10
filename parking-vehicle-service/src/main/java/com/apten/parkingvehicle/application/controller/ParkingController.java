@@ -5,11 +5,17 @@ import com.apten.common.response.ResultResponse;
 import com.apten.parkingvehicle.application.model.request.ParkingLogCreateReq;
 import com.apten.parkingvehicle.application.model.request.ParkingLogListReq;
 import com.apten.parkingvehicle.application.model.request.ParkingStatisticsReq;
+import com.apten.parkingvehicle.application.model.request.ParkingZoneListReq;
+import com.apten.parkingvehicle.application.model.request.ParkingZonePatchReq;
+import com.apten.parkingvehicle.application.model.request.ParkingZonePostReq;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.ParkingLogCreateRes;
 import com.apten.parkingvehicle.application.model.response.ParkingLogListRes;
 import com.apten.parkingvehicle.application.model.response.ParkingStatisticsRes;
 import com.apten.parkingvehicle.application.model.response.ParkingStatusRes;
+import com.apten.parkingvehicle.application.model.response.ParkingZoneListRes;
+import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
+import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
 import com.apten.parkingvehicle.application.service.ParkingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -59,30 +65,30 @@ public class ParkingController {
         );
     }
 
-    //층별 주차 관리 조회 API-328
-    @GetMapping("/api/admin/parking/floors")
-    public ResultResponse<PageResponse<ParkingFloorListRes>> getParkingFloorList(@ModelAttribute ParkingFloorListReq request) {
-        return ResultResponse.success("층별 주차 현황 조회 성공", parkingService.getParkingFloorList(request));
+    //주차 구역 목록 조회 API-328
+    @GetMapping("/api/admin/parking/zones")
+    public ResultResponse<PageResponse<ParkingZoneListRes>> getParkingZoneList(@ModelAttribute ParkingZoneListReq request) {
+        return ResultResponse.success("주차 구역 목록 조회 성공", parkingService.getParkingZoneList(request));
     }
 
-    //주차층 등록 API-329
-    @PostMapping("/api/admin/parking/floors")
+    //주차 구역 등록 API-329
+    @PostMapping("/api/admin/parking/zones")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse<ParkingFloorPostRes> createParkingFloor(
+    public ResultResponse<ParkingZonePostRes> createParkingZone(
             @RequestParam(required = false) Long complexId,
-            @RequestBody ParkingFloorPostReq request
+            @RequestBody ParkingZonePostReq request
     ) {
-        return ResultResponse.success("주차층 등록 성공", parkingService.createParkingFloor(complexId, request));
+        return ResultResponse.success("주차 구역 등록 성공", parkingService.createParkingZone(complexId, request));
     }
 
-    //주차층 수정 API-330
-    @PatchMapping("/api/admin/parking/floors/{parkingFloorId}")
-    public ResultResponse<ParkingFloorPatchRes> updateParkingFloor(
-            @PathVariable Long parkingFloorId,
+    //주차 구역 수정 API-330
+    @PatchMapping("/api/admin/parking/zones/{zoneId}")
+    public ResultResponse<ParkingZonePatchRes> updateParkingZone(
+            @PathVariable Long zoneId,
             @RequestParam(required = false) Long complexId,
-            @RequestBody ParkingFloorPatchReq request
+            @RequestBody ParkingZonePatchReq request
     ) {
-        return ResultResponse.success("주차층 수정 성공", parkingService.updateParkingFloor(parkingFloorId, complexId, request));
+        return ResultResponse.success("주차 구역 수정 성공", parkingService.updateParkingZone(zoneId, complexId, request));
     }
 
     //주차 통계 조회 API-331
