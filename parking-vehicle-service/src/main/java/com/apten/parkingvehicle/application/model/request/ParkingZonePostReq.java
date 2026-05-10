@@ -5,15 +5,18 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 주차층 등록 요청 DTO이다.
+// 주차 구역 등록 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ParkingFloorPostReq {
+public class ParkingZonePostReq {
 
-    // 층 이름이다.
-    private String floorName;
+    // 주차장 단위 이름이다.
+    private String areaName;
+
+    // 구역 단위 이름이다. (C타입만 사용, NULL 가능)
+    private String zoneName;
 
     // 전체 주차 면수이다.
     private Integer totalSlots;

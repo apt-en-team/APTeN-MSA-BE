@@ -2,16 +2,10 @@ package com.apten.parkingvehicle.application.controller;
 
 import com.apten.common.constants.HeaderConstants;
 import com.apten.common.response.ResultResponse;
-import com.apten.parkingvehicle.application.model.request.ParkingFloorListReq;
-import com.apten.parkingvehicle.application.model.request.ParkingFloorPatchReq;
-import com.apten.parkingvehicle.application.model.request.ParkingFloorPostReq;
 import com.apten.parkingvehicle.application.model.request.ParkingLogCreateReq;
 import com.apten.parkingvehicle.application.model.request.ParkingLogListReq;
 import com.apten.parkingvehicle.application.model.request.ParkingStatisticsReq;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
-import com.apten.parkingvehicle.application.model.response.ParkingFloorListRes;
-import com.apten.parkingvehicle.application.model.response.ParkingFloorPatchRes;
-import com.apten.parkingvehicle.application.model.response.ParkingFloorPostRes;
 import com.apten.parkingvehicle.application.model.response.ParkingLogCreateRes;
 import com.apten.parkingvehicle.application.model.response.ParkingLogListRes;
 import com.apten.parkingvehicle.application.model.response.ParkingStatisticsRes;
