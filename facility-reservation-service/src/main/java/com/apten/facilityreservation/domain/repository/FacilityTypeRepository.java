@@ -17,4 +17,10 @@ public interface FacilityTypeRepository extends JpaRepository<FacilityType, Long
 
     // 동일 타입 코드 존재 여부를 확인한다.
     boolean existsByTypeCode(FacilityTypeCode typeCode);
+
+    // 활성 여부 기준 시설 타입 목록 조회
+    List<FacilityType> findByIsActiveOrderBySortOrderAsc(Boolean isActive);
+
+    // 전체 시설 타입 목록 조회
+    List<FacilityType> findAllByOrderBySortOrderAsc();
 }

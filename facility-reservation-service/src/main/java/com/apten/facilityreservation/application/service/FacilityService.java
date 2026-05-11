@@ -377,10 +377,6 @@ public class FacilityService {
 //    // 시설 타입을 등록한다. 부트스트랩처리
 //    public FacilityTypePostRes createFacilityType(Long complexId, FacilityTypePostReq req) {
 //        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-//        // TODO:
-//        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-//        // 2) typeCode 중복 여부와 공통 분류 정책을 검증한다.
-//        // 3) 시설 타입 저장 및 응답 DTO 변환을 수행한다.
 //        return FacilityTypePostRes.builder()
 //                .facilityTypeId(0L)
 //                .typeCode(req.getTypeCode())
@@ -389,24 +385,34 @@ public class FacilityService {
 //                .build();
 //    }
 
-    // 시설 타입 목록을 조회한다. API-608
+    // 시설 타입 목록 조회
     public List<FacilityTypeListRes> getFacilityTypeList(Long complexId, FacilityTypeListReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) 공통 시설 타입 목록을 isActive 기준으로 조회한다.
-        // 3) 응답 DTO로 변환한다.
-        return List.of();
+        // 시설 접근 검증
+        validateAdminAccess(complexId);
+
+        // 활성 여부 조건 확인
+        Boolean isActive = req == null ? null : req.getIsActive();
+
+        // 시설 타입 목록 조회
+        List<FacilityType> facilityTypes = isActive == null
+                ? facilityTypeRepository.findAllByOrderBySortOrderAsc()
+                : facilityTypeRepository.findByIsActiveOrderBySortOrderAsc(isActive);
+
+        // 시설 타입 응답 변환
+        return facilityTypes.stream()
+                .map(type -> FacilityTypeListRes.builder()
+                        .facilityTypeId(type.getId())
+                        .typeCode(type.getTypeCode())
+                        .typeName(type.getTypeName())
+                        .description(type.getDescription())
+                        .isActive(type.getIsActive())
+                        .build())
+                .toList();
     }
 
 //    // 시설 타입을 수정한다.
 //    public FacilityTypePatchRes updateFacilityType(Long complexId, Long facilityTypeId, FacilityTypePatchReq req) {
 //        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-//        // TODO:
-//        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-//        // 2) 시설 타입 존재 여부를 검증한다.
-//        // 3) typeName, description, isActive 수정 가능 여부를 검증한다.
-//        // 4) Entity 저장 및 응답 DTO 변환을 수행한다.
 //        return FacilityTypePatchRes.builder()
 //                .facilityTypeId(facilityTypeId)
 //                .typeName(req.getTypeName())
