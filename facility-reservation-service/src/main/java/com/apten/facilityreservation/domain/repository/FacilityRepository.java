@@ -3,17 +3,42 @@ package com.apten.facilityreservation.domain.repository;
 import com.apten.facilityreservation.domain.entity.Facility;
 import java.util.List;
 import java.util.Optional;
+
+import com.apten.facilityreservation.domain.enums.ReservationType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 // 시설 저장소이다.
 public interface FacilityRepository extends JpaRepository<Facility, Long> {
 
     // 단지 기준 활성 시설 목록을 조회한다.
-    List<Facility> findByComplexIdAndIsDeletedFalse(Long complexId);
+    java.util.List<Facility> findByComplexIdAndIsDeletedFalse(Long complexId);
 
     // 단지 기준 삭제되지 않은 시설을 상세 조회한다.
     Optional<Facility> findByIdAndComplexIdAndIsDeletedFalse(Long id, Long complexId);
 
     // 삭제되지 않은 시설을 조회한다.
     Optional<Facility> findByIdAndIsDeletedFalse(Long id);
+
+    // 관리자 시설 목록을 필터 조건과 함께 페이지 조회한다.
+    @Query("""
+            SELECT f
+            FROM Facility f
+            WHERE f.complexId = :complexId
+              AND f.isDeleted = false
+              AND (:typeId IS NULL OR f.typeId = :typeId)
+              AND (:reservationType IS NULL OR f.reservationType = :reservationType)
+              AND (:isActive IS NULL OR f.isActive = :isActive)
+            ORDER BY f.createdAt DESC
+            """)
+    Page<Facility> findAdminFacilities(
+            @Param("complexId") Long complexId,
+            @Param("typeId") Long typeId,
+            @Param("reservationType") ReservationType reservationType,
+            @Param("isActive") Boolean isActive,
+            Pageable pageable
+    );
 }

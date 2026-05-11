@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 // 일반 예약 저장소이다.
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
+    // 시설 기준 예약 존재 여부 조회
+    boolean existsByFacilityId(Long facilityId);
+
     // 같은 시간대 예약 존재 여부를 확인한다.
     boolean existsByUserIdAndFacilityIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
             Long userId,
@@ -35,6 +38,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     // 시설별 예약 목록을 조회한다.
     List<Reservation> findByFacilityId(Long facilityId);
+
+    // 시설의 미래 확정 예약 존재 여부를 확인한다.
+    boolean existsByFacilityIdAndReservationDateGreaterThanEqualAndStatus(
+            Long facilityId,
+            java.time.LocalDate reservationDate,
+            ReservationStatus status
+    );
 
     // 상태 기준 예약 목록을 조회한다.
     List<Reservation> findByStatus(ReservationStatus status);

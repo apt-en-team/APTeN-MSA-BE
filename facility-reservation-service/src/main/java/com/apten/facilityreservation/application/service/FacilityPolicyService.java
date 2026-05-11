@@ -17,7 +17,7 @@ public class FacilityPolicyService {
 
     private final FeatureAccessService featureAccessService;
 
-    // 시설 예약 정책을 저장한다.
+    // 시설 예약 정책을 저장한다. API-610
     public FacilityPolicyPutRes updateFacilityPolicy(Long complexId, FacilityPolicyPutReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
         // TODO:
@@ -37,7 +37,7 @@ public class FacilityPolicyService {
                 .build();
     }
 
-    // 시설 예약 정책 목록을 조회한다.
+    // 시설 예약 정책 목록을 조회한다. API-611
     public List<FacilityPolicyListRes> getFacilityPolicyList(Long complexId, FacilityPolicyListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
         // TODO:
