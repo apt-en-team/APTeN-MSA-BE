@@ -17,6 +17,15 @@ import com.apten.parkingvehicle.application.model.response.ParkingStatusRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZoneListRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
+import com.apten.parkingvehicle.application.model.response.ResidentParkingStatusRes;
+import com.apten.parkingvehicle.domain.entity.ParkingSetting;
+import com.apten.parkingvehicle.domain.enums.ParkingType;
+import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
+import com.apten.parkingvehicle.domain.repository.ParkingSettingRepository;
+import java.math.RoundingMode;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import com.apten.parkingvehicle.domain.entity.ParkingLog;
 import com.apten.parkingvehicle.domain.entity.ParkingZone;
 import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
@@ -25,11 +34,7 @@ import com.apten.parkingvehicle.domain.entity.VisitorVehicle;
 import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
 import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import com.apten.parkingvehicle.domain.enums.VisitorVehicleStatus;
-import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
-import com.apten.parkingvehicle.domain.repository.ParkingZoneRepository;
-import com.apten.parkingvehicle.domain.repository.RegularVisitorVehicleRepository;
-import com.apten.parkingvehicle.domain.repository.VehicleRepository;
-import com.apten.parkingvehicle.domain.repository.VisitorVehicleRepository;
+import com.apten.parkingvehicle.domain.repository.*;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -61,6 +66,9 @@ public class ParkingService {
 
     // 고정 방문차량 저장소 (입차 시 3단계 차종 매칭에 사용)
     private final RegularVisitorVehicleRepository regularVisitorVehicleRepository;
+
+    // 단지 주차 운영 타입 확인용 설정 저장소이다.
+    private final ParkingSettingRepository parkingSettingRepository;
 
     // 입출차 기록을 조회한다.
     public PageResponse<ParkingLogListRes> getParkingLogList(
@@ -350,7 +358,8 @@ public class ParkingService {
                 .build();
     }
 
-    // 주차 구역을 삭제한다 (소프트 삭제, isActive = false 처리).
+    // 주차 구역을 운영 중단 처리한다 (is_active = false).
+    // 입출차 로그 보존을 위해 데이터는 유지하며, 운영 중단 zone은 통계 외 화면에서 제외된다.
     @Transactional
     public void deleteParkingZone(
             Long zoneId,
@@ -396,6 +405,115 @@ public class ParkingService {
                 .outCount(List.of())
                 .averageOccupancyRate(BigDecimal.ZERO)
                 .build();
+    }
+
+    // 입주민 주차 현황을 조회한다.
+    // 단지 주차 운영 타입이 NONE이면 차단하고, BASIC/SENSOR는 활성 구역 기준으로 집계해서 반환한다.
+    @Transactional(readOnly = true)
+    public ResidentParkingStatusRes getResidentParkingStatus(String userRole, Long complexId) {
+        // 입주민 컨텍스트 해석 (X-COMPLEX-ID 헤더 기반)
+        Long targetComplexId = resolveResidentContextComplexId(userRole, complexId);
+        featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
+
+        // 단지 주차 운영 타입 조회 (NONE이면 차단)
+        ParkingSetting setting = parkingSettingRepository.findByComplexId(targetComplexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
+        ParkingType parkingType = setting.getParkingType();
+        if (parkingType == ParkingType.NONE) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NONE);
+        }
+
+        // 활성 구역만 조회 (비활성 구역은 응답에서 제외)
+        List<ParkingZone> activeZones = parkingZoneRepository.findByComplexIdAndIsActiveTrue(targetComplexId);
+
+        // 활성 구역이 없으면 빈 응답으로 즉시 반환
+        if (activeZones.isEmpty()) {
+            return ResidentParkingStatusRes.builder()
+                    .parkingTypeCode(parkingType.getCode())
+                    .parkingTypeValue(parkingType.getValue())
+                    .totalSlots(0)
+                    .currentParkedCount(0)
+                    .remainingSlots(0)
+                    .occupancyRate(BigDecimal.ZERO)
+                    .zones(Collections.emptyList())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }
+
+        // 활성 구역 ID 목록 추출 (NOT EXISTS 집계 쿼리 파라미터로 사용)
+        List<Long> zoneIds = activeZones.stream()
+                .map(ParkingZone::getId)
+                .toList();
+
+        // 구역별 현재 입차 차량 수 집계 (NOT EXISTS 서브쿼리)
+        // 결과를 zoneId → count 맵으로 변환해서 zone별 매칭에 사용한다.
+        List<Object[]> rawCounts = parkingLogRepository.countCurrentParkedByZone(targetComplexId, zoneIds);
+        Map<Long, Integer> parkedCountByZone = new HashMap<>();
+        for (Object[] row : rawCounts) {
+            Long zoneId = (Long) row[0];
+            Integer count = ((Number) row[1]).intValue();
+            parkedCountByZone.put(zoneId, count);
+        }
+
+        // 구역별 응답 항목 생성 + 전체 집계 누적
+        int totalSlots = 0;
+        int totalParked = 0;
+        List<ResidentParkingStatusRes.ZoneStatus> zoneStatuses = new java.util.ArrayList<>();
+        for (ParkingZone zone : activeZones) {
+            int zoneTotal = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
+            int zoneParked = parkedCountByZone.getOrDefault(zone.getId(), 0);
+            // 잔여 면수가 음수가 되지 않도록 0으로 하한 처리 (입차 수가 면수를 초과하는 비정상 케이스 방어)
+            int zoneRemaining = Math.max(zoneTotal - zoneParked, 0);
+
+            zoneStatuses.add(ResidentParkingStatusRes.ZoneStatus.builder()
+                    .zoneId(zone.getId())
+                    .areaName(zone.getAreaName())
+                    .zoneName(zone.getZoneName())
+                    .totalSlots(zoneTotal)
+                    .currentParkedCount(zoneParked)
+                    .remainingSlots(zoneRemaining)
+                    .build());
+
+            totalSlots += zoneTotal;
+            totalParked += zoneParked;
+        }
+
+        // 단지 전체 잔여 면수와 점유율 계산
+        int totalRemaining = Math.max(totalSlots - totalParked, 0);
+        BigDecimal occupancyRate = totalSlots == 0
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(totalParked)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(totalSlots), 2, RoundingMode.HALF_UP);
+
+        return ResidentParkingStatusRes.builder()
+                .parkingTypeCode(parkingType.getCode())
+                .parkingTypeValue(parkingType.getValue())
+                .totalSlots(totalSlots)
+                .currentParkedCount(totalParked)
+                .remainingSlots(totalRemaining)
+                .occupancyRate(occupancyRate)
+                .zones(zoneStatuses)
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 입주민 주차 API의 단지 컨텍스트를 헤더 기준으로 해석한다.
+    // 입주민은 본인 소속 단지 하나만 존재하므로 X-COMPLEX-ID만 검증한다.
+    private Long resolveResidentContextComplexId(String userRole, Long complexId) {
+        if (userRole == null || userRole.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (!"USER".equals(userRole)) {
+            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        }
+
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        return complexId;
     }
 
     // 관리자 주차 API의 단지 컨텍스트를 역할별 헤더 기준으로 해석한다.

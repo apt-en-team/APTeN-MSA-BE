@@ -8,14 +8,7 @@ import com.apten.parkingvehicle.application.model.request.ParkingStatisticsReq;
 import com.apten.parkingvehicle.application.model.request.ParkingZoneListReq;
 import com.apten.parkingvehicle.application.model.request.ParkingZonePatchReq;
 import com.apten.parkingvehicle.application.model.request.ParkingZonePostReq;
-import com.apten.parkingvehicle.application.model.response.PageResponse;
-import com.apten.parkingvehicle.application.model.response.ParkingLogCreateRes;
-import com.apten.parkingvehicle.application.model.response.ParkingLogListRes;
-import com.apten.parkingvehicle.application.model.response.ParkingStatisticsRes;
-import com.apten.parkingvehicle.application.model.response.ParkingStatusRes;
-import com.apten.parkingvehicle.application.model.response.ParkingZoneListRes;
-import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
-import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
+import com.apten.parkingvehicle.application.model.response.*;
 import com.apten.parkingvehicle.application.service.ParkingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -148,6 +141,18 @@ public class ParkingController {
         return ResultResponse.success(
                 "입출차 등록 성공",
                 parkingService.createParkingLog(request, userRole, complexId, selectedComplexId)
+        );
+    }
+
+    //입주민 주차 현황 조회
+    @GetMapping("/api/parking/status")
+    public ResultResponse<ResidentParkingStatusRes> getResidentParkingStatus(
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId
+    ) {
+        return ResultResponse.success(
+                "주차 현황 조회 성공",
+                parkingService.getResidentParkingStatus(userRole, complexId)
         );
     }
 }
