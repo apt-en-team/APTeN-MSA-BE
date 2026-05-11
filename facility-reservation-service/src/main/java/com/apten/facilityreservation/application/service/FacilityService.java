@@ -49,6 +49,7 @@ import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -476,14 +477,46 @@ public class FacilityService {
                 .build();
     }
 
-    // 시설 차단 시간 목록을 조회한다. API-613 여기까지
-    public List<FacilityBlockTimeListRes> getFacilityBlockTimeList(Long complexId, Long facilityId, FacilityBlockTimeListReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) fromDate, toDate, isActive 기준 차단 시간 목록을 조회한다.
-        return List.of();
+    // 시설 차단 시간 목록 조회
+    public List<FacilityBlockTimeListRes> getFacilityBlockTimeList(
+            Long complexId,
+            Long facilityId,
+            FacilityBlockTimeListReq req
+    ) {
+        // 시설 접근 검증
+        validateAdminAccess(complexId);
+
+        // 시설 소속 검증
+        Facility facility = getFacility(complexId, facilityId);
+
+        // 조회 기간 검증
+        if (req != null && req.getFromDate() != null && req.getToDate() != null
+                && req.getFromDate().isAfter(req.getToDate())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 조회 조건 정리
+        LocalDate fromDate = req == null ? null : req.getFromDate();
+        LocalDate toDate = req == null ? null : req.getToDate();
+        Boolean isActive = req == null ? null : req.getIsActive();
+
+        // 차단 시간 목록 조회 및 응답 변환
+        return facilityBlockTimeRepository.findBlockTimes(
+                        facility.getId(),
+                        fromDate,
+                        toDate,
+                        isActive
+                )
+                .stream()
+                .map(blockTime -> FacilityBlockTimeListRes.builder()
+                        .facilityBlockTimeId(blockTime.getId())
+                        .blockDate(blockTime.getBlockDate())
+                        .startTime(blockTime.getStartTime())
+                        .endTime(blockTime.getEndTime())
+                        .reason(blockTime.getReason())
+                        .isActive(blockTime.getIsActive())
+                        .build())
+                .toList();
     }
 
     // 시설 좌석을 등록한다. API-614
