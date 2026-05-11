@@ -17,8 +17,19 @@ import com.apten.parkingvehicle.application.model.response.ParkingStatusRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZoneListRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
+import com.apten.parkingvehicle.domain.entity.ParkingLog;
 import com.apten.parkingvehicle.domain.entity.ParkingZone;
+import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
+import com.apten.parkingvehicle.domain.entity.Vehicle;
+import com.apten.parkingvehicle.domain.entity.VisitorVehicle;
+import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
+import com.apten.parkingvehicle.domain.enums.VehicleStatus;
+import com.apten.parkingvehicle.domain.enums.VisitorVehicleStatus;
+import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
 import com.apten.parkingvehicle.domain.repository.ParkingZoneRepository;
+import com.apten.parkingvehicle.domain.repository.RegularVisitorVehicleRepository;
+import com.apten.parkingvehicle.domain.repository.VehicleRepository;
+import com.apten.parkingvehicle.domain.repository.VisitorVehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -33,8 +44,23 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ParkingService {
 
+    // 단지별 기능 활성 여부를 검증하는 서비스
     private final FeatureAccessService featureAccessService;
+
+    // 주차 구역 원본 테이블 저장소
     private final ParkingZoneRepository parkingZoneRepository;
+
+    // 입출차 로그 저장소 (직전 IN/OUT 조회, 신규 로그 저장에 사용)
+    private final ParkingLogRepository parkingLogRepository;
+
+    // 입주민 차량 저장소 (입차 시 1단계 차종 매칭에 사용)
+    private final VehicleRepository vehicleRepository;
+
+    // 방문차량 저장소 (입차 시 2단계 차종 매칭에 사용)
+    private final VisitorVehicleRepository visitorVehicleRepository;
+
+    // 고정 방문차량 저장소 (입차 시 3단계 차종 매칭에 사용)
+    private final RegularVisitorVehicleRepository regularVisitorVehicleRepository;
 
     // 입출차 기록을 조회한다.
     public PageResponse<ParkingLogListRes> getParkingLogList(
@@ -53,26 +79,128 @@ public class ParkingService {
     }
 
     // 입출차 로그를 등록한다.
+    @Transactional
     public ParkingLogCreateRes createParkingLog(
             ParkingLogCreateReq request,
             String userRole,
             Long complexId,
             Long selectedComplexId
     ) {
+        // 단지 컨텍스트 해석 + 기능 활성 여부 검증
         Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
         featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
-        // TODO: 입출차 등록 시 parkingZone의 complexId와 관리자 단지 컨텍스트 일치 여부를 검증한다.
-        //TODO 주차 구역 활성 상태 확인
-        //TODO 차량번호로 입주민 차량/방문차량/고정 방문차량 매칭
-        //TODO 동일 차량 중복 IN/OUT 여부 확인
-        //TODO parking_log 저장
-        //TODO 방문차량 OUT인 경우 이용시간 집계 대상 표시 또는 월집계 TODO 연결
-        return ParkingLogCreateRes.builder()
-                .parkingLogId(null)
-                .zoneId(request.getZoneId())
-                .licensePlate(request.getLicensePlate())
+
+        // 필수값 검증 (zoneId / licensePlate / entryType)
+        if (request.getZoneId() == null
+                || request.getLicensePlate() == null || request.getLicensePlate().isBlank()
+                || request.getEntryType() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 기록 시각이 비어 있으면 서버 현재 시각으로 처리 (자동 게이트 등 시각 미전달 케이스 대응)
+        LocalDateTime loggedAt = request.getLoggedAt() != null ? request.getLoggedAt() : LocalDateTime.now();
+        String licensePlate = request.getLicensePlate().trim();
+
+        // 주차 구역 검증: 단지 일치 + 활성 상태
+        ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(request.getZoneId(), targetComplexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
+        if (!Boolean.TRUE.equals(zone.getIsActive())) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_INACTIVE);
+        }
+
+        // 직전 로그 조회 (단지 + 차량번호 기준 최신 1건)
+        // IN 요청: 중복 IN 차단용 / OUT 요청: 매칭 검증 + 차종 ID 복사용
+        ParkingLog lastLog = parkingLogRepository
+                .findTopByComplexIdAndLicensePlateOrderByLoggedAtDesc(targetComplexId, licensePlate)
+                .orElse(null);
+
+        // 저장할 매칭 ID들 (미매칭은 모두 null로 남김)
+        Long matchedVehicleId = null;
+        Long matchedVisitorVehicleId = null;
+        Long matchedRegularVisitorVehicleId = null;
+        Long matchedHouseholdId = null;
+
+        if (request.getEntryType() == ParkingEntryType.IN) {
+            // 직전이 IN이면 중복 입차 차단
+            if (lastLog != null && lastLog.getEntryType() == ParkingEntryType.IN) {
+                throw new BusinessException(ParkingVehicleErrorCode.DUPLICATE_IN_ENTRY);
+            }
+
+            // 4단계 차종 자동 판별: vehicle → visitor_vehicle → regular_visitor_vehicle → 미등록
+            Vehicle vehicle = vehicleRepository
+                    .findByComplexIdAndLicensePlateAndStatusAndIsDeletedFalse(
+                            targetComplexId, licensePlate, VehicleStatus.APPROVED)
+                    .orElse(null);
+
+            if (vehicle != null) {
+                // 1단계: 입주민 차량 매칭
+                matchedVehicleId = vehicle.getId();
+                matchedHouseholdId = vehicle.getHouseholdId();
+            } else {
+                // 2단계: 방문차량 매칭 (방문 예정일이 입차일과 정확히 일치하는 건만)
+                VisitorVehicle visitor = visitorVehicleRepository
+                        .findTopByComplexIdAndLicensePlateAndVisitDateAndStatusAndIsDeletedFalseOrderByIdDesc(
+                                targetComplexId, licensePlate, loggedAt.toLocalDate(), VisitorVehicleStatus.APPROVED)
+                        .orElse(null);
+
+                if (visitor != null) {
+                    matchedVisitorVehicleId = visitor.getId();
+                    matchedHouseholdId = visitor.getHouseholdId();
+                } else {
+                    // 3단계: 고정 방문차량 매칭 (시작일 ≤ 입차일 ≤ 종료일 범위 내, 종료일 null 허용)
+                    RegularVisitorVehicle regular = regularVisitorVehicleRepository
+                            .findActiveByComplexAndPlateAndDate(
+                                    targetComplexId, licensePlate, loggedAt.toLocalDate())
+                            .orElse(null);
+
+                    if (regular != null) {
+                        matchedRegularVisitorVehicleId = regular.getId();
+                        matchedHouseholdId = regular.getHouseholdId();
+                    }
+                    // 4단계: 미등록 차량은 모든 매칭 ID가 null인 채로 기록만 남긴다.
+                    // 외부 차량도 잔여 면수 계산에 반영해야 하므로 IN/OUT 자체는 허용한다 (NFR-017).
+                }
+            }
+        } else {
+            // OUT 처리
+            // 직전 로그가 아예 없으면 입차 기록 없는 출차 시도
+            if (lastLog == null) {
+                throw new BusinessException(ParkingVehicleErrorCode.NO_IN_ENTRY_FOR_OUT);
+            }
+            // 직전이 OUT이면 중복 출차 시도
+            if (lastLog.getEntryType() == ParkingEntryType.OUT) {
+                throw new BusinessException(ParkingVehicleErrorCode.DUPLICATE_OUT_ENTRY);
+            }
+
+            // OUT은 4단계 재판별을 안 하고 직전 IN의 매칭 정보를 그대로 복사한다.
+            // 자정을 넘기거나 방문차량이 EXPIRED로 바뀌어도 IN/OUT이 같은 visit 단위로 묶이게 하기 위함이다.
+            matchedVehicleId = lastLog.getVehicleId();
+            matchedVisitorVehicleId = lastLog.getVisitorVehicleId();
+            matchedRegularVisitorVehicleId = lastLog.getRegularVisitorVehicleId();
+            matchedHouseholdId = lastLog.getHouseholdId();
+        }
+
+        // parking_log 저장
+        ParkingLog log = ParkingLog.builder()
+                .complexId(targetComplexId)
+                .zoneId(zone.getId())
+                .vehicleId(matchedVehicleId)
+                .visitorVehicleId(matchedVisitorVehicleId)
+                .regularVisitorVehicleId(matchedRegularVisitorVehicleId)
+                .householdId(matchedHouseholdId)
+                .licensePlate(licensePlate)
                 .entryType(request.getEntryType())
-                .loggedAt(request.getLoggedAt())
+                .loggedAt(loggedAt)
+                .memo(request.getMemo())
+                .build();
+        ParkingLog saved = parkingLogRepository.save(log);
+
+        return ParkingLogCreateRes.builder()
+                .parkingLogId(saved.getId())
+                .zoneId(saved.getZoneId())
+                .licensePlate(saved.getLicensePlate())
+                .entryType(saved.getEntryType())
+                .loggedAt(saved.getLoggedAt())
                 .build();
     }
 
