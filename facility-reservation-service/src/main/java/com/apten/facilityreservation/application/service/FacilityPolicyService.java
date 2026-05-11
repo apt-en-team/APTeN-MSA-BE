@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Optional;
 
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
+import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
+import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
+import com.apten.facilityreservation.domain.repository.ComplexCacheRepository;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityTypeRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
@@ -29,6 +32,15 @@ public class FacilityPolicyService {
     private final FeatureAccessService featureAccessService;
     private final FacilityTypeRepository facilityTypeRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final ComplexCacheRepository complexCacheRepository;
+
+    // 시설 관리자 접근 검증
+    private void validateAdminAccess(Long complexId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        complexCacheRepository.findByIdAndStatus(complexId, ComplexCacheStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.COMPLEX_NOT_FOUND));
+    }
 
     // 시설 정책 요청 검증
     private void validatePolicyReq(FacilityPolicyPutReq req) {
@@ -53,7 +65,7 @@ public class FacilityPolicyService {
     @Transactional
     public FacilityPolicyPutRes updateFacilityPolicy(Long complexId, FacilityPolicyPutReq req) {
         // 시설 접근 검증
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+        validateAdminAccess(complexId);
 
         // 정책 요청 검증
         validatePolicyReq(req);
@@ -101,13 +113,27 @@ public class FacilityPolicyService {
                 .build();
     }
 
-    // 시설 예약 정책 목록을 조회한다. API-611
+    // 시설 예약 정책 목록 조회
     public List<FacilityPolicyListRes> getFacilityPolicyList(Long complexId, FacilityPolicyListReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) complexId와 facilityTypeCode 기준 정책 목록을 조회한다.
-        // 3) 응답 DTO로 변환한다.
-        return List.of();
+        // 시설 접근 검증
+        validateAdminAccess(complexId);
+
+        // 시설 타입 조건 정리
+        FacilityTypeCode facilityTypeCode = req == null ? null : req.getFacilityTypeCode();
+
+        // 시설 정책 목록 조회 및 응답 변환
+        return facilityPolicyRepository.findPolicies(complexId, facilityTypeCode)
+                .stream()
+                .map(policy -> FacilityPolicyListRes.builder()
+                        .facilityPolicyId(policy.getId())
+                        .facilityTypeCode(policy.getFacilityTypeCode())
+                        .baseFee(policy.getBaseFee())
+                        .slotMin(policy.getSlotMin())
+                        .cancelDeadlineHours(policy.getCancelDeadlineHours())
+                        .gxWaitingEnabled(policy.getGxWaitingEnabled())
+                        .isActive(policy.getIsActive())
+                        .updatedAt(policy.getUpdatedAt())
+                        .build())
+                .toList();
     }
 }
