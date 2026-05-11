@@ -39,6 +39,7 @@ import com.apten.facilityreservation.application.model.response.ResidentFacility
 import com.apten.facilityreservation.application.model.response.ResidentFacilityListRes;
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
 import com.apten.facilityreservation.domain.entity.Facility;
+import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
@@ -58,7 +59,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 시설과 시설 타입, 좌석, 차단 시간 관련 API 시그니처를 관리하는 서비스이다.
+// 시설과 시설 타입, 좌석, 차단 시간 관련 API
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -71,6 +72,8 @@ public class FacilityService {
     private final ReservationRepository reservationRepository;
     private final ComplexCacheRepository complexCacheRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final FacilityBlockTimeRepository facilityBlockTimeRepository;
+
 
     // 시설 관리자 접근 검증
     private void validateAdminAccess(Long complexId) {
@@ -147,6 +150,24 @@ public class FacilityService {
         if ((reservationType == ReservationType.COUNT || reservationType == ReservationType.APPROVAL)
                 && (maxCount == null || maxCount <= 0)) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
+        }
+    }
+
+    // 시설 차단 시간 요청 검증
+    private void validateBlockTimeReq(FacilityBlockTimePostReq req) {
+        if (req == null || req.getBlockDate() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        boolean hasStartTime = req.getStartTime() != null;
+        boolean hasEndTime = req.getEndTime() != null;
+
+        if (hasStartTime != hasEndTime) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (hasStartTime && !req.getStartTime().isBefore(req.getEndTime())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
@@ -354,7 +375,6 @@ public class FacilityService {
                 .build();
     }
 
-    // 관리자 시설 활성 상태를 변경한다. API-606
     // 관리자 시설 활성 상태 변경
     @Transactional
     public FacilityActivePatchRes changeFacilityActive(Long complexId, Long facilityId, FacilityActivePatchReq req) {
@@ -421,23 +441,38 @@ public class FacilityService {
 //                .build();
 //    }
 
-    // 시설 차단 시간을 등록한다.API-612
+    // 시설 차단 시간 등록
+    @Transactional
     public FacilityBlockTimePostRes createFacilityBlockTime(Long complexId, Long facilityId, FacilityBlockTimePostReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) blockDate, startTime, endTime의 유효성을 검증한다.
-        // 4) 하루 전체 차단과 부분 차단 정책을 구분해 저장한다.
-        return FacilityBlockTimePostRes.builder()
-                .facilityBlockTimeId(0L)
-                .facilityId(facilityId)
+        // 시설 접근 검증
+        validateAdminAccess(complexId);
+
+        // 시설 소속 검증
+        Facility facility = getFacility(complexId, facilityId);
+
+        // 차단 시간 요청 검증
+        validateBlockTimeReq(req);
+
+        // 차단 시간 저장
+        FacilityBlockTime blockTime = facilityBlockTimeRepository.save(FacilityBlockTime.builder()
+                .facilityId(facility.getId())
                 .blockDate(req.getBlockDate())
                 .startTime(req.getStartTime())
                 .endTime(req.getEndTime())
                 .reason(req.getReason())
                 .isActive(true)
-                .createdAt(LocalDateTime.now())
+                .build());
+
+        // 차단 시간 등록 응답
+        return FacilityBlockTimePostRes.builder()
+                .facilityBlockTimeId(blockTime.getId())
+                .facilityId(blockTime.getFacilityId())
+                .blockDate(blockTime.getBlockDate())
+                .startTime(blockTime.getStartTime())
+                .endTime(blockTime.getEndTime())
+                .reason(blockTime.getReason())
+                .isActive(blockTime.getIsActive())
+                .createdAt(blockTime.getCreatedAt())
                 .build();
     }
 
