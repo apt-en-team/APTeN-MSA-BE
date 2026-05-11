@@ -53,6 +53,11 @@ spring:
           predicates:
             - Path=/parking-vehicles/**
 
+        - id: facility-reservation-service-admin
+          uri: http://localhost:${FACILITY_SERVER_PORT}
+          predicates:
+            - Path=/api/admin/facilities,/api/admin/facilities/**,/api/admin/facility-types,/api/admin/facility-types/**,/api/admin/facility-policies,/api/admin/facility-policies/**
+
         - id: facility-reservation-service
           uri: http://localhost:${FACILITY_SERVER_PORT}
           predicates:
