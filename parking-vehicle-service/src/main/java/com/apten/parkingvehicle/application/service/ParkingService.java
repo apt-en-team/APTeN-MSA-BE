@@ -212,19 +212,68 @@ public class ParkingService {
                 .build();
     }
 
-    // 주차 현황을 조회한다.
+    // 관리자 주차 현황을 조회한다.
+    // 단지 주차 운영 타입이 NONE이면 차단하고, BASIC/SENSOR는 활성 구역 기준으로 집계해서 반환한다.
+    @Transactional(readOnly = true)
     public ParkingStatusRes getParkingStatus(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
         Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
         // 기능이 꺼진 단지는 주차 현황 조회 API 접근을 차단한다.
         featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
-        //TODO 관리자 소속 단지 또는 요청 단지 확인
-        //TODO 전체 주차 면수와 현재 주차 대수 계산
-        //TODO 점유율과 잔여 면수 계산
+
+        // 단지 주차 운영 타입 조회 (NONE이면 차단)
+        ParkingSetting setting = parkingSettingRepository.findByComplexId(targetComplexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
+        if (setting.getParkingType() == ParkingType.NONE) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NONE);
+        }
+
+        // 활성 구역만 조회
+        List<ParkingZone> activeZones = parkingZoneRepository.findByComplexIdAndIsActiveTrue(targetComplexId);
+
+        // 활성 구역이 없으면 빈 응답으로 즉시 반환
+        if (activeZones.isEmpty()) {
+            return ParkingStatusRes.builder()
+                    .totalSlots(0)
+                    .currentParkedCount(0)
+                    .remainingSlots(0)
+                    .occupancyRate(BigDecimal.ZERO)
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }
+
+        // 활성 구역 ID 목록 추출 (NOT EXISTS 집계 쿼리 파라미터로 사용)
+        List<Long> zoneIds = activeZones.stream()
+                .map(ParkingZone::getId)
+                .toList();
+
+        // 구역별 현재 입차 차량 수 집계 후 단지 전체 합계 계산
+        List<Object[]> rawCounts = parkingLogRepository.countCurrentParkedByZone(targetComplexId, zoneIds);
+        int totalParked = 0;
+        for (Object[] row : rawCounts) {
+            totalParked += ((Number) row[1]).intValue();
+        }
+
+        // 활성 구역의 전체 주차 면수 합산
+        int totalSlots = activeZones.stream()
+                .mapToInt(z -> z.getTotalSlots() != null ? z.getTotalSlots() : 0)
+                .sum();
+
+        // 잔여 면수가 음수가 되지 않도록 0으로 하한 처리
+        int totalRemaining = Math.max(totalSlots - totalParked, 0);
+
+        // 점유율 계산
+        BigDecimal occupancyRate = totalSlots == 0
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(totalParked)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(totalSlots), 2, RoundingMode.HALF_UP);
+
         return ParkingStatusRes.builder()
-                .totalSlots(0)
-                .currentParkedCount(0)
-                .remainingSlots(0)
-                .occupancyRate(BigDecimal.ZERO)
+                .totalSlots(totalSlots)
+                .currentParkedCount(totalParked)
+                .remainingSlots(totalRemaining)
+                .occupancyRate(occupancyRate)
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
