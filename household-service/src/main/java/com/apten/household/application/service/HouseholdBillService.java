@@ -8,12 +8,17 @@ import com.apten.household.application.model.request.VisitorFeeReflectReq;
 import com.apten.household.application.model.response.AdminHouseholdBillDetailRes;
 import com.apten.household.application.model.response.AdminHouseholdBillListRes;
 import com.apten.household.application.model.response.BillConfirmRes;
+import com.apten.household.application.model.response.BillUnconfirmRes;
 import com.apten.household.application.model.response.FacilityFeeReflectRes;
 import com.apten.household.application.model.response.MyBillListRes;
 import com.apten.household.application.model.response.VehicleFeeReflectRes;
 import com.apten.household.application.model.response.VisitorFeeReflectRes;
+import com.apten.household.domain.entity.HouseholdBill;
 import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
+import com.apten.household.domain.repository.HouseholdBillRepository;
+import com.apten.household.exception.HouseholdErrorCode;
+import com.apten.common.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +29,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class HouseholdBillService {
+
+    // 세대 월 청구 저장소이다.
+    private final HouseholdBillRepository householdBillRepository;
 
     // 차량 비용 반영 서비스이다.
     public VehicleFeeReflectRes reflectVehicleFee(VehicleFeeReflectReq request) {
@@ -92,6 +100,29 @@ public class HouseholdBillService {
                 .billId(billId)
                 .status(HouseholdBillStatus.CONFIRMED)
                 .confirmedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 월별 비용 확정 취소 서비스이다 (FR-426)
+    public BillUnconfirmRes unconfirmBill(Long complexId, Long billId) {
+        // billId가 현재 complexId 소속 청구인지 검증한다.
+        HouseholdBill bill = householdBillRepository.findById(billId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND));
+        if (!bill.getComplexId().equals(complexId)) {
+            throw new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND);
+        }
+        // CONFIRMED 상태인지 확인한다.
+        if (bill.getStatus() != HouseholdBillStatus.CONFIRMED) {
+            throw new BusinessException(HouseholdErrorCode.BILL_NOT_CONFIRMED);
+        }
+        // DRAFT로 롤백하고 confirmedAt을 초기화한다.
+        bill.unconfirm();
+        householdBillRepository.save(bill);
+
+        return BillUnconfirmRes.builder()
+                .billId(bill.getId())
+                .status(bill.getStatus())
+                .updatedAt(LocalDateTime.now())
                 .build();
     }
 

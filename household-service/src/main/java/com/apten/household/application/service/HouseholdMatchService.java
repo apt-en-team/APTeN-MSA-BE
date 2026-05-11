@@ -1,6 +1,8 @@
 package com.apten.household.application.service;
 
-import com.apten.household.application.model.request.HouseholdMatchListReq;
+import com.apten.common.exception.BusinessException;
+import com.apten.household.domain.repository.HouseholdMemberRepository;
+import com.apten.household.exception.HouseholdErrorCode;
 import com.apten.household.application.model.request.HouseholdMatchPostReq;
 import com.apten.household.application.model.request.HouseholdMatchRejectReq;
 import com.apten.household.application.model.response.HouseholdMatchApproveRes;
@@ -20,8 +22,16 @@ public class HouseholdMatchService {
     // Outbox 적재 전용 서비스이다.
     private final com.apten.household.infrastructure.kafka.HouseholdOutboxService householdOutboxService;
 
+    // 세대원 저장소이다.
+    private final HouseholdMemberRepository householdMemberRepository;
+
     // 세대 매칭 요청 생성 서비스이다.
     public HouseholdMatchPostRes createMatchRequest(HouseholdMatchPostReq request) {
+        // FR-428 이미 세대에 활성 상태로 등록된 사용자의 중복 매칭 요청을 차단한다.
+        if (householdMemberRepository.existsByUserIdAndHousehold_ComplexIdAndIsActiveTrue(
+                request.getUserId(), request.getComplexId())) {
+            throw new BusinessException(HouseholdErrorCode.ALREADY_HOUSEHOLD_MEMBER);
+        }
         //TODO 입력 이름, 전화번호, 생년월일 존재 여부 확인
         //TODO complex_cache에서 단지 존재 여부 확인
         //TODO household와 user_cache 매칭 시도

@@ -116,4 +116,10 @@ public class HouseholdBill extends BaseEntity {
         this.status = HouseholdBillStatus.CONFIRMED;
         this.confirmedAt = confirmedAt;
     }
+
+    // 청구 확정을 취소하고 임시 계산 상태로 되돌린다 (FR-426)
+    public void unconfirm() {
+        this.status = HouseholdBillStatus.DRAFT;
+        this.confirmedAt = null;
+    }
 }
