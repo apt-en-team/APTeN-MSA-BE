@@ -18,4 +18,8 @@ public interface VisitorVehicleRepository extends JpaRepository<VisitorVehicle, 
 
     // 만료 대상 방문차량을 조회한다.
     List<VisitorVehicle> findByVisitDateBeforeAndStatusAndIsDeletedFalse(LocalDate visitDate, VisitorVehicleStatus status);
+
+    // 단지와 차량번호, 방문 예정일 기준 활성 방문차량 중 가장 최근 1건을 조회한다 (입차 시 매칭용).
+    Optional<VisitorVehicle> findTopByComplexIdAndLicensePlateAndVisitDateAndStatusAndIsDeletedFalseOrderByIdDesc(
+            Long complexId, String licensePlate, LocalDate visitDate, VisitorVehicleStatus status);
 }
