@@ -295,7 +295,7 @@ public class FacilityService {
 
         // 좌석형 시설 좌석 목록 조회
         if (facility.getReservationType() == ReservationType.SEAT) {
-            seats = facilitySeatRepository.findByFacilityIdAndIsDeletedFalseOrderBySeatNoAsc(facility.getId())
+            seats = facilitySeatRepository.findByFacilityIdOrderBySeatNoAsc(facility.getId())
                     .stream()
                     .map(seat -> FacilityDetailRes.SeatItem.builder()
                             .seatId(seat.getId())
@@ -416,8 +416,8 @@ public class FacilityService {
 
         // 시설 타입 목록 조회
         List<FacilityType> facilityTypes = isActive == null
-                ? facilityTypeRepository.findAllByOrderBySortOrderAsc()
-                : facilityTypeRepository.findByIsActiveOrderBySortOrderAsc(isActive);
+                ? facilityTypeRepository.findAllByOrderByIdAsc()
+                : facilityTypeRepository.findByIsActiveOrderByIdAsc(isActive);
 
         // 시설 타입 응답 변환
         return facilityTypes.stream()

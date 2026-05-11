@@ -22,10 +22,10 @@ public interface FacilityTypeRepository extends JpaRepository<FacilityType, Long
     boolean existsByTypeCode(FacilityTypeCode typeCode);
 
     // 활성 여부 기준 시설 타입 목록 조회
-    List<FacilityType> findByIsActiveOrderBySortOrderAsc(Boolean isActive);
+    List<FacilityType> findByIsActiveOrderByIdAsc(Boolean isActive);
 
     // 전체 시설 타입 목록 조회
-    List<FacilityType> findAllByOrderBySortOrderAsc();
+    List<FacilityType> findAllByOrderByIdAsc();
 
     // 단지 기준 시설 정책 목록 조회
     @Query("""

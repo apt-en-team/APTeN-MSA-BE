@@ -17,5 +17,5 @@ public interface FacilitySeatRepository extends JpaRepository<FacilitySeat, Long
     boolean existsByFacilityIdAndSeatNo(Long facilityId, Integer seatNo);
 
     // 시설 ID 기준으로 삭제되지 않은 좌석 목록을 조회한다.
-    List<FacilitySeat> findByFacilityIdAndIsDeletedFalseOrderBySeatNoAsc(Long facilityId);
+    List<FacilitySeat> findByFacilityIdOrderBySeatNoAsc(Long facilityId);
 }
