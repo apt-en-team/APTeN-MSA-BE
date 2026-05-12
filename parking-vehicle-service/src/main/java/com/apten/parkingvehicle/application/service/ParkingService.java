@@ -23,6 +23,7 @@ import com.apten.parkingvehicle.domain.enums.*;
 import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
 import com.apten.parkingvehicle.domain.repository.ParkingSettingRepository;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -531,7 +532,10 @@ public class ParkingService {
         zone.deactivate();
     }
 
-    // 주차 통계를 조회한다.
+    /// 주차 통계를 조회한다.
+    // HOURLY: 오늘 0시~24시 24개 슬롯, DAILY: 최근 7일 7개 슬롯.
+    // 각 슬롯의 입차/출차 건수 + 슬롯 끝 시점 점유율 단순 평균.
+    @Transactional(readOnly = true)
     public ParkingStatisticsRes getParkingStatistics(
             ParkingStatisticsReq request,
             String userRole,
@@ -540,17 +544,147 @@ public class ParkingService {
     ) {
         Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
         featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
-        // TODO: 관리자 단지 컨텍스트 기준으로 주차 통계 조회 범위를 제한한다.
-        //TODO 관리자 소속 단지 확인
-        //TODO 시간대별 또는 일별 입출차 집계
-        //TODO 평균 점유율 계산
+
+        // 집계 단위가 없으면 기본값 HOURLY
+        ParkingStatisticsUnit unit = request.getUnit() != null
+                ? request.getUnit()
+                : ParkingStatisticsUnit.HOURLY;
+
+        // 기간 결정 (HOURLY는 오늘 하루, DAILY는 최근 7일)
+        LocalDate today = LocalDate.now();
+        LocalDate fromDate;
+        LocalDate toDate;
+        if (unit == ParkingStatisticsUnit.HOURLY) {
+            fromDate = today;
+            toDate = today;
+        } else {
+            fromDate = today.minusDays(6);
+            toDate = today;
+        }
+
+        // 기간 시작/끝 시각으로 변환 (끝은 다음 날 00:00 미만으로 포함)
+        LocalDateTime fromDateTime = fromDate.atStartOfDay();
+        LocalDateTime toDateTime = toDate.plusDays(1).atStartOfDay();
+
+        // 단지 기간 내 모든 로그 한 번에 조회
+        List<ParkingLog> logs = parkingLogRepository.findLogsForStatistics(
+                targetComplexId, fromDateTime, toDateTime
+        );
+
+        // 슬롯별 IN/OUT 건수 + 라벨 + 슬롯 끝 시점 리스트 생성
+        List<String> labels;
+        List<Integer> inCount;
+        List<Integer> outCount;
+        List<LocalDateTime> slotEndTimes;
+
+        if (unit == ParkingStatisticsUnit.HOURLY) {
+            // 24개 슬롯 (0~23시)
+            labels = new java.util.ArrayList<>(24);
+            inCount = new java.util.ArrayList<>(24);
+            outCount = new java.util.ArrayList<>(24);
+            slotEndTimes = new java.util.ArrayList<>(24);
+            for (int h = 0; h < 24; h++) {
+                labels.add(String.format("%02d시", h));
+                inCount.add(0);
+                outCount.add(0);
+                // 슬롯 끝 시점: 해당 시간대의 마지막 1초 (점유율 계산용)
+                slotEndTimes.add(fromDate.atTime(h, 59, 59));
+            }
+            // 로그를 시간(hour)으로 분류해서 카운트
+            for (ParkingLog log : logs) {
+                int hour = log.getLoggedAt().getHour();
+                if (log.getEntryType() == ParkingEntryType.IN) {
+                    inCount.set(hour, inCount.get(hour) + 1);
+                } else {
+                    outCount.set(hour, outCount.get(hour) + 1);
+                }
+            }
+        } else {
+            // 7개 슬롯 (최근 7일)
+            labels = new java.util.ArrayList<>(7);
+            inCount = new java.util.ArrayList<>(7);
+            outCount = new java.util.ArrayList<>(7);
+            slotEndTimes = new java.util.ArrayList<>(7);
+            // 날짜 -> 슬롯 인덱스 맵으로 빠르게 매칭
+            Map<LocalDate, Integer> dateIndexMap = new HashMap<>();
+            for (int d = 0; d < 7; d++) {
+                LocalDate date = fromDate.plusDays(d);
+                labels.add(date.toString().substring(5)); // "MM-DD" 형식
+                inCount.add(0);
+                outCount.add(0);
+                // 슬롯 끝 시점: 그날 23:59:59
+                slotEndTimes.add(date.atTime(23, 59, 59));
+                dateIndexMap.put(date, d);
+            }
+            for (ParkingLog log : logs) {
+                LocalDate logDate = log.getLoggedAt().toLocalDate();
+                Integer idx = dateIndexMap.get(logDate);
+                if (idx == null) continue;
+                if (log.getEntryType() == ParkingEntryType.IN) {
+                    inCount.set(idx, inCount.get(idx) + 1);
+                } else {
+                    outCount.set(idx, outCount.get(idx) + 1);
+                }
+            }
+        }
+
+        // 평균 점유율 계산 (각 슬롯 끝 시점 점유율의 단순 평균)
+        // 활성 zone들의 총 면수를 분모로 사용
+        BigDecimal averageOccupancyRate = calculateAverageOccupancyRate(
+                targetComplexId, slotEndTimes
+        );
+
         return ParkingStatisticsRes.builder()
-                .chartUnit(request.getUnit() != null ? request.getUnit().name() : null)
-                .labels(List.of())
-                .inCount(List.of())
-                .outCount(List.of())
-                .averageOccupancyRate(BigDecimal.ZERO)
+                .chartUnit(unit.name())
+                .labels(labels)
+                .inCount(inCount)
+                .outCount(outCount)
+                .averageOccupancyRate(averageOccupancyRate)
                 .build();
+    }
+
+    // 각 시점의 점유율 (현재 입차 수 / 활성 zone 총 면수)을 단순 평균낸다.
+    // 활성 zone 총 면수가 0이면 0 반환.
+    private BigDecimal calculateAverageOccupancyRate(
+            Long complexId,
+            List<LocalDateTime> slotEndTimes
+    ) {
+        // 활성 zone 총 면수 계산 (분모)
+        List<ParkingZone> activeZones = parkingZoneRepository.findByComplexIdAndIsActiveTrue(complexId);
+        int totalSlots = activeZones.stream()
+                .mapToInt(z -> z.getTotalSlots() != null ? z.getTotalSlots() : 0)
+                .sum();
+
+        if (totalSlots == 0 || slotEndTimes.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // 현재 시각 이후의 미래 슬롯은 점유율 계산에서 제외
+        LocalDateTime now = LocalDateTime.now();
+        List<LocalDateTime> validSlots = slotEndTimes.stream()
+                .filter(t -> !t.isAfter(now))
+                .toList();
+
+        if (validSlots.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // 각 시점 점유율 합산
+        BigDecimal totalRate = BigDecimal.ZERO;
+        for (LocalDateTime asOf : validSlots) {
+            int parked = parkingLogRepository.countParkedAt(complexId, asOf);
+            BigDecimal rate = BigDecimal.valueOf(parked)
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(totalSlots), 2, RoundingMode.HALF_UP);
+            totalRate = totalRate.add(rate);
+        }
+
+        // 평균
+        return totalRate.divide(
+                BigDecimal.valueOf(validSlots.size()),
+                2,
+                RoundingMode.HALF_UP
+        );
     }
 
     // 입주민 주차 현황을 조회한다.

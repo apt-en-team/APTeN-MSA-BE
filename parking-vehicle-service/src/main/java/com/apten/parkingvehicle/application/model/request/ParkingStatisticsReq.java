@@ -6,9 +6,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 // 주차 통계 조회 요청 DTO이다.
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

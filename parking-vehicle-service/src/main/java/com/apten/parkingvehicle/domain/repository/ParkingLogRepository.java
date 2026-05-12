@@ -70,4 +70,47 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
             @Param("vehicleCategory") String vehicleCategory,
             Pageable pageable
     );
+
+    // 단지 + 기간 내의 모든 입출차 로그를 시간순으로 조회한다.
+    // 시간대별/일별 집계를 메모리에서 처리하기 위해 한 번에 가져온다.
+    // (전체 단지 일주일치 로그도 수천 건 수준이라 메모리 처리로 충분)
+    @Query("""
+            SELECT pl FROM ParkingLog pl
+            WHERE pl.complexId = :complexId
+              AND pl.loggedAt >= :fromDateTime
+              AND pl.loggedAt < :toDateTime
+            ORDER BY pl.loggedAt ASC
+            """)
+    List<ParkingLog> findLogsForStatistics(
+            @Param("complexId") Long complexId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime
+    );
+
+    // 특정 시점 기준 단지의 현재 입차 중인 차량 수를 단일 값으로 집계한다.
+    // 시점별 점유율 계산에 사용한다.
+    // 활성 zone만 카운트 (비활성 zone 입차 로그는 제외).
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.loggedAt <= :asOfTime
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND EXISTS (
+                SELECT 1 FROM ParkingZone z
+                WHERE z.id = p.zoneId
+                  AND z.complexId = p.complexId
+                  AND z.isActive = true
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+                  AND p2.loggedAt <= :asOfTime
+              )
+            """)
+    int countParkedAt(
+            @Param("complexId") Long complexId,
+            @Param("asOfTime") LocalDateTime asOfTime
+    );
 }
