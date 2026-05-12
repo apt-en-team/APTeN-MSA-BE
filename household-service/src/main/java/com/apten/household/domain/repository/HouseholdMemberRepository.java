@@ -23,4 +23,7 @@ public interface HouseholdMemberRepository extends JpaRepository<HouseholdMember
 
     // 세대 내 활성 세대주를 조회한다.
     Optional<HouseholdMember> findByHouseholdIdAndRoleAndIsActiveTrue(Long householdId, HouseholdMemberRole role);
+
+    // 사용자가 해당 단지에 이미 활성 세대원으로 등록되어 있는지 확인한다 (FR-428)
+    boolean existsByUserIdAndHousehold_ComplexIdAndIsActiveTrue(Long userId, Long complexId);
 }
