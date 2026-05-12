@@ -23,18 +23,35 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
     // 삭제되지 않은 시설을 조회한다.
     Optional<Facility> findByIdAndIsDeletedFalse(Long id);
 
-    // 관리자 시설 목록을 필터 조건과 함께 페이지 조회한다.
+    // 관리자 시설 목록 조회 - 예약 방식 필터 없음
     @Query("""
-            SELECT f
-            FROM Facility f
-            WHERE f.complexId = :complexId
-              AND f.isDeleted = false
-              AND (:typeId IS NULL OR f.typeId = :typeId)
-              AND (:reservationType IS NULL OR f.reservationType = :reservationType)
-              AND (:isActive IS NULL OR f.isActive = :isActive)
-            ORDER BY f.createdAt DESC
-            """)
+        SELECT f
+        FROM Facility f
+        WHERE f.complexId = :complexId
+          AND f.isDeleted = false
+          AND (:typeId IS NULL OR f.typeId = :typeId)
+          AND (:isActive IS NULL OR f.isActive = :isActive)
+        ORDER BY f.createdAt DESC
+        """)
     Page<Facility> findAdminFacilities(
+            @Param("complexId") Long complexId,
+            @Param("typeId") Long typeId,
+            @Param("isActive") Boolean isActive,
+            Pageable pageable
+    );
+
+    // 관리자 시설 목록 조회 - 예약 방식 필터 포함
+    @Query("""
+        SELECT f
+        FROM Facility f
+        WHERE f.complexId = :complexId
+          AND f.isDeleted = false
+          AND (:typeId IS NULL OR f.typeId = :typeId)
+          AND f.reservationType = :reservationType
+          AND (:isActive IS NULL OR f.isActive = :isActive)
+        ORDER BY f.createdAt DESC
+        """)
+    Page<Facility> findAdminFacilitiesByReservationType(
             @Param("complexId") Long complexId,
             @Param("typeId") Long typeId,
             @Param("reservationType") ReservationType reservationType,

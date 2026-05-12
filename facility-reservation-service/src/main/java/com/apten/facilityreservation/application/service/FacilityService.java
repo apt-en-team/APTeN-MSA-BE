@@ -250,7 +250,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 관리자 시설 목록을 조회한다. API-602
+    // 관리자 시설 목록 조회
     public PageResponse<FacilityListRes> getAdminFacilityList(Long complexId, FacilityListReq req) {
         // 시설 접근 검증
         validateAdminAccess(complexId);
@@ -261,10 +261,27 @@ public class FacilityService {
         // 페이지 크기 보정
         int size = req.getSize() > 0 ? req.getSize() : 20;
 
-        // 관리자 시설 목록 조회
-        Page<FacilityListRes> facilityPage = facilityRepository
-                .findAdminFacilities(complexId, req.getTypeId(), req.getReservationType(), req.getIsActive(), PageRequest.of(page, size))
-                .map(facility -> FacilityListRes.builder()
+        // 페이지 조건 생성
+        PageRequest pageRequest = PageRequest.of(page, size);
+
+        // 예약 방식 필터 여부에 따라 쿼리 분기
+        Page<Facility> facilityPage = req.getReservationType() == null
+                ? facilityRepository.findAdminFacilities(
+                complexId,
+                req.getTypeId(),
+                req.getIsActive(),
+                pageRequest
+        )
+                : facilityRepository.findAdminFacilitiesByReservationType(
+                complexId,
+                req.getTypeId(),
+                req.getReservationType(),
+                req.getIsActive(),
+                pageRequest
+        );
+
+        // 목록 응답 변환
+        Page<FacilityListRes> responsePage = facilityPage.map(facility -> FacilityListRes.builder()
                 .facilityId(facility.getId())
                 .typeId(facility.getTypeId())
                 .name(facility.getName())
@@ -276,7 +293,7 @@ public class FacilityService {
                 .build());
 
         // 페이지 응답 변환
-        return toPageResponse(facilityPage);
+        return toPageResponse(responsePage);
     }
 
     // 관리자 시설 상세를 조회한다. API-603
