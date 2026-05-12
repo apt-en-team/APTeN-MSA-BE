@@ -1,5 +1,6 @@
 package com.apten.parkingvehicle.application.model.response;
 
+import com.apten.parkingvehicle.domain.enums.LogVehicleCategory;
 import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -24,6 +25,12 @@ public class ParkingLogListRes {
 
     // 입출차 구분이다.
     private ParkingEntryType entryType;
+
+    // 차종 분류이다.
+    private LogVehicleCategory vehicleCategory;
+
+    // 차종 라벨이다. (입주민, 방문, 고정 방문, 미등록)
+    private String vehicleCategoryLabel;
 
     // 기록 시각이다.
     private LocalDateTime loggedAt;

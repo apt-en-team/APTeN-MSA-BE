@@ -19,7 +19,7 @@ import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
 import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
 import com.apten.parkingvehicle.application.model.response.ResidentParkingStatusRes;
 import com.apten.parkingvehicle.domain.entity.ParkingSetting;
-import com.apten.parkingvehicle.domain.enums.ParkingType;
+import com.apten.parkingvehicle.domain.enums.*;
 import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
 import com.apten.parkingvehicle.domain.repository.ParkingSettingRepository;
 import java.math.RoundingMode;
@@ -31,16 +31,18 @@ import com.apten.parkingvehicle.domain.entity.ParkingZone;
 import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
 import com.apten.parkingvehicle.domain.entity.Vehicle;
 import com.apten.parkingvehicle.domain.entity.VisitorVehicle;
-import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
-import com.apten.parkingvehicle.domain.enums.VehicleStatus;
-import com.apten.parkingvehicle.domain.enums.VisitorVehicleStatus;
 import com.apten.parkingvehicle.domain.repository.*;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,19 +73,114 @@ public class ParkingService {
     private final ParkingSettingRepository parkingSettingRepository;
 
     // 입출차 기록을 조회한다.
+    // 단지 컨텍스트로 범위를 제한하고, 기간/차량번호/입출차/차종 필터를 적용해서 페이지로 반환한다.
+    @Transactional(readOnly = true)
     public PageResponse<ParkingLogListRes> getParkingLogList(
             ParkingLogListReq request,
             String userRole,
             Long complexId,
             Long selectedComplexId
     ) {
+        // 관리자 컨텍스트 해석 + 기능 활성 여부 검증
         Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
         featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
-        // TODO: 관리자 단지 컨텍스트 기준으로 입출차 기록 조회 범위를 제한한다.
-        //TODO 관리자 소속 단지 확인
-        //TODO 기간, 차량번호, 입출차 필터 적용
-        //TODO parking_log 목록 조회
-        return PageResponse.empty(request.getPage(), request.getSize());
+
+        // 페이지 파라미터 기본값 처리 (null이면 0/20)
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 20;
+
+        // 날짜 필터를 LocalDateTime 범위로 변환
+        // toDate는 그날 23:59:59까지 포함되도록 다음 날 00:00 미만으로 변환한다.
+        LocalDateTime fromDateTime = request.getFromDate() != null
+                ? request.getFromDate().atStartOfDay()
+                : null;
+        LocalDateTime toDateTime = request.getToDate() != null
+                ? request.getToDate().plusDays(1).atStartOfDay()
+                : null;
+
+        // 차량 번호는 공백 제거 후 비어 있으면 null 처리 (LIKE 조건 우회)
+        String licensePlate = request.getLicensePlate() != null && !request.getLicensePlate().isBlank()
+                ? request.getLicensePlate().trim()
+                : null;
+
+        // 차종 분류는 String name으로 변환해서 JPQL 분기 비교에 사용한다.
+        String vehicleCategory = request.getVehicleCategory() != null
+                ? request.getVehicleCategory().name()
+                : null;
+
+        // 페이지 요청 생성 (정렬은 쿼리 ORDER BY loggedAt DESC로 고정되어 있으므로 unsorted)
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 동적 필터 페이지 조회
+        Page<ParkingLog> resultPage = parkingLogRepository.findFilteredLogs(
+                targetComplexId,
+                fromDateTime,
+                toDateTime,
+                request.getEntryType(),
+                licensePlate,
+                vehicleCategory,
+                pageable
+        );
+
+        // 빈 결과면 빈 응답 즉시 반환
+        if (resultPage.isEmpty()) {
+            return PageResponse.empty(page, size);
+        }
+
+        // 구역 정보를 일괄 조회해서 zoneId → ParkingZone 맵으로 만들어 둔다 (N+1 방지)
+        List<Long> zoneIds = resultPage.getContent().stream()
+                .map(ParkingLog::getZoneId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, ParkingZone> zoneMap = zoneIds.isEmpty()
+                ? Collections.emptyMap()
+                : parkingZoneRepository.findAllById(zoneIds).stream()
+                .collect(Collectors.toMap(ParkingZone::getId, z -> z));
+
+        // 응답 DTO로 변환 (차종 분류는 FK 분기로 결정, 구역명은 맵에서 조회)
+        List<ParkingLogListRes> content = resultPage.getContent().stream()
+                .map(log -> {
+                    ParkingZone zone = log.getZoneId() != null ? zoneMap.get(log.getZoneId()) : null;
+                    LogVehicleCategory category = resolveLogVehicleCategory(log);
+                    return ParkingLogListRes.builder()
+                            .parkingLogId(log.getId())
+                            .areaName(zone != null ? zone.getAreaName() : null)
+                            .zoneName(zone != null ? zone.getZoneName() : null)
+                            .licensePlate(log.getLicensePlate())
+                            .entryType(log.getEntryType())
+                            .vehicleCategory(category)
+                            .vehicleCategoryLabel(category.getLabel())
+                            .loggedAt(log.getLoggedAt())
+                            .memo(log.getMemo())
+                            .build();
+                })
+                .toList();
+
+        // 페이지 메타 정보 포함해서 반환
+        return PageResponse.<ParkingLogListRes>builder()
+                .content(content)
+                .page(resultPage.getNumber())
+                .size(resultPage.getSize())
+                .totalElements(resultPage.getTotalElements())
+                .totalPages(resultPage.getTotalPages())
+                .hasNext(resultPage.hasNext())
+                .build();
+    }
+
+    // ParkingLog의 FK 패턴으로 차종 분류를 결정한다.
+    // vehicle_id, visitor_vehicle_id, regular_visitor_vehicle_id 순서로 확인한다.
+    private LogVehicleCategory resolveLogVehicleCategory(ParkingLog log) {
+        if (log.getVehicleId() != null) {
+            return LogVehicleCategory.RESIDENT;
+        }
+        if (log.getVisitorVehicleId() != null) {
+            return LogVehicleCategory.VISITOR;
+        }
+        if (log.getRegularVisitorVehicleId() != null) {
+            return LogVehicleCategory.REGULAR_VISITOR;
+        }
+        return LogVehicleCategory.UNREGISTERED;
     }
 
     // 입출차 로그를 등록한다.

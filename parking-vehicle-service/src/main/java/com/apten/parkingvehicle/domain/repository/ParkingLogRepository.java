@@ -1,8 +1,12 @@
 package com.apten.parkingvehicle.domain.repository;
 
 import com.apten.parkingvehicle.domain.entity.ParkingLog;
+import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,5 +36,38 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
     List<Object[]> countCurrentParkedByZone(
             @Param("complexId") Long complexId,
             @Param("zoneIds") List<Long> zoneIds
+    );
+
+    // 동적 필터로 입출차 기록을 페이지 조회한다.
+    // 필수 파라미터는 complexId, 나머지는 NULL이면 해당 조건을 건너뛴다.
+    // 차종 분류는 ParkingLog에 별도 컬럼이 없으므로 FK 분기로 판별한다.
+    // 정렬은 loggedAt DESC 고정 (Service에서 PageRequest는 unsorted로 전달할 것).
+    @Query("""
+            SELECT pl FROM ParkingLog pl
+            WHERE pl.complexId = :complexId
+              AND (:fromDateTime IS NULL OR pl.loggedAt >= :fromDateTime)
+              AND (:toDateTime IS NULL OR pl.loggedAt < :toDateTime)
+              AND (:entryType IS NULL OR pl.entryType = :entryType)
+              AND (:licensePlate IS NULL OR pl.licensePlate LIKE CONCAT('%', :licensePlate, '%'))
+              AND (
+                :vehicleCategory IS NULL
+                OR (:vehicleCategory = 'RESIDENT' AND pl.vehicleId IS NOT NULL)
+                OR (:vehicleCategory = 'VISITOR' AND pl.visitorVehicleId IS NOT NULL)
+                OR (:vehicleCategory = 'REGULAR_VISITOR' AND pl.regularVisitorVehicleId IS NOT NULL)
+                OR (:vehicleCategory = 'UNREGISTERED'
+                    AND pl.vehicleId IS NULL
+                    AND pl.visitorVehicleId IS NULL
+                    AND pl.regularVisitorVehicleId IS NULL)
+              )
+            ORDER BY pl.loggedAt DESC
+            """)
+    Page<ParkingLog> findFilteredLogs(
+            @Param("complexId") Long complexId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime,
+            @Param("entryType") ParkingEntryType entryType,
+            @Param("licensePlate") String licensePlate,
+            @Param("vehicleCategory") String vehicleCategory,
+            Pageable pageable
     );
 }
