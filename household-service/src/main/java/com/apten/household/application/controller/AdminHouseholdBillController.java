@@ -7,6 +7,7 @@ import com.apten.household.application.model.request.AdminHouseholdBillListReq;
 import com.apten.household.application.model.response.AdminHouseholdBillDetailRes;
 import com.apten.household.application.model.response.AdminHouseholdBillListRes;
 import com.apten.household.application.model.response.BillConfirmRes;
+import com.apten.household.application.model.response.BillUnconfirmRes;
 import com.apten.household.application.service.HouseholdRequestContextResolver;
 import com.apten.household.application.service.HouseholdBillService;
 import lombok.RequiredArgsConstructor;
@@ -67,5 +68,18 @@ public class AdminHouseholdBillController {
     ) {
         HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("세대 비용 확정 성공", householdBillService.confirmBill(context.getComplexId(), billId));
+    }
+
+    // 월별 비용 확정 취소 API-FR426
+    @PatchMapping("/{billId}/unconfirm")
+    public ResultResponse<BillUnconfirmRes> unconfirmHouseholdBill(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long billId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("세대 비용 확정 취소 성공", householdBillService.unconfirmBill(context.getComplexId(), billId));
     }
 }
