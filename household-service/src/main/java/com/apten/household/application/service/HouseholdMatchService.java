@@ -7,6 +7,7 @@ import com.apten.household.application.model.request.HouseholdMatchPostReq;
 import com.apten.household.application.model.request.HouseholdMatchRejectReq;
 import com.apten.household.application.model.response.HouseholdMatchApproveRes;
 import com.apten.household.application.model.response.HouseholdMatchListRes;
+import com.apten.household.application.model.request.HouseholdMatchListReq;
 import com.apten.household.application.model.response.HouseholdMatchPostRes;
 import com.apten.household.application.model.response.HouseholdMatchRejectRes;
 import java.time.LocalDateTime;
@@ -28,7 +29,7 @@ public class HouseholdMatchService {
     // 세대 매칭 요청 생성 서비스이다.
     public HouseholdMatchPostRes createMatchRequest(HouseholdMatchPostReq request) {
         // FR-428 이미 세대에 활성 상태로 등록된 사용자의 중복 매칭 요청을 차단한다.
-        if (householdMemberRepository.existsByUserIdAndHousehold_ComplexIdAndIsActiveTrue(
+        if (householdMemberRepository.existsByUserIdAndComplexId(
                 request.getUserId(), request.getComplexId())) {
             throw new BusinessException(HouseholdErrorCode.ALREADY_HOUSEHOLD_MEMBER);
         }

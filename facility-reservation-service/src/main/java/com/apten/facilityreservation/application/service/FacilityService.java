@@ -527,6 +527,7 @@ public class FacilityService {
                 .stream()
                 .map(blockTime -> FacilityBlockTimeListRes.builder()
                         .facilityBlockTimeId(blockTime.getId())
+                        .facilityId(blockTime.getFacilityId())
                         .blockDate(blockTime.getBlockDate())
                         .startTime(blockTime.getStartTime())
                         .endTime(blockTime.getEndTime())

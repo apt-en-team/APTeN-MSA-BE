@@ -13,6 +13,9 @@ public class FacilityBlockTimeListRes {
     // 차단 시간 ID이다.
     private Long facilityBlockTimeId;
 
+    // 시설 ID이다.
+    private Long facilityId;
+
     // 차단일이다.
     private LocalDate blockDate;
 
