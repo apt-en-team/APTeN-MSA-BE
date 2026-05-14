@@ -3,41 +3,25 @@ package com.apten.parkingvehicle.application.service;
 import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
-import com.apten.parkingvehicle.application.model.request.ParkingLogCreateReq;
-import com.apten.parkingvehicle.application.model.request.ParkingLogListReq;
-import com.apten.parkingvehicle.application.model.request.ParkingStatisticsReq;
-import com.apten.parkingvehicle.application.model.request.ParkingZoneListReq;
-import com.apten.parkingvehicle.application.model.request.ParkingZonePatchReq;
-import com.apten.parkingvehicle.application.model.request.ParkingZonePostReq;
+import com.apten.parkingvehicle.application.model.request.*;
 import com.apten.parkingvehicle.application.model.response.*;
-import com.apten.parkingvehicle.domain.entity.ParkingSetting;
+import com.apten.parkingvehicle.domain.entity.*;
 import com.apten.parkingvehicle.domain.enums.*;
-import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
-import com.apten.parkingvehicle.domain.repository.ParkingSettingRepository;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import com.apten.parkingvehicle.domain.entity.ParkingLog;
-import com.apten.parkingvehicle.domain.entity.ParkingZone;
-import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
-import com.apten.parkingvehicle.domain.entity.Vehicle;
-import com.apten.parkingvehicle.domain.entity.VisitorVehicle;
 import com.apten.parkingvehicle.domain.repository.*;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 // 주차 구역, 입출차, 통계 API를 담당하는 응용 서비스이다.
 @Service
@@ -198,11 +182,13 @@ public class ParkingService {
         LocalDateTime nextMonthStart = today.withDayOfMonth(1).plusMonths(1).atStartOfDay();
 
         // 오늘/어제 IN, OUT 4개 값 한 쿼리에 집계
-        Object[] rawCounts = parkingLogRepository.sumTodayAndYesterdayCounts(
+        List<Object[]> rawList = parkingLogRepository.sumTodayAndYesterdayCounts(
                 targetComplexId, yesterdayStart, todayStart, tomorrowStart
         );
 
-        // JPQL SUM 결과는 row 없을 때 NULL이 올 수 있으므로 안전 변환
+        // SUM CASE 결과는 항상 1행 반환, 데이터 없을 때 모든 SUM은 NULL이 됨
+        Object[] rawCounts = rawList.isEmpty() ? new Object[]{0L, 0L, 0L, 0L} : rawList.get(0);
+
         long todayIn = toLong(rawCounts[0]);
         long todayOut = toLong(rawCounts[1]);
         long yesterdayIn = toLong(rawCounts[2]);

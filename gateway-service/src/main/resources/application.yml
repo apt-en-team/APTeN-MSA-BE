@@ -47,11 +47,10 @@ spring:
           uri: http://localhost:${HOUSEHOLD_SERVER_PORT}
           predicates:
             - Path=/households/**
-
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
-            - Path=/parking-vehicles/**
+            - Path=/parking-vehicles/**,/api/admin/parking-logs/**
 
         - id: facility-reservation-service-admin
           uri: http://localhost:${FACILITY_SERVER_PORT}
