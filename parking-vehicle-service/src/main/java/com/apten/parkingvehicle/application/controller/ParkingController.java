@@ -45,6 +45,19 @@ public class ParkingController {
         );
     }
 
+    // 입출차 기록 화면 상단 통계 카드 요약 조회
+    @GetMapping("/api/admin/parking-logs/summary")
+    public ResultResponse<ParkingLogSummaryRes> getParkingLogSummary(
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success(
+                "입출차 기록 통계 요약 조회 성공",
+                parkingService.getParkingLogSummary(userRole, complexId, selectedComplexId)
+        );
+    }
+
     //주차 현황 조회
     @GetMapping("/api/admin/parking/status")
     public ResultResponse<ParkingStatusRes> getParkingStatus(

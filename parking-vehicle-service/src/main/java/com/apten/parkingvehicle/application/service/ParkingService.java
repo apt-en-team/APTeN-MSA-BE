@@ -9,15 +9,7 @@ import com.apten.parkingvehicle.application.model.request.ParkingStatisticsReq;
 import com.apten.parkingvehicle.application.model.request.ParkingZoneListReq;
 import com.apten.parkingvehicle.application.model.request.ParkingZonePatchReq;
 import com.apten.parkingvehicle.application.model.request.ParkingZonePostReq;
-import com.apten.parkingvehicle.application.model.response.PageResponse;
-import com.apten.parkingvehicle.application.model.response.ParkingLogCreateRes;
-import com.apten.parkingvehicle.application.model.response.ParkingLogListRes;
-import com.apten.parkingvehicle.application.model.response.ParkingStatisticsRes;
-import com.apten.parkingvehicle.application.model.response.ParkingStatusRes;
-import com.apten.parkingvehicle.application.model.response.ParkingZoneListRes;
-import com.apten.parkingvehicle.application.model.response.ParkingZonePatchRes;
-import com.apten.parkingvehicle.application.model.response.ParkingZonePostRes;
-import com.apten.parkingvehicle.application.model.response.ResidentParkingStatusRes;
+import com.apten.parkingvehicle.application.model.response.*;
 import com.apten.parkingvehicle.domain.entity.ParkingSetting;
 import com.apten.parkingvehicle.domain.enums.*;
 import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
@@ -182,6 +174,70 @@ public class ParkingService {
             return LogVehicleCategory.REGULAR_VISITOR;
         }
         return LogVehicleCategory.UNREGISTERED;
+    }
+
+    // 입출차 기록 화면 상단 통계 카드 4장에 표시할 요약 정보를 반환한다.
+    // 오늘/어제 IN, OUT은 한 쿼리에 SUM CASE로 묶어 가져오고
+    // 미등록 카운트와 이번 달 합산은 각각 별도 쿼리로 처리한다.
+    @Transactional(readOnly = true)
+    public ParkingLogSummaryRes getParkingLogSummary(
+            String userRole,
+            Long complexId,
+            Long selectedComplexId
+    ) {
+        // 단지 컨텍스트 해석 + 기능 활성 여부 검증
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
+
+        // 시점 계산
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime yesterdayStart = today.minusDays(1).atStartOfDay();
+        LocalDateTime tomorrowStart = today.plusDays(1).atStartOfDay();
+        LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime nextMonthStart = today.withDayOfMonth(1).plusMonths(1).atStartOfDay();
+
+        // 오늘/어제 IN, OUT 4개 값 한 쿼리에 집계
+        Object[] rawCounts = parkingLogRepository.sumTodayAndYesterdayCounts(
+                targetComplexId, yesterdayStart, todayStart, tomorrowStart
+        );
+
+        // JPQL SUM 결과는 row 없을 때 NULL이 올 수 있으므로 안전 변환
+        long todayIn = toLong(rawCounts[0]);
+        long todayOut = toLong(rawCounts[1]);
+        long yesterdayIn = toLong(rawCounts[2]);
+        long yesterdayOut = toLong(rawCounts[3]);
+
+        // 현재 단지 내 미등록 차량 수
+        long unregisteredCount = parkingLogRepository.countCurrentUnregistered(targetComplexId);
+
+        // 이번 달 전체 입출차 건수 합산
+        long monthlyTotalCount = parkingLogRepository.countLogsInRange(
+                targetComplexId, monthStart, nextMonthStart
+        );
+
+        // 이번 달 일 평균 (오늘 일자 기준 반올림, 1일이라도 0 나눗셈 방지)
+        int daysElapsed = today.getDayOfMonth();
+        long monthlyDailyAverage = daysElapsed > 0
+                ? Math.round((double) monthlyTotalCount / daysElapsed)
+                : 0L;
+
+        return ParkingLogSummaryRes.builder()
+                .todayInCount(todayIn)
+                .todayOutCount(todayOut)
+                .todayInDiffFromYesterday(todayIn - yesterdayIn)
+                .todayOutDiffFromYesterday(todayOut - yesterdayOut)
+                .unregisteredCount(unregisteredCount)
+                .monthlyTotalCount(monthlyTotalCount)
+                .monthlyDailyAverage(monthlyDailyAverage)
+                .build();
+    }
+
+    // JPQL SUM 결과 NULL/Number 안전 변환
+    private long toLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number n) return n.longValue();
+        throw new IllegalStateException("예상치 못한 집계 결과 타입: " + value.getClass());
     }
 
     // 입출차 로그를 등록한다.

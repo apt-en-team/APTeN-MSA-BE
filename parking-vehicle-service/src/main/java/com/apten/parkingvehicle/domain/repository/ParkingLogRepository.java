@@ -113,4 +113,65 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
             @Param("complexId") Long complexId,
             @Param("asOfTime") LocalDateTime asOfTime
     );
+
+    // 오늘과 어제의 입차/출차 건수를 한 쿼리에 집계
+    // 시안의 "오늘 입차 / 오늘 출차 / 전일 대비 차이" 계산용으로 사용한다.
+    // 어제~내일 0시 범위 한 번만 스캔하고 SUM CASE로 4값을 분리한다.
+    @Query("""
+            SELECT
+              SUM(CASE WHEN pl.loggedAt >= :todayStart
+                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+                       THEN 1L ELSE 0L END),
+              SUM(CASE WHEN pl.loggedAt >= :todayStart
+                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.OUT
+                       THEN 1L ELSE 0L END),
+              SUM(CASE WHEN pl.loggedAt < :todayStart
+                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+                       THEN 1L ELSE 0L END),
+              SUM(CASE WHEN pl.loggedAt < :todayStart
+                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.OUT
+                       THEN 1L ELSE 0L END)
+            FROM ParkingLog pl
+            WHERE pl.complexId = :complexId
+              AND pl.loggedAt >= :yesterdayStart
+              AND pl.loggedAt < :tomorrowStart
+            """)
+    Object[] sumTodayAndYesterdayCounts(
+            @Param("complexId") Long complexId,
+            @Param("yesterdayStart") LocalDateTime yesterdayStart,
+            @Param("todayStart") LocalDateTime todayStart,
+            @Param("tomorrowStart") LocalDateTime tomorrowStart
+    );
+
+    // 현재 단지 내 입차 중인 미등록 차량 수를 집계
+    // 모든 FK(vehicleId, visitorVehicleId, regularVisitorVehicleId)가 NULL인 IN 로그 중
+    // 같은 차량번호의 더 최신 로그(보통 OUT)가 없는 것만 카운트한다.
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND p.vehicleId IS NULL
+              AND p.visitorVehicleId IS NULL
+              AND p.regularVisitorVehicleId IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentUnregistered(@Param("complexId") Long complexId);
+
+    // 기간 내 전체 입출차 로그 건수 집계 (입차와 출차 모두 합산)
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.loggedAt >= :fromDateTime
+              AND p.loggedAt < :toDateTime
+            """)
+    long countLogsInRange(
+            @Param("complexId") Long complexId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime
+    );
 }
