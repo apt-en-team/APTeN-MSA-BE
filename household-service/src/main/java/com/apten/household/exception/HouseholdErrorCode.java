@@ -18,6 +18,7 @@ public enum HouseholdErrorCode implements ErrorCode {
     HOUSEHOLD_ALREADY_LINKED(HttpStatus.BAD_REQUEST, "HHD_400_02", "이미 세대가 연동되어 있습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "HHD_404_10", "사용자를 찾을 수 없습니다."),
     HOUSEHOLD_HEAD_DUPLICATED(HttpStatus.BAD_REQUEST, "HHD_400_10", "이미 세대주가 존재합니다."),
+    ALREADY_HOUSEHOLD_MEMBER(HttpStatus.CONFLICT, "HHS_409_01", "이미 세대에 등록된 입주민입니다."),
     HOUSEHOLD_HEAD_REQUIRED(HttpStatus.BAD_REQUEST, "HHD_400_11", "세대주를 반드시 유지해야 합니다."),
     HOUSEHOLD_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "HHD_404_02", "세대원을 찾을 수 없습니다."),
     HOUSEHOLD_MATCH_FAILED(HttpStatus.NOT_FOUND, "HHD_404_03", "일치하는 세대가 없습니다."),

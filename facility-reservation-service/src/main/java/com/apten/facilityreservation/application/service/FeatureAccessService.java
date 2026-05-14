@@ -11,18 +11,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 // 단지별 기능 사용 가능 여부를 조회하고 차단하는 서비스이다.
 @Service
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) //읽기 전용
 @RequiredArgsConstructor
 public class FeatureAccessService {
 
+    //기능 온-오프 캐시테이블 참조
     private final ComplexFeatureCacheRepository complexFeatureCacheRepository;
 
-    // 캐시가 없으면 기존 단지 기능을 막지 않기 위해 사용 가능으로 본다.
     public boolean isEnabled(Long complexId, FeatureCode featureCode) {
         if (complexId == null || featureCode == null) {
             return false;
         }
 
+        // 캐시가 없으면 기존 단지 기능을 막지 않기 위해 사용 가능으로 본다.
         return complexFeatureCacheRepository.findByComplexIdAndFeatureCode(complexId, featureCode)
                 .map(feature -> Boolean.TRUE.equals(feature.getEnabled()))
                 .orElse(true);

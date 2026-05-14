@@ -15,4 +15,7 @@ public interface FacilitySeatRepository extends JpaRepository<FacilitySeat, Long
 
     // 좌석 번호 중복 여부를 확인한다.
     boolean existsByFacilityIdAndSeatNo(Long facilityId, Integer seatNo);
+
+    // 시설 ID 기준으로 삭제되지 않은 좌석 목록을 조회한다.
+    List<FacilitySeat> findByFacilityIdOrderBySeatNoAsc(Long facilityId);
 }

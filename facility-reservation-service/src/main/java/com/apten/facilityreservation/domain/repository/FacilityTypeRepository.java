@@ -1,10 +1,13 @@
 package com.apten.facilityreservation.domain.repository;
 
+import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 // 시설 타입 마스터 저장소이다.
 public interface FacilityTypeRepository extends JpaRepository<FacilityType, Long> {
@@ -17,4 +20,23 @@ public interface FacilityTypeRepository extends JpaRepository<FacilityType, Long
 
     // 동일 타입 코드 존재 여부를 확인한다.
     boolean existsByTypeCode(FacilityTypeCode typeCode);
+
+    // 활성 여부 기준 시설 타입 목록 조회
+    List<FacilityType> findByIsActiveOrderByIdAsc(Boolean isActive);
+
+    // 전체 시설 타입 목록 조회
+    List<FacilityType> findAllByOrderByIdAsc();
+
+    // 단지 기준 시설 정책 목록 조회
+    @Query("""
+        SELECT p
+        FROM FacilityPolicy p
+        WHERE p.complexId = :complexId
+          AND (:facilityTypeCode IS NULL OR p.facilityTypeCode = :facilityTypeCode)
+        ORDER BY p.facilityTypeCode ASC
+        """)
+    List<FacilityPolicy> findPolicies(
+            @Param("complexId") Long complexId,
+            @Param("facilityTypeCode") FacilityTypeCode facilityTypeCode
+    );
 }

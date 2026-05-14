@@ -31,3 +31,6 @@ constants:
 apten:
   outbox:
     enabled: true
+  bootstrap:
+    facility-type:
+      enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}
