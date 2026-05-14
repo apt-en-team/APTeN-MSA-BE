@@ -2,7 +2,6 @@ package com.apten.auth.domain.enums;
 
 import com.apten.common.enumcode.AbstractEnumCodeConverter;
 import com.apten.common.enumcode.EnumMapperType;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import jakarta.persistence.Converter;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -26,16 +25,6 @@ public enum SocialProvider implements EnumMapperType {
 
     // FE 응답에 보여줄 소셜 제공자 value이다.
     private final String value;
-
-    // JSON 역직렬화 시 Enum 상수명(KAKAO)과 한글값(카카오) 모두 허용한다.
-    @JsonCreator
-    public static SocialProvider from(String input) {
-        for (SocialProvider provider : values()) {
-            if (provider.name().equalsIgnoreCase(input)) return provider;
-            if (provider.getValue().equals(input)) return provider;
-        }
-        throw new IllegalArgumentException("Unknown SocialProvider: " + input);
-    }
 
     // JPA가 DB 문자열 code와 SocialProvider enum을 자동 변환한다.
     @Converter(autoApply = true)

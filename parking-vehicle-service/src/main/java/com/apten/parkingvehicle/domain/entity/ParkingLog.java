@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
         name = "parking_log",
         indexes = {
                 @Index(name = "idx_parking_log_complex_id", columnList = "complex_id"),
-                @Index(name = "idx_parking_log_floor_id", columnList = "floor_id"),
+                @Index(name = "idx_parking_log_zone_id", columnList = "zone_id"),
                 @Index(name = "idx_parking_log_vehicle_id", columnList = "vehicle_id"),
                 @Index(name = "idx_parking_log_visitor_vehicle_id", columnList = "visitor_vehicle_id"),
                 @Index(name = "idx_parking_log_regular_visitor_vehicle_id", columnList = "regular_visitor_vehicle_id"),
@@ -45,9 +45,9 @@ public class ParkingLog extends BaseEntity {
     @Column(name = "complex_id", nullable = false)
     private Long complexId;
 
-    // 주차 층 ID
-    @Column(name = "floor_id", nullable = false)
-    private Long floorId;
+    // 주차 구역 ID
+    @Column(name = "zone_id", nullable = false)
+    private Long zoneId;
 
     // 입주민 차량 ID
     @Column(name = "vehicle_id")

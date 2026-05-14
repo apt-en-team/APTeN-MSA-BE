@@ -1,5 +1,6 @@
 package com.apten.common.enumcode;
 
+import com.fasterxml.jackson.databind.Module;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +21,12 @@ public class EnumAutoConfiguration {
     public EnumMapper enumMapper() {
         List<String> basePackages = resolveBasePackages();
         return new EnumMapperScanner().scan(basePackages);
+    }
+
+    // EnumMapperType 구현 enum의 JSON 역직렬화를 name / code / value 모두 허용하도록 자동 등록한다.
+    @Bean
+    public Module enumMapperTypeModule() {
+        return new EnumMapperTypeModule();
     }
 
     // 기본 com.apten 패키지와 설정으로 들어온 추가 패키지를 하나의 목록으로 합친다.

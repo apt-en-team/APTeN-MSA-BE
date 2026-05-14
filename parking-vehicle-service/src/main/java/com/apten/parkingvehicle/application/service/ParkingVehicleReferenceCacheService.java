@@ -5,14 +5,9 @@ import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
-import com.apten.parkingvehicle.domain.entity.ComplexCache;
-import com.apten.parkingvehicle.domain.entity.ComplexFeatureCache;
-import com.apten.parkingvehicle.domain.entity.HouseholdCache;
-import com.apten.parkingvehicle.domain.entity.UserCache;
-import com.apten.parkingvehicle.domain.repository.ComplexCacheRepository;
-import com.apten.parkingvehicle.domain.repository.ComplexFeatureCacheRepository;
-import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
-import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
+import com.apten.parkingvehicle.domain.entity.*;
+import com.apten.parkingvehicle.domain.repository.*;
+
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +32,9 @@ public class ParkingVehicleReferenceCacheService {
 
     // complex feature cache 저장소
     private final ComplexFeatureCacheRepository complexFeatureCacheRepository;
+
+    // parking setting 저장소
+    private final ParkingSettingRepository parkingSettingRepository;
 
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertUserCache(UserEventPayload payload) {
@@ -93,6 +91,26 @@ public class ParkingVehicleReferenceCacheService {
             featureCache.updateEnabled(enabled);
             complexFeatureCacheRepository.save(featureCache);
         }
+    }
+
+    // 단지의 주차 설정 row를 보장한다.
+    // row가 없으면 NONE 기본값으로 생성하고 이미 있으면 parking_type을 보존한다.
+    // parking_type은 관리자가 PATCH로 변경하는 값이므로 이벤트로 덮어쓰지 않는다.
+    public void ensureParkingSetting(ApartmentComplexEventPayload payload) {
+        if (payload == null || payload.getApartmentComplexId() == null) {
+            return;
+        }
+
+        Long complexId = payload.getApartmentComplexId();
+
+        if (parkingSettingRepository.existsByComplexId(complexId)) {
+            return;
+        }
+
+        ParkingSetting parkingSetting = ParkingSetting.builder()
+                .complexId(complexId)
+                .build();
+        parkingSettingRepository.save(parkingSetting);
     }
 
     // 세대원 이벤트를 받아 세대 캐시의 세대주 식별자를 동기화한다.

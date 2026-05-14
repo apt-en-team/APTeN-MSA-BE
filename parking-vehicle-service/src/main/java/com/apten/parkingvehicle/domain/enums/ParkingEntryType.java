@@ -27,9 +27,9 @@ public enum ParkingEntryType implements EnumMapperType {
     @Converter(autoApply = true)
     public static class CodeConverter extends AbstractEnumCodeConverter<ParkingEntryType> {
 
-        // 입출차 구분은 필수값으로 사용한다.
+        // 엔티티 컬럼은 NOT NULL이지만 동적 쿼리 파라미터 바인딩에서 null이 들어올 수 있어 허용한다.
         public CodeConverter() {
-            super(ParkingEntryType.class);
+            super(ParkingEntryType.class, true);
         }
     }
 }

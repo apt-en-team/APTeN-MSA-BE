@@ -5,19 +5,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 주차층 수정 요청 DTO이다.
+// 주차 구역 목록 조회 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ParkingFloorPatchReq {
+public class ParkingZoneListReq {
 
-    // 층 이름이다.
-    private String floorName;
-
-    // 전체 주차 면수이다.
-    private Integer totalSlots;
-
-    // 활성 여부이다.
+    // 활성 여부 필터이다.
     private Boolean isActive;
 }

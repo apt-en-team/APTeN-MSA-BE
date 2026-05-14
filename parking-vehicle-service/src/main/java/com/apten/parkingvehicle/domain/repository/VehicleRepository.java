@@ -23,4 +23,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     // 단지와 상태 기준 차량 목록을 조회한다.
     List<Vehicle> findByComplexIdAndStatusAndIsDeletedFalse(Long complexId, VehicleStatus status);
+
+    // 단지와 차량번호 기준 승인된 미삭제 차량을 조회한다 (입차 시 입주민 차량 매칭용).
+    Optional<Vehicle> findByComplexIdAndLicensePlateAndStatusAndIsDeletedFalse(
+            Long complexId, String licensePlate, VehicleStatus status);
 }
