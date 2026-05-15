@@ -35,6 +35,7 @@ public enum FacilityReservationErrorCode implements ErrorCode {
     RESERVATION_OWNER_MISMATCH(HttpStatus.FORBIDDEN, "FRS_403_01", "본인 예약만 처리할 수 있습니다."),
     CANCEL_TIME_EXPIRED(HttpStatus.BAD_REQUEST, "FRS_400_06", "취소 가능 시간이 지났습니다."),
     INVALID_RESERVATION_STATUS(HttpStatus.BAD_REQUEST, "FRS_400_07", "예약 상태가 올바르지 않습니다."),
+    INVALID_FACILITY_TYPE(HttpStatus.BAD_REQUEST, "FRS_400_09", "GX 시설만 GX 프로그램을 등록할 수 있습니다."),
     GX_PROGRAM_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_08", "GX 프로그램을 찾을 수 없습니다."),
     GX_PROGRAM_CANCELLED(HttpStatus.BAD_REQUEST, "FRS_400_08", "취소된 GX 프로그램입니다."),
     FEATURE_DISABLED(HttpStatus.FORBIDDEN, "FRS_403_02", "현재 단지에서 시설/예약 기능을 사용할 수 없습니다."),
