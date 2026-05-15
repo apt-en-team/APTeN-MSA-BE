@@ -10,7 +10,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
@@ -19,7 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 // 예약 대상 시설 엔티티이다.
-// 시설 타입 기본 정책 위에 개별 시설 override 값을 얹는 구조를 사용한다.
+// 시설 공간 정보만 관리하고 예약 정책성 값은 별도 정책 테이블이 담당한다.
 @Entity
 @Table(
         name = "facility",
@@ -63,10 +62,6 @@ public class Facility extends BaseEntity {
     @Column(name = "reservation_type", nullable = false, length = 20)
     private ReservationType reservationType = ReservationType.COUNT;
 
-    // 정원형 시설 최대 인원이다.
-    @Column(name = "max_count")
-    private Integer maxCount;
-
     // 운영 시작 시간이다.
     @Column(name = "open_time", nullable = false)
     private LocalTime openTime;
@@ -74,14 +69,6 @@ public class Facility extends BaseEntity {
     // 운영 종료 시간이다.
     @Column(name = "close_time", nullable = false)
     private LocalTime closeTime;
-
-    // 개별 시설 override 예약 단위이다.
-    @Column(name = "slot_min")
-    private Integer slotMin;
-
-    // 개별 시설 override 기본 요금이다.
-    @Column(name = "base_fee", precision = 12, scale = 2)
-    private BigDecimal baseFee;
 
     // 활성 여부이다.
     @Builder.Default
@@ -111,20 +98,11 @@ public class Facility extends BaseEntity {
         if (req.getReservationType() != null) {
             this.reservationType = req.getReservationType();
         }
-        if (req.getMaxCount() != null) {
-            this.maxCount = req.getMaxCount();
-        }
         if (req.getOpenTime() != null) {
             this.openTime = req.getOpenTime();
         }
         if (req.getCloseTime() != null) {
             this.closeTime = req.getCloseTime();
-        }
-        if (req.getSlotMin() != null) {
-            this.slotMin = req.getSlotMin();
-        }
-        if (req.getBaseFee() != null) {
-            this.baseFee = req.getBaseFee();
         }
     }
 

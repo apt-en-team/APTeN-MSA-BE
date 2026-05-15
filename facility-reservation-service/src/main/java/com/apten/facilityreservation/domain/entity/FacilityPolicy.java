@@ -2,7 +2,6 @@ package com.apten.facilityreservation.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.facilityreservation.application.model.request.FacilityPolicyPutReq;
-import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,17 +15,16 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 시설 타입별 기본 정책을 관리하는 원본 엔티티이다.
-// 개별 시설 override가 없을 때 기본 요금과 예약 단위, 취소 기준으로 사용한다.
+// 시설별 기본 정책을 관리하는 원본 엔티티이다.
+// 시설 공간 정보와 분리된 예약 정책성 값을 이 테이블이 담당한다.
 @Entity
 @Table(
         name = "facility_policy",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_facility_policy_complex_type", columnNames = {"complex_id", "facility_type_code"})
+                @UniqueConstraint(name = "uk_facility_policy_facility_id", columnNames = {"facility_id"})
         },
         indexes = {
-                @Index(name = "idx_facility_policy_complex_id", columnList = "complex_id"),
-                @Index(name = "idx_facility_policy_type_code", columnList = "facility_type_code"),
+                @Index(name = "idx_facility_policy_facility_id", columnList = "facility_id"),
                 @Index(name = "idx_facility_policy_is_active", columnList = "is_active")
         }
 )
@@ -42,13 +40,9 @@ public class FacilityPolicy extends BaseEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    // 정책이 적용되는 단지 ID이다.
-    @Column(name = "complex_id", nullable = false)
-    private Long complexId;
-
-    // 정책이 적용되는 시설 타입 코드이다.
-    @Column(name = "facility_type_code", nullable = false, length = 30)
-    private FacilityTypeCode facilityTypeCode;
+    // 정책이 적용되는 시설 ID이다.
+    @Column(name = "facility_id", nullable = false)
+    private Long facilityId;
 
     // 시설 타입 기본 요금이다.
     @Builder.Default
@@ -65,10 +59,10 @@ public class FacilityPolicy extends BaseEntity {
     @Column(name = "cancel_deadline_hours", nullable = false)
     private Integer cancelDeadlineHours = 2;
 
-    // GX 대기 허용 여부이다.
+    // 최대 예약 인원이다.
     @Builder.Default
-    @Column(name = "gx_waiting_enabled", nullable = false)
-    private Boolean gxWaitingEnabled = false;
+    @Column(name = "max_reservation_count")
+    private Integer maxReservationCount = null;
 
     // 정책 활성 여부이다.
     @Builder.Default
@@ -77,8 +71,8 @@ public class FacilityPolicy extends BaseEntity {
 
     // 요청값을 시설 정책 엔티티에 반영한다.
     public void apply(FacilityPolicyPutReq req) {
-        if (req.getFacilityTypeCode() != null) {
-            this.facilityTypeCode = req.getFacilityTypeCode();
+        if (req.getFacilityId() != null) {
+            this.facilityId = req.getFacilityId();
         }
         if (req.getBaseFee() != null) {
             this.baseFee = req.getBaseFee();
@@ -89,8 +83,8 @@ public class FacilityPolicy extends BaseEntity {
         if (req.getCancelDeadlineHours() != null) {
             this.cancelDeadlineHours = req.getCancelDeadlineHours();
         }
-        if (req.getGxWaitingEnabled() != null) {
-            this.gxWaitingEnabled = req.getGxWaitingEnabled();
+        if (req.getMaxReservationCount() != null) {
+            this.maxReservationCount = req.getMaxReservationCount();
         }
         if (req.getIsActive() != null) {
             this.isActive = req.getIsActive();

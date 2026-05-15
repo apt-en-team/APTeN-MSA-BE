@@ -40,7 +40,6 @@ import com.apten.facilityreservation.application.model.response.ResidentFacility
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
 import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
-import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
@@ -49,15 +48,12 @@ import com.apten.facilityreservation.domain.repository.*;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import lombok.RequiredArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,7 +69,6 @@ public class FacilityService {
     private final FacilitySeatRepository facilitySeatRepository;
     private final ReservationRepository reservationRepository;
     private final ComplexCacheRepository complexCacheRepository;
-    private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
 
 
@@ -139,22 +134,6 @@ public class FacilityService {
         }
     }
 
-    // 예약 정책값 검증
-    private void validateRule(ReservationType reservationType, Integer maxCount, Integer slotMin, BigDecimal baseFee) {
-        if (reservationType == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
-        if (slotMin == null || slotMin <= 0 || baseFee == null || baseFee.compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
-        }
-
-        if ((reservationType == ReservationType.COUNT || reservationType == ReservationType.APPROVAL)
-                && (maxCount == null || maxCount <= 0)) {
-            throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
-        }
-    }
-
     // 시설 차단 시간 요청 검증
     private void validateBlockTimeReq(FacilityBlockTimePostReq req) {
         if (req == null || req.getBlockDate() == null) {
@@ -195,35 +174,15 @@ public class FacilityService {
         validateCreateReq(req);
 
         // 시설 타입 존재 검증
-        FacilityType facilityType = getFacilityType(req.getTypeId());
-
-        // 시설 타입별 기본 정책 조회
-        Optional<FacilityPolicy> policy =
-                facilityPolicyRepository.findByComplexIdAndFacilityTypeCodeAndIsActiveTrue(
-                        complexId,
-                        facilityType.getTypeCode()
-                );
+        getFacilityType(req.getTypeId());
 
         // 예약 방식 기본값 처리
         ReservationType reservationType = req.getReservationType() != null
                 ? req.getReservationType()
                 : ReservationType.COUNT;
 
-        // 예약 단위 기본값 처리
-        Integer slotMin = req.getSlotMin() != null
-                ? req.getSlotMin()
-                : policy.map(FacilityPolicy::getSlotMin).orElse(30);
-
-        // 기본 요금 기본값 처리
-        BigDecimal baseFee = req.getBaseFee() != null
-                ? req.getBaseFee()
-                : policy.map(FacilityPolicy::getBaseFee).orElse(BigDecimal.ZERO);
-
         // 운영 시간 검증
         validateTime(req.getOpenTime(), req.getCloseTime());
-
-        // 예약 정책값 검증
-        validateRule(reservationType, req.getMaxCount(), slotMin, baseFee);
 
         // 시설 엔티티 생성 및 저장
         Facility savedFacility = facilityRepository.save(Facility.builder()
@@ -232,11 +191,8 @@ public class FacilityService {
                 .name(req.getName())
                 .description(req.getDescription())
                 .reservationType(reservationType)
-                .maxCount(req.getMaxCount())
                 .openTime(req.getOpenTime())
                 .closeTime(req.getCloseTime())
-                .slotMin(slotMin)
-                .baseFee(baseFee)
                 .isActive(req.getIsActive() == null || req.getIsActive())
                 .isDeleted(false)
                 .build());
@@ -287,7 +243,6 @@ public class FacilityService {
                 .typeId(facility.getTypeId())
                 .name(facility.getName())
                 .reservationType(facility.getReservationType())
-                .maxCount(facility.getMaxCount())
                 .openTime(facility.getOpenTime())
                 .closeTime(facility.getCloseTime())
                 .isActive(facility.getIsActive())
@@ -331,11 +286,8 @@ public class FacilityService {
                 .name(facility.getName())
                 .description(facility.getDescription())
                 .reservationType(facility.getReservationType())
-                .maxCount(facility.getMaxCount())
                 .openTime(facility.getOpenTime())
                 .closeTime(facility.getCloseTime())
-                .slotMin(facility.getSlotMin())
-                .baseFee(facility.getBaseFee())
                 .isActive(facility.getIsActive())
                 .createdAt(facility.getCreatedAt())
                 .updatedAt(facility.getUpdatedAt())
@@ -359,9 +311,6 @@ public class FacilityService {
 
         // 운영 시간 검증
         validateTime(req.getOpenTime(), req.getCloseTime());
-
-        // 예약 정책값 검증
-        validateRule(req.getReservationType(), req.getMaxCount(), req.getSlotMin(), req.getBaseFee());
 
         facility.apply(req);
 

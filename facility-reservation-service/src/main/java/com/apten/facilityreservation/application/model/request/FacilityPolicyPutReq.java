@@ -1,6 +1,5 @@
 package com.apten.facilityreservation.application.model.request;
 
-import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,8 +13,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityPolicyPutReq {
 
-    // 시설 타입 코드이다.
-    private FacilityTypeCode facilityTypeCode;
+    // 시설 ID이다.
+    private Long facilityId;
 
     // 기본 요금이다.
     private BigDecimal baseFee;
@@ -26,8 +25,8 @@ public class FacilityPolicyPutReq {
     // 취소 마감 시간이다.
     private Integer cancelDeadlineHours;
 
-    // GX 대기 허용 여부이다.
-    private Boolean gxWaitingEnabled;
+    // 최대 예약 인원이다.
+    private Integer maxReservationCount;
 
     // 활성 여부이다.
     private Boolean isActive;

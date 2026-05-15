@@ -24,6 +24,7 @@ public enum FacilityReservationErrorCode implements ErrorCode {
     FACILITY_SEAT_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_05", "시설 좌석을 찾을 수 없습니다."),
     DUPLICATE_SEAT(HttpStatus.CONFLICT, "FRS_409_03", "이미 존재하는 좌석 번호입니다."),
     INVALID_FACILITY_POLICY(HttpStatus.BAD_REQUEST, "FRS_400_03", "시설 정책 값이 올바르지 않습니다."),
+    FACILITY_POLICY_GX_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FRS_400_10", "GX 시설은 시설 정책 대상이 아닙니다."),
     INVALID_RESERVATION_DATE(HttpStatus.BAD_REQUEST, "FRS_400_04", "예약할 수 없는 날짜입니다."),
     TIME_SLOT_NOT_AVAILABLE(HttpStatus.CONFLICT, "FRS_409_04", "예약 가능한 시간이 아닙니다."),
     SEAT_ALREADY_RESERVED(HttpStatus.CONFLICT, "FRS_409_05", "이미 예약된 좌석입니다."),
