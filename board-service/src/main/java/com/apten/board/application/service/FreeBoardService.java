@@ -17,13 +17,16 @@ import com.apten.board.application.model.response.PostDetailRes;
 import com.apten.board.application.model.response.PostLikeToggleRes;
 import com.apten.board.application.model.response.PostListRes;
 import com.apten.board.application.model.response.PostPatchRes;
+import com.apten.board.domain.entity.BoardFile;
+import com.apten.board.domain.entity.BoardLike;
 import com.apten.board.domain.entity.BoardPost;
 import com.apten.board.domain.entity.UserCache;
+import com.apten.board.domain.enums.BoardFileType;
 import com.apten.board.domain.enums.UserCacheStatus;
+import com.apten.board.domain.repository.BoardCommentRepository;
 import com.apten.board.domain.repository.BoardFileRepository;
 import com.apten.board.domain.repository.BoardLikeRepository;
 import com.apten.board.domain.repository.BoardPostRepository;
-import com.apten.board.domain.repository.BoardCommentRepository;
 import com.apten.board.domain.repository.NoticeRepository;
 import com.apten.board.domain.repository.UserCacheRepository;
 import com.apten.board.domain.repository.VoteRepository;
@@ -40,36 +43,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 게시글 응용 서비스이다.
 @Service
 @RequiredArgsConstructor
 public class FreeBoardService {
 
-    // 게시글 저장소이다.
     private final BoardPostRepository boardPostRepository;
-
-    // 게시글 첨부파일 저장소이다.
     private final BoardFileRepository boardFileRepository;
-
-    // 좋아요 저장소이다.
     private final BoardLikeRepository boardLikeRepository;
-
-    // 사용자 캐시 저장소이다.
     private final UserCacheRepository userCacheRepository;
-
-    // 댓글 저장소이다.
     private final BoardCommentRepository boardCommentRepository;
-
-    // 공지 저장소이다.
     private final NoticeRepository noticeRepository;
-
-    // 투표 저장소이다.
     private final VoteRepository voteRepository;
-
-    // 게시판 outbox 서비스이다.
     private final BoardOutboxService boardOutboxService;
 
-    //게시글 작성
+    // 게시글 작성
     @Transactional
     public PostCreateRes createPost(PostCreateReq request) {
         UserCache writer = getCurrentActiveUser();
@@ -78,10 +65,26 @@ public class FreeBoardService {
                 BoardPost.builder()
                         .complexId(resolveCurrentComplexId(writer))
                         .userId(writer.getId())
+                        .category(request.getCategory())  // ← 이 줄 추가
                         .title(request.getTitle())
                         .content(request.getContent())
                         .build()
         );
+
+        if (request.getFiles() != null && !request.getFiles().isEmpty()) {
+            List<BoardFile> files = request.getFiles().stream()
+                    .map(f -> BoardFile.builder()
+                            .postId(post.getId())
+                            .originName(f.getOriginName())
+                            .savedName(f.getSavedName())
+                            .filePath(f.getFilePath())
+                            .fileType(BoardFileType.valueOf(f.getFileType()))
+                            .fileSize(f.getFileSize())
+                            .sortOrder(f.getSortOrder())
+                            .build())
+                    .toList();
+            boardFileRepository.saveAll(files);
+        }
 
         boardOutboxService.savePostCreatedEvent(post);
 
@@ -92,7 +95,7 @@ public class FreeBoardService {
                 .build();
     }
 
-    //게시글 목록 조회
+    // 게시글 목록 조회
     @Transactional(readOnly = true)
     public PageResponse<PostListRes> getPostList(PostListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
@@ -311,11 +314,16 @@ public class FreeBoardService {
 
     //게시글 목록 응답으로 변환한다.
     private PostListRes toPostListRes(BoardPost post) {
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
         return PostListRes.builder()
                 .postId(post.getId())
                 .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
                 .title(post.getTitle())
-                .content(post.getContent())
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
                 .createdAt(post.getCreatedAt())
