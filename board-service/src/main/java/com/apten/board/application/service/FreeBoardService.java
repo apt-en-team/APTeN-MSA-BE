@@ -112,15 +112,22 @@ public class FreeBoardService {
     }
 
     //게시글 상세 조회
+    // 게시글 상세 조회
     @Transactional
     public PostDetailRes getPostDetail(Long postId) {
         BoardPost post = getPost(postId);
         post.increaseViewCount();
 
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
         return PostDetailRes.builder()
                 .postId(post.getId())
                 .complexId(post.getComplexId())
                 .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
                 .title(post.getTitle())
                 .content(post.getContent())
                 .viewCount(post.getViewCount())
@@ -140,6 +147,7 @@ public class FreeBoardService {
                         .toList())
                 .build();
     }
+
 
     //게시글 수정
     @Transactional
