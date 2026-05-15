@@ -56,7 +56,7 @@ spring:
         - id: facility-reservation-service-admin
           uri: http://localhost:${FACILITY_SERVER_PORT}
           predicates:
-            - Path=/api/admin/facilities,/api/admin/facilities/**,/api/admin/facility-types,/api/admin/facility-types/**,/api/admin/facility-policies,/api/admin/facility-policies/**
+            - Path=/api/admin/facilities,/api/admin/facilities/**,/api/admin/facility-types,/api/admin/facility-types/**,/api/admin/facility-policies,/api/admin/facility-policies/**,/api/admin/gx-programs,/api/admin/gx-programs/**
 
         - id: facility-reservation-service
           uri: http://localhost:${FACILITY_SERVER_PORT}
