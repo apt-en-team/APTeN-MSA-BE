@@ -42,6 +42,10 @@ public class FacilityBlockTime extends BaseEntity {
     @Column(name = "facility_id", nullable = false)
     private Long facilityId;
 
+    // null이면 시설 전체 차단, 값 있으면 해당 좌석만 차단
+    @Column(name = "seat_id")
+    private Long seatId;
+
     // 차단일이다.
     @Column(name = "block_date", nullable = false)
     private LocalDate blockDate;

@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.model.request;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
@@ -40,4 +41,7 @@ public class GxProgramPatchReq {
 
     // 최소 인원이다.
     private Integer minCount;
+
+    // 프로그램별 개별 요금이다.
+    private BigDecimal baseFee;
 }

@@ -121,8 +121,14 @@ public class FacilityPolicyService {
         // 시설 타입 조건 정리
         FacilityTypeCode facilityTypeCode = req == null ? null : req.getFacilityTypeCode();
 
-        // 시설 정책 목록 조회 및 응답 변환
-        return facilityPolicyRepository.findPolicies(complexId, facilityTypeCode)
+        // facilityTypeCode가 null이면 단지 전체 정책 조회
+        // null을 JPQL 파라미터로 넘기면 AttributeConverter가 null 변환을 시도해 예외 발생
+        List<FacilityPolicy> policies = facilityTypeCode == null
+                ? facilityPolicyRepository.findByComplexId(complexId)
+                : facilityPolicyRepository.findPolicies(complexId, facilityTypeCode);
+
+        // 시설 정책 목록 응답 변환
+        return policies
                 .stream()
                 .map(policy -> FacilityPolicyListRes.builder()
                         .facilityPolicyId(policy.getId())

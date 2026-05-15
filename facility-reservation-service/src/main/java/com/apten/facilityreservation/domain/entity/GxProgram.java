@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
@@ -80,6 +81,10 @@ public class GxProgram extends BaseEntity {
     @Column(name = "max_count", nullable = false)
     private Integer maxCount;
 
+    // null이면 FacilityPolicy 기본값 사용, 값 있으면 프로그램별 개별 요금
+    @Column(name = "base_fee", precision = 12, scale = 2)
+    private BigDecimal baseFee;
+
     // 최소 인원이다.
     @Builder.Default
     @Column(name = "min_count", nullable = false)
@@ -118,6 +123,9 @@ public class GxProgram extends BaseEntity {
         }
         if (req.getMinCount() != null) {
             this.minCount = req.getMinCount();
+        }
+        if (req.getBaseFee() != null) {
+            this.baseFee = req.getBaseFee();
         }
     }
 

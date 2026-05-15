@@ -14,6 +14,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityBlockTimePostReq {
 
+    // 좌석 ID이다.
+    private Long seatId;
+
     // 차단일이다.
     private LocalDate blockDate;
 

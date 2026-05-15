@@ -41,6 +41,7 @@ import com.apten.facilityreservation.application.model.response.SeatStatusRes;
 import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
+import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
 import com.apten.facilityreservation.domain.enums.ReservationType;
@@ -471,9 +472,19 @@ public class FacilityService {
         // 차단 시간 요청 검증
         validateBlockTimeReq(req);
 
+        // 좌석 소속 검증
+        if (req.getSeatId() != null) {
+            FacilitySeat seat = facilitySeatRepository.findById(req.getSeatId())
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+            if (!seat.getFacilityId().equals(facility.getId())) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+        }
+
         // 차단 시간 저장
         FacilityBlockTime blockTime = facilityBlockTimeRepository.save(FacilityBlockTime.builder()
                 .facilityId(facility.getId())
+                .seatId(req.getSeatId())
                 .blockDate(req.getBlockDate())
                 .startTime(req.getStartTime())
                 .endTime(req.getEndTime())
@@ -528,6 +539,7 @@ public class FacilityService {
                 .map(blockTime -> FacilityBlockTimeListRes.builder()
                         .facilityBlockTimeId(blockTime.getId())
                         .facilityId(blockTime.getFacilityId())
+                        .seatId(blockTime.getSeatId())
                         .blockDate(blockTime.getBlockDate())
                         .startTime(blockTime.getStartTime())
                         .endTime(blockTime.getEndTime())
