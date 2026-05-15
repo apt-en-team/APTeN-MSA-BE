@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.model.request;
 
+import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,6 +19,9 @@ public class FacilityPolicyPutReq {
 
     // 기본 요금이다.
     private BigDecimal baseFee;
+
+    // 예약 단위 타입이다.
+    private FacilityUsageUnitType usageUnitType;
 
     // 기본 예약 단위이다.
     private Integer slotMin;

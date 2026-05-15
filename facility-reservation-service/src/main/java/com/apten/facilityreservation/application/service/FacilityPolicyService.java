@@ -16,7 +16,9 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
+import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
+import com.apten.facilityreservation.domain.enums.ReservationType;
 import com.apten.facilityreservation.domain.repository.ComplexCacheRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
@@ -30,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class FacilityPolicyService {
+
+    private static final int DAY_SLOT_MINUTES = 1440;
 
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
@@ -46,7 +50,15 @@ public class FacilityPolicyService {
     }
 
     // 시설 정책 요청 검증
-    private void validatePolicyReq(FacilityPolicyPutReq req) {
+    private FacilityUsageUnitType resolveUsageUnitType(FacilityPolicyPutReq req) {
+        if (req == null || req.getUsageUnitType() == null) {
+            return FacilityUsageUnitType.MINUTE;
+        }
+        return req.getUsageUnitType();
+    }
+
+    // 시설 정책 요청 검증
+    private void validatePolicyReq(FacilityPolicyPutReq req, FacilityUsageUnitType usageUnitType) {
         if (req == null || req.getFacilityId() == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
@@ -55,7 +67,8 @@ public class FacilityPolicyService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
         }
 
-        if (req.getSlotMin() == null || req.getSlotMin() <= 0) {
+        if (usageUnitType == FacilityUsageUnitType.MINUTE
+                && (req.getSlotMin() == null || req.getSlotMin() <= 0)) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
         }
 
@@ -80,8 +93,8 @@ public class FacilityPolicyService {
             throw new BusinessException(FacilityReservationErrorCode.FACILITY_POLICY_GX_NOT_ALLOWED);
         }
 
-        if ((facility.getReservationType() == com.apten.facilityreservation.domain.enums.ReservationType.COUNT
-                || facility.getReservationType() == com.apten.facilityreservation.domain.enums.ReservationType.APPROVAL)
+        if ((facility.getReservationType() == ReservationType.COUNT
+                || facility.getReservationType() == ReservationType.APPROVAL)
                 && (reqMaxCountMissing(req))) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
         }
@@ -93,34 +106,64 @@ public class FacilityPolicyService {
         return req.getMaxReservationCount() == null || req.getMaxReservationCount() <= 0;
     }
 
+    private int resolveSlotMin(FacilityPolicyPutReq req, FacilityUsageUnitType usageUnitType, FacilityPolicy existingPolicy) {
+        if (usageUnitType == FacilityUsageUnitType.DAY) {
+            return DAY_SLOT_MINUTES;
+        }
+
+        if (req.getSlotMin() != null) {
+            return req.getSlotMin();
+        }
+
+        if (existingPolicy != null && existingPolicy.getSlotMin() != null && existingPolicy.getSlotMin() > 0) {
+            return existingPolicy.getSlotMin();
+        }
+
+        throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
+    }
+
     // 시설 예약 정책 저장
     @Transactional
     public FacilityPolicyPutRes updateFacilityPolicy(Long complexId, FacilityPolicyPutReq req) {
         // 시설 접근 검증
         validateAdminAccess(complexId);
 
+        FacilityUsageUnitType usageUnitType = resolveUsageUnitType(req);
+
         // 정책 요청 검증
-        validatePolicyReq(req);
+        validatePolicyReq(req, usageUnitType);
 
         // 정책 대상 시설 검증
         validatePolicyTargetFacility(complexId, req);
 
         // 기존 정책 조회
         Optional<FacilityPolicy> policyOptional =
-                facilityPolicyRepository.findByFacilityId(req.getFacilityId());
+                facilityPolicyRepository.findByComplexIdAndFacilityId(complexId, req.getFacilityId());
 
         FacilityPolicy policy;
+        FacilityPolicy existingPolicy = policyOptional.orElse(null);
+        int resolvedSlotMin = resolveSlotMin(req, usageUnitType, existingPolicy);
 
         if (policyOptional.isPresent()) {
             // 기존 정책 수정
             policy = policyOptional.get();
-            policy.apply(req);
+            policy.apply(FacilityPolicyPutReq.builder()
+                    .facilityId(req.getFacilityId())
+                    .baseFee(req.getBaseFee())
+                    .usageUnitType(usageUnitType)
+                    .slotMin(resolvedSlotMin)
+                    .cancelDeadlineHours(req.getCancelDeadlineHours())
+                    .maxReservationCount(req.getMaxReservationCount())
+                    .isActive(req.getIsActive())
+                    .build());
         } else {
             // 신규 정책 저장
             policy = facilityPolicyRepository.save(FacilityPolicy.builder()
+                    .complexId(complexId)
                     .facilityId(req.getFacilityId())
                     .baseFee(req.getBaseFee())
-                    .slotMin(req.getSlotMin())
+                    .usageUnitType(usageUnitType)
+                    .slotMin(resolvedSlotMin)
                     .cancelDeadlineHours(req.getCancelDeadlineHours())
                     .maxReservationCount(req.getMaxReservationCount())
                     .isActive(req.getIsActive() == null || req.getIsActive())
@@ -130,8 +173,10 @@ public class FacilityPolicyService {
         // 정책 저장 응답
         return FacilityPolicyPutRes.builder()
                 .facilityPolicyId(policy.getId())
+                .complexId(policy.getComplexId())
                 .facilityId(policy.getFacilityId())
                 .baseFee(policy.getBaseFee())
+                .usageUnitType(policy.getUsageUnitType())
                 .slotMin(policy.getSlotMin())
                 .cancelDeadlineHours(policy.getCancelDeadlineHours())
                 .maxReservationCount(policy.getMaxReservationCount())
@@ -159,8 +204,10 @@ public class FacilityPolicyService {
                         .orElse(false))
                 .map(policy -> FacilityPolicyListRes.builder()
                         .facilityPolicyId(policy.getId())
+                        .complexId(policy.getComplexId())
                         .facilityId(policy.getFacilityId())
                         .baseFee(policy.getBaseFee())
+                        .usageUnitType(policy.getUsageUnitType())
                         .slotMin(policy.getSlotMin())
                         .cancelDeadlineHours(policy.getCancelDeadlineHours())
                         .maxReservationCount(policy.getMaxReservationCount())

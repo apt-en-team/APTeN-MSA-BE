@@ -10,23 +10,17 @@ import org.springframework.data.repository.query.Param;
 // 시설별 기본 정책 원본 저장소이다.
 public interface FacilityPolicyRepository extends JpaRepository<FacilityPolicy, Long> {
 
-    // 시설 ID 기준으로 시설 정책을 조회한다.
-    Optional<FacilityPolicy> findByFacilityId(Long facilityId);
+    // 단지와 시설 ID 기준으로 시설 정책을 조회한다.
+    Optional<FacilityPolicy> findByComplexIdAndFacilityId(Long complexId, Long facilityId);
 
-    // 시설 ID 기준 활성 정책을 조회한다.
-    Optional<FacilityPolicy> findByFacilityIdAndIsActiveTrue(Long facilityId);
+    // 단지와 시설 ID 기준 활성 정책을 조회한다.
+    Optional<FacilityPolicy> findByComplexIdAndFacilityIdAndIsActiveTrue(Long complexId, Long facilityId);
 
     // 단지 기준 시설 정책 목록 조회
     @Query("""
         SELECT p
         FROM FacilityPolicy p
-        WHERE EXISTS (
-            SELECT 1
-            FROM Facility f
-            WHERE f.id = p.facilityId
-              AND f.complexId = :complexId
-              AND f.isDeleted = false
-        )
+        WHERE p.complexId = :complexId
           AND (:facilityId IS NULL OR p.facilityId = :facilityId)
         ORDER BY p.facilityId ASC
         """)

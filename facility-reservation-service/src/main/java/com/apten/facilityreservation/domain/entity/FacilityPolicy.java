@@ -2,9 +2,12 @@ package com.apten.facilityreservation.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.facilityreservation.application.model.request.FacilityPolicyPutReq;
+import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -21,9 +24,10 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "facility_policy",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_facility_policy_facility_id", columnNames = {"facility_id"})
+                @UniqueConstraint(name = "uk_facility_policy_complex_facility", columnNames = {"complex_id", "facility_id"})
         },
         indexes = {
+                @Index(name = "idx_facility_policy_complex_id", columnList = "complex_id"),
                 @Index(name = "idx_facility_policy_facility_id", columnList = "facility_id"),
                 @Index(name = "idx_facility_policy_is_active", columnList = "is_active")
         }
@@ -40,6 +44,10 @@ public class FacilityPolicy extends BaseEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
+    // 소속 단지 ID이다.
+    @Column(name = "complex_id", nullable = false)
+    private Long complexId;
+
     // 정책이 적용되는 시설 ID이다.
     @Column(name = "facility_id", nullable = false)
     private Long facilityId;
@@ -48,6 +56,12 @@ public class FacilityPolicy extends BaseEntity {
     @Builder.Default
     @Column(name = "base_fee", nullable = false, precision = 12, scale = 2)
     private BigDecimal baseFee = BigDecimal.ZERO;
+
+    // 예약 단위 타입이다.
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "usage_unit_type", nullable = false, length = 20)
+    private FacilityUsageUnitType usageUnitType = FacilityUsageUnitType.MINUTE;
 
     // 시설 타입 기본 예약 단위이다.
     @Builder.Default
@@ -77,8 +91,14 @@ public class FacilityPolicy extends BaseEntity {
         if (req.getBaseFee() != null) {
             this.baseFee = req.getBaseFee();
         }
+        if (req.getUsageUnitType() != null) {
+            this.usageUnitType = req.getUsageUnitType();
+        }
         if (req.getSlotMin() != null) {
             this.slotMin = req.getSlotMin();
+        } else if (this.usageUnitType == FacilityUsageUnitType.DAY) {
+            // DAY 정책은 내부 저장값을 1440분으로 정규화해 기존 slotMin 의존 로직과 호환한다.
+            this.slotMin = 1440;
         }
         if (req.getCancelDeadlineHours() != null) {
             this.cancelDeadlineHours = req.getCancelDeadlineHours();
