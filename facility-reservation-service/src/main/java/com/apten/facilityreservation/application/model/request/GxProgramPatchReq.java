@@ -44,4 +44,7 @@ public class GxProgramPatchReq {
 
     // 프로그램별 개별 요금이다.
     private BigDecimal baseFee;
+
+    // 대기 신청 허용 여부이다. null이면 변경하지 않음
+    private Boolean waitingEnabled;
 }

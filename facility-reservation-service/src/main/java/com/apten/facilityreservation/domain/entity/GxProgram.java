@@ -95,6 +95,11 @@ public class GxProgram extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private GxProgramStatus status = GxProgramStatus.OPEN;
 
+    // 대기 신청 허용 여부이다.
+    @Builder.Default
+    @Column(name = "waiting_enabled", nullable = false)
+    private Boolean waitingEnabled = false;
+
     // GX 프로그램 수정 요청을 엔티티에 반영한다.
     public void apply(GxProgramPatchReq req) {
         if (req.getName() != null) {
@@ -126,6 +131,9 @@ public class GxProgram extends BaseEntity {
         }
         if (req.getBaseFee() != null) {
             this.baseFee = req.getBaseFee();
+        }
+        if (req.getWaitingEnabled() != null) {
+            this.waitingEnabled = req.getWaitingEnabled();
         }
     }
 

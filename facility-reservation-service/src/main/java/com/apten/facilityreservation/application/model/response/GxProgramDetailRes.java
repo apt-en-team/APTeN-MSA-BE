@@ -51,6 +51,9 @@ public class GxProgramDetailRes {
     // 프로그램별 개별 요금이다.
     private BigDecimal baseFee;
 
+    // 대기 신청 허용 여부이다.
+    private Boolean waitingEnabled;
+
     // 상태이다.
     private GxProgramStatus status;
 
