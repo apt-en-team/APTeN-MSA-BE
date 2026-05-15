@@ -112,7 +112,6 @@ public class FreeBoardService {
     }
 
     //게시글 상세 조회
-    // 게시글 상세 조회
     @Transactional
     public PostDetailRes getPostDetail(Long postId) {
         BoardPost post = getPost(postId);
@@ -176,6 +175,7 @@ public class FreeBoardService {
                 .deletedAt(post.getDeletedAt())
                 .build();
     }
+
 
     //좋아요 등록 또는 취소
     @Transactional
