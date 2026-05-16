@@ -50,7 +50,7 @@ spring:
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
-            - Path=/parking-vehicles/**,/api/admin/parking-logs/**
+            - Path=/parking-vehicles/**,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
 
         - id: facility-reservation-service-admin
           uri: http://localhost:${FACILITY_SERVER_PORT}
