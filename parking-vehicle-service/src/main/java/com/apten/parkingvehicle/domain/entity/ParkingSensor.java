@@ -73,6 +73,16 @@ public class ParkingSensor extends BaseEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    // 자리 부가 설명을 변경한다
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    // 활성 여부를 변경한다
+    public void changeActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
     // 주차 센서를 소프트 삭제한다
     public void markDeleted(LocalDateTime deletedAt) {
         this.isDeleted = true;
