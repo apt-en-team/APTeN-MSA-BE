@@ -38,6 +38,25 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
             @Param("zoneIds") List<Long> zoneIds
     );
 
+    // 단일 zone의 현재 입차 중인 차량 수를 단일 값으로 집계한다.
+    // 같은 차량번호의 더 최신 로그(보통 OUT)가 없는 IN 로그만 카운트한다.
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.zoneId = :zoneId
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentParkedInZone(
+            @Param("complexId") Long complexId,
+            @Param("zoneId") Long zoneId
+    );
+
     // 동적 필터로 입출차 기록을 페이지 조회한다.
     // 필수 파라미터는 complexId, 나머지는 NULL이면 해당 조건을 건너뛴다.
     // 차종 분류는 ParkingLog에 별도 컬럼이 없으므로 FK 분기로 판별한다.

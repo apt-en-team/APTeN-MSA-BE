@@ -40,6 +40,16 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     // 비활성 상태인 주차 구역에 입출차 등록을 시도한 경우
     PARKING_ZONE_INACTIVE(HttpStatus.BAD_REQUEST, "PVH_400_05", "비활성 상태의 주차 구역입니다."),
     PARKING_TYPE_NONE(HttpStatus.BAD_REQUEST, "PVH_400_06", "주차 운영 타입이 미사용 상태입니다."),
+    // 면수는 1 이상이어야 한다
+    INVALID_TOTAL_SLOTS(HttpStatus.BAD_REQUEST, "PVH_400_07", "주차 면수는 1 이상이어야 합니다."),
+    // PATCH로 활성→비활성 전환을 시도한 경우 (DELETE API 사용 유도)
+    USE_DELETE_API_FOR_DEACTIVATION(HttpStatus.BAD_REQUEST, "PVH_400_08", "주차 구역 비활성화는 삭제 API로 처리해야 합니다."),
+    // 단지의 마지막 활성 zone을 비활성화 시도한 경우
+    LAST_ACTIVE_ZONE_CANNOT_BE_DEACTIVATED(HttpStatus.CONFLICT, "PVH_409_06", "마지막 활성 주차 구역은 비활성화할 수 없습니다."),
+    // 현재 입차 중인 차량이 있는 zone을 비활성화 시도한 경우
+    ZONE_HAS_PARKED_VEHICLES(HttpStatus.CONFLICT, "PVH_409_07", "현재 입차 중인 차량이 있어 비활성화할 수 없습니다."),
+    // 변경 요청 면수가 현재 입차 차량 수보다 적은 경우
+    TOTAL_SLOTS_LESS_THAN_PARKED(HttpStatus.CONFLICT, "PVH_409_08", "현재 입차 중인 차량 수보다 적은 면수로 변경할 수 없습니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_01", "이벤트 발행에 실패했습니다."),
     PARKING_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_07", "주차 설정을 찾을 수 없습니다."),
     INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_02", "내부 서비스 처리 중 오류가 발생했습니다.");

@@ -519,6 +519,29 @@ public class ParkingService {
         ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(zoneId, targetComplexId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
 
+        // 필수값(areaName, totalSlots, isActive) null 검증
+        if (request.getAreaName() == null
+                || request.getTotalSlots() == null
+                || request.getIsActive() == null) {
+            throw new BusinessException(ParkingVehicleErrorCode.INVALID_PARAMETER);
+        }
+
+        // 면수는 1 이상이어야 한다
+        if (request.getTotalSlots() < 1) {
+            throw new BusinessException(ParkingVehicleErrorCode.INVALID_TOTAL_SLOTS);
+        }
+
+        // 현재 입차 중인 차량 수보다 적은 면수로는 줄일 수 없다
+        long currentParkedCount = parkingLogRepository.countCurrentParkedInZone(targetComplexId, zoneId);
+        if (request.getTotalSlots() < currentParkedCount) {
+            throw new BusinessException(ParkingVehicleErrorCode.TOTAL_SLOTS_LESS_THAN_PARKED);
+        }
+
+        // PATCH로 활성→비활성 전환은 차단하고 DELETE API로 유도한다 (재활성화는 허용)
+        if (Boolean.TRUE.equals(zone.getIsActive()) && Boolean.FALSE.equals(request.getIsActive())) {
+            throw new BusinessException(ParkingVehicleErrorCode.USE_DELETE_API_FOR_DEACTIVATION);
+        }
+
         // areaName 또는 zoneName이 변경된 경우에만 중복 검증
         boolean areaChanged = !zone.getAreaName().equals(request.getAreaName());
         boolean zoneNameChanged = !Objects.equals(zone.getZoneName(), request.getZoneName());
@@ -566,6 +589,16 @@ public class ParkingService {
         // 이미 비활성 상태면 멱등 처리 (중복 호출에도 안전)
         if (Boolean.FALSE.equals(zone.getIsActive())) {
             return;
+        }
+
+        // 단지에 활성 zone이 이 하나뿐이면 비활성화 차단
+        if (parkingZoneRepository.countByComplexIdAndIsActiveTrue(targetComplexId) <= 1) {
+            throw new BusinessException(ParkingVehicleErrorCode.LAST_ACTIVE_ZONE_CANNOT_BE_DEACTIVATED);
+        }
+
+        // 현재 입차 중인 차량이 남아 있는 zone은 비활성화 차단
+        if (parkingLogRepository.countCurrentParkedInZone(targetComplexId, zoneId) > 0) {
+            throw new BusinessException(ParkingVehicleErrorCode.ZONE_HAS_PARKED_VEHICLES);
         }
 
         // TODO: parking_sensor 매핑이 있으면 삭제 차단 (센서 도메인 설계 후 추가)
