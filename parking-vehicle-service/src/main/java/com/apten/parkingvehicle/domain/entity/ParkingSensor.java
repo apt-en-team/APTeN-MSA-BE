@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -62,4 +63,19 @@ public class ParkingSensor extends BaseEntity {
     // 자리 부가 설명 (예: 엘리베이터 앞)
     @Column(name = "description", length = 100)
     private String description;
+
+    // 소프트 삭제 여부
+    @Builder.Default
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean isDeleted = false;
+
+    // 삭제 일시
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // 주차 센서를 소프트 삭제한다
+    public void markDeleted(LocalDateTime deletedAt) {
+        this.isDeleted = true;
+        this.deletedAt = deletedAt;
+    }
 }

@@ -8,11 +8,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ParkingSensorRepository extends JpaRepository<ParkingSensor, Long> {
 
     // 단지 기준 주차 센서 존재 여부 조회
-    boolean existsByComplexId(Long complexId);
+    boolean existsByComplexIdAndIsDeletedFalse(Long complexId);
 
     // 단지 기준 활성 주차 센서 목록 조회
-    List<ParkingSensor> findByComplexIdAndIsActiveTrue(Long complexId);
+    List<ParkingSensor> findByComplexIdAndIsActiveTrueAndIsDeletedFalse(Long complexId);
 
     // 주차 구역 기준 주차 센서 목록 조회
-    List<ParkingSensor> findByZoneId(Long zoneId);
+    List<ParkingSensor> findByZoneIdAndIsDeletedFalse(Long zoneId);
 }
