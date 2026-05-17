@@ -25,7 +25,9 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
+import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.entity.Reservation;
+import com.apten.facilityreservation.domain.entity.ReservationTempHold;
 import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
@@ -35,11 +37,14 @@ import com.apten.facilityreservation.domain.repository.FacilityBlockTimeReposito
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
+import com.apten.facilityreservation.domain.repository.ReservationTempHoldRepository;
 import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import com.apten.facilityreservation.infrastructure.redis.ReservationTempHoldRedisService;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,12 +62,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReservationService {
 
+    private static final Duration SEAT_HOLD_TTL = Duration.ofMinutes(15);
+
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilitySeatRepository facilitySeatRepository;
+    private final HouseholdMemberCacheRepository householdMemberCacheRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationTempHoldRepository reservationTempHoldRepository;
     private final UserCacheRepository userCacheRepository;
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
 
@@ -207,27 +216,109 @@ public class ReservationService {
     }
 
     // 좌석 임시 선점을 생성한다.
+    @Transactional
     public SeatHoldPostRes createSeatHold(Long userId, Long complexId, SeatHoldPostReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) facility가 SEAT 예약 방식인지 검증한다.
-        // 4) seatId가 facility에 속하고 활성 상태인지 검증한다.
-        // 5) 운영 시간, 차단 시간, 예약 가능 시간 범위를 검증한다.
-        // 6) reservationTempHoldRedisService.buildHoldKey(...)로 Redis key를 생성한다.
-        // 7) reservationTempHoldRedisService.tryHoldSeat(...)로 setIfAbsent + TTL 선점을 시도한다.
-        // 8) 이미 key가 있으면 SEAT_TEMP_HOLD_EXISTS 또는 TIME_SLOT_NOT_AVAILABLE 예외를 반환한다.
-        // 9) 선점 성공 시 reservation_temp_hold에 HOLDING 상태 이력을 저장한다.
-        // 10) holdId, expiresAt을 응답으로 반환한다.
-        // 11) Redis value 설계와 TTL 분 단위 정책은 2단계에서 확정한다.
-        return SeatHoldPostRes.builder()
-                .holdId(0L)
-                .facilityId(req.getFacilityId())
-                .seatId(req.getSeatId())
-                .holdStatus(ReservationHoldStatus.HOLDING)
-                .expiresAt(LocalDateTime.now().plusMinutes(15))
-                .build();
+
+        validateSeatHoldRequest(req);
+
+        Facility facility = facilityRepository.findByIdAndComplexIdAndIsDeletedFalse(req.getFacilityId(), complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
+
+        if (!Boolean.TRUE.equals(facility.getIsActive())) {
+            throw new BusinessException(FacilityReservationErrorCode.FACILITY_INACTIVE);
+        }
+        if (facility.getReservationType() != ReservationType.SEAT) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        facilitySeatRepository.findByIdAndFacilityIdAndIsActiveTrue(req.getSeatId(), facility.getId())
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+
+        validateSeatHoldTimeWindow(facility, req);
+        validateSeatHoldBlockTime(facility.getId(), req);
+
+        boolean alreadyReserved = reservationRepository
+                .existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
+                        facility.getId(),
+                        req.getSeatId(),
+                        req.getReservationDate(),
+                        req.getStartTime(),
+                        req.getEndTime(),
+                        ReservationStatus.CONFIRMED
+                );
+        if (alreadyReserved) {
+            throw new BusinessException(FacilityReservationErrorCode.SEAT_ALREADY_RESERVED);
+        }
+
+        if (reservationTempHoldRedisService.existsHold(
+                facility.getId(),
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime()
+        )) {
+            throw new BusinessException(FacilityReservationErrorCode.SEAT_TEMP_HOLD_EXISTS);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (reservationTempHoldRepository.existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndHoldStatusAndExpiresAtAfter(
+                facility.getId(),
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime(),
+                ReservationHoldStatus.HOLDING,
+                now
+        )) {
+            throw new BusinessException(FacilityReservationErrorCode.SEAT_TEMP_HOLD_EXISTS);
+        }
+
+        boolean redisHeld = reservationTempHoldRedisService.tryHoldSeat(
+                facility.getId(),
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime(),
+                userId,
+                SEAT_HOLD_TTL
+        );
+        if (!redisHeld) {
+            throw new BusinessException(FacilityReservationErrorCode.SEAT_TEMP_HOLD_EXISTS);
+        }
+
+        LocalDateTime expiresAt = now.plus(SEAT_HOLD_TTL);
+        try {
+            ReservationTempHold hold = reservationTempHoldRepository.save(ReservationTempHold.builder()
+                    .complexId(complexId)
+                    .userId(userId)
+                    .facilityId(facility.getId())
+                    .seatId(req.getSeatId())
+                    .reservationDate(req.getReservationDate())
+                    .startTime(req.getStartTime())
+                    .endTime(req.getEndTime())
+                    .holdStatus(ReservationHoldStatus.HOLDING)
+                    .expiresAt(expiresAt)
+                    .build());
+
+            return SeatHoldPostRes.builder()
+                    .holdId(hold.getId())
+                    .facilityId(hold.getFacilityId())
+                    .seatId(hold.getSeatId())
+                    .holdStatus(hold.getHoldStatus())
+                    .expiresAt(hold.getExpiresAt())
+                    .build();
+        } catch (RuntimeException e) {
+            // DB 저장 실패 시 Redis key를 바로 해제해 유령 선점이 남지 않게 한다.
+            reservationTempHoldRedisService.releaseHold(
+                    facility.getId(),
+                    req.getSeatId(),
+                    req.getReservationDate(),
+                    req.getStartTime(),
+                    req.getEndTime()
+            );
+            throw e;
+        }
     }
 
     // 만료된 좌석 임시 선점을 자동 해제한다.
@@ -245,33 +336,65 @@ public class ReservationService {
     }
 
     // 예약 생성을 처리한다.
+    @Transactional
     public ReservationPostRes createReservation(Long userId, Long complexId, ReservationPostReq req) {
-        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(req.getFacilityId())
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        validateReservationRequest(req);
+
+        Facility facility = facilityRepository.findByIdAndComplexIdAndIsDeletedFalse(req.getFacilityId(), complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
-        featureAccessService.validateEnabled(facility.getComplexId(), FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) household_member_cache에서 userId 기준 ACTIVE 세대원 정보를 조회한다.
-        // 3) household_cache의 complexId와 요청 complexId 일치 여부를 검증한다.
-        // 4) facilityId가 현재 complexId 소속인지 검증한다.
-        // 5) facility/seat/날짜/시간 유효성을 검증한다.
-        // 6) 좌석형이면 holdId로 reservation_temp_hold를 조회하고 userId, facilityId, seatId, 날짜/시간 일치 여부를 검증한다.
-        // 7) reservationTempHoldRedisService.validateHold(...)로 Redis key 유효성을 검증한다.
-        // 8) 기존 CONFIRMED 예약 중복을 조회한다.
-        // 9) COUNT형이면 정원 초과 여부를 계산한다.
-        // 10) reservation 저장 후 reservation.householdId에 현재 세대 ID를 함께 저장한다.
-        // 11) reservation_temp_hold 상태를 CONFIRMED로 변경한다.
-        // 12) reservationTempHoldRedisService.releaseHold(...)로 Redis key 삭제 또는 확정 처리를 수행한다.
-        // 13) 예약 상태 변경 outbox 적재는 2단계에서 구현한다.
+
+        if (!Boolean.TRUE.equals(facility.getIsActive())) {
+            throw new BusinessException(FacilityReservationErrorCode.FACILITY_INACTIVE);
+        }
+
+        validateReservationTimeWindow(facility, req.getStartTime(), req.getEndTime());
+        validateReservationBlockTime(
+                facility.getId(),
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime()
+        );
+
+        HouseholdMemberCache memberCache = householdMemberCacheRepository.findByUserIdAndStatus(userId, "ACTIVE")
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.USER_NOT_FOUND));
+
+        boolean duplicateReservation = reservationRepository
+                .existsByUserIdAndFacilityIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
+                        userId,
+                        facility.getId(),
+                        req.getReservationDate(),
+                        req.getStartTime(),
+                        req.getEndTime(),
+                        ReservationStatus.CONFIRMED
+                );
+        if (duplicateReservation) {
+            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        }
+
+        Reservation reservation;
+        if (facility.getReservationType() == ReservationType.SEAT) {
+            reservation = createSeatReservation(userId, complexId, facility, memberCache, req);
+        } else if (facility.getReservationType() == ReservationType.COUNT) {
+            reservation = createCountReservation(userId, complexId, facility, memberCache, req);
+        } else {
+            // 승인형 예약은 대기 상태 enum 정리 후 구현한다.
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        // TODO: 예약 생성 알림 / 이벤트 발행은 가은 담당과 연동 후 추가한다.
+
         return ReservationPostRes.builder()
-                .reservationId(0L)
-                .facilityId(req.getFacilityId())
-                .seatId(req.getSeatId())
-                .reservationDate(req.getReservationDate())
-                .startTime(req.getStartTime())
-                .endTime(req.getEndTime())
-                .status(ReservationStatus.CONFIRMED)
-                .createdAt(LocalDateTime.now())
+                .reservationId(reservation.getId())
+                .facilityId(reservation.getFacilityId())
+                .seatId(reservation.getSeatId())
+                .reservationDate(reservation.getReservationDate())
+                .startTime(reservation.getStartTime())
+                .endTime(reservation.getEndTime())
+                .status(reservation.getStatus())
+                .createdAt(reservation.getCreatedAt())
                 .build();
     }
 
@@ -572,5 +695,193 @@ public class ReservationService {
                 .completedCount(0)
                 .processedAt(LocalDateTime.now())
                 .build();
+    }
+
+    private void validateSeatHoldRequest(SeatHoldPostReq req) {
+        if (req == null
+                || req.getFacilityId() == null
+                || req.getSeatId() == null
+                || req.getReservationDate() == null
+                || req.getStartTime() == null
+                || req.getEndTime() == null
+                || !req.getStartTime().isBefore(req.getEndTime())) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private void validateSeatHoldTimeWindow(Facility facility, SeatHoldPostReq req) {
+        validateReservationTimeWindow(facility, req.getStartTime(), req.getEndTime());
+    }
+
+    private void validateSeatHoldBlockTime(Long facilityId, SeatHoldPostReq req) {
+        validateReservationBlockTime(
+                facilityId,
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime()
+        );
+    }
+
+    private void validateReservationRequest(ReservationPostReq req) {
+        if (req == null
+                || req.getFacilityId() == null
+                || req.getReservationDate() == null
+                || req.getStartTime() == null
+                || req.getEndTime() == null
+                || !req.getStartTime().isBefore(req.getEndTime())) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    private void validateReservationTimeWindow(Facility facility, LocalTime startTime, LocalTime endTime) {
+        if (startTime.isBefore(facility.getOpenTime())
+                || endTime.isAfter(facility.getCloseTime())) {
+            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        }
+    }
+
+    private void validateReservationBlockTime(
+            Long facilityId,
+            Long seatId,
+            java.time.LocalDate reservationDate,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
+        List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
+                .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, reservationDate);
+
+        boolean blocked = blockTimes.stream()
+                .filter(blockTime -> blockTime.getSeatId() == null || (seatId != null && blockTime.getSeatId().equals(seatId)))
+                .anyMatch(blockTime -> isSlotOverlap(
+                        startTime,
+                        endTime,
+                        blockTime.getStartTime(),
+                        blockTime.getEndTime()
+                ));
+
+        if (blocked) {
+            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        }
+    }
+
+    private Reservation createSeatReservation(
+            Long userId,
+            Long complexId,
+            Facility facility,
+            HouseholdMemberCache memberCache,
+            ReservationPostReq req
+    ) {
+        if (req.getHoldId() == null || req.getSeatId() == null) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        facilitySeatRepository.findByIdAndFacilityIdAndIsActiveTrue(req.getSeatId(), facility.getId())
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+
+        ReservationTempHold hold = reservationTempHoldRepository
+                .findByIdAndUserIdAndHoldStatus(req.getHoldId(), userId, ReservationHoldStatus.HOLDING)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.TEMP_HOLD_NOT_FOUND));
+
+        LocalDateTime now = LocalDateTime.now();
+        if (!hold.getExpiresAt().isAfter(now)) {
+            throw new BusinessException(FacilityReservationErrorCode.TEMP_HOLD_EXPIRED);
+        }
+
+        boolean holdMatches = hold.getComplexId().equals(complexId)
+                && hold.getFacilityId().equals(facility.getId())
+                && hold.getSeatId().equals(req.getSeatId())
+                && hold.getReservationDate().equals(req.getReservationDate())
+                && hold.getStartTime().equals(req.getStartTime())
+                && hold.getEndTime().equals(req.getEndTime());
+        if (!holdMatches) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        if (!reservationTempHoldRedisService.validateHold(
+                facility.getId(),
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime(),
+                userId
+        )) {
+            throw new BusinessException(FacilityReservationErrorCode.TEMP_HOLD_EXPIRED);
+        }
+
+        boolean alreadyReserved = reservationRepository
+                .existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
+                        facility.getId(),
+                        req.getSeatId(),
+                        req.getReservationDate(),
+                        req.getStartTime(),
+                        req.getEndTime(),
+                        ReservationStatus.CONFIRMED
+                );
+        if (alreadyReserved) {
+            throw new BusinessException(FacilityReservationErrorCode.SEAT_ALREADY_RESERVED);
+        }
+
+        Reservation reservation = reservationRepository.save(Reservation.builder()
+                .complexId(complexId)
+                .userId(userId)
+                .householdId(memberCache.getHouseholdId())
+                .facilityId(facility.getId())
+                .seatId(req.getSeatId())
+                .reservationDate(req.getReservationDate())
+                .startTime(req.getStartTime())
+                .endTime(req.getEndTime())
+                .status(ReservationStatus.CONFIRMED)
+                .build());
+
+        hold.confirm();
+        reservationTempHoldRedisService.releaseHold(
+                facility.getId(),
+                req.getSeatId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime()
+        );
+
+        return reservation;
+    }
+
+    private Reservation createCountReservation(
+            Long userId,
+            Long complexId,
+            Facility facility,
+            HouseholdMemberCache memberCache,
+            ReservationPostReq req
+    ) {
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY));
+
+        if (policy.getMaxReservationCount() == null || policy.getMaxReservationCount() <= 0) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
+        }
+
+        long confirmedCount = reservationRepository.countByFacilityIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
+                facility.getId(),
+                req.getReservationDate(),
+                req.getStartTime(),
+                req.getEndTime(),
+                ReservationStatus.CONFIRMED
+        );
+        if (confirmedCount >= policy.getMaxReservationCount()) {
+            throw new BusinessException(FacilityReservationErrorCode.RESERVATION_FULL);
+        }
+
+        return reservationRepository.save(Reservation.builder()
+                .complexId(complexId)
+                .userId(userId)
+                .householdId(memberCache.getHouseholdId())
+                .facilityId(facility.getId())
+                .seatId(null)
+                .reservationDate(req.getReservationDate())
+                .startTime(req.getStartTime())
+                .endTime(req.getEndTime())
+                .status(ReservationStatus.CONFIRMED)
+                .build());
     }
 }
