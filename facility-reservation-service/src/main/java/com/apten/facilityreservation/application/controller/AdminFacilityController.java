@@ -11,6 +11,7 @@ import com.apten.facilityreservation.application.model.request.FacilityListReq;
 import com.apten.facilityreservation.application.model.request.FacilityPatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityPostReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPatchReq;
+import com.apten.facilityreservation.application.model.request.FacilitySeatBulkPostReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypeListReq;
@@ -28,6 +29,7 @@ import com.apten.facilityreservation.application.model.response.FacilityPatchRes
 import com.apten.facilityreservation.application.model.response.FacilityPostRes;
 import com.apten.facilityreservation.application.model.response.FacilitySeatListRes;
 import com.apten.facilityreservation.application.model.response.FacilitySeatPatchRes;
+import com.apten.facilityreservation.application.model.response.FacilitySeatBulkPostRes;
 import com.apten.facilityreservation.application.model.response.FacilitySeatPostRes;
 import com.apten.facilityreservation.application.model.response.FacilityTypeListRes;
 import com.apten.facilityreservation.application.model.response.FacilityTypePatchRes;
@@ -223,6 +225,21 @@ public class AdminFacilityController {
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("시설 좌석 등록 성공", facilityService.createFacilitySeat(context.getComplexId(), facilityId, req));
+    }
+
+    // 시설 좌석을 일괄 등록한다.
+    @PostMapping("/api/admin/facilities/{facilityId}/seats/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<FacilitySeatBulkPostRes> createFacilitySeatsBulk(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @RequestBody FacilitySeatBulkPostReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 좌석 일괄 등록 성공", facilityService.createFacilitySeatsBulk(context.getComplexId(), facilityId, req));
     }
 
     // API-615 시설 좌석 목록 조회

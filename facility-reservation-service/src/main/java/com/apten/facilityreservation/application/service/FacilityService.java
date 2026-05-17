@@ -11,6 +11,7 @@ import com.apten.facilityreservation.application.model.request.FacilityListReq;
 import com.apten.facilityreservation.application.model.request.FacilityPatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityPostReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPatchReq;
+import com.apten.facilityreservation.application.model.request.FacilitySeatBulkPostReq;
 import com.apten.facilityreservation.application.model.request.FacilitySeatPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypeListReq;
@@ -29,6 +30,7 @@ import com.apten.facilityreservation.application.model.response.FacilityPatchRes
 import com.apten.facilityreservation.application.model.response.FacilityPostRes;
 import com.apten.facilityreservation.application.model.response.FacilitySeatListRes;
 import com.apten.facilityreservation.application.model.response.FacilitySeatPatchRes;
+import com.apten.facilityreservation.application.model.response.FacilitySeatBulkPostRes;
 import com.apten.facilityreservation.application.model.response.FacilitySeatPostRes;
 import com.apten.facilityreservation.application.model.response.FacilityTypeListRes;
 import com.apten.facilityreservation.application.model.response.FacilityTypePatchRes;
@@ -62,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -582,6 +585,78 @@ public class FacilityService {
                 .seatName(seat.getSeatName())
                 .isActive(seat.getIsActive())
                 .createdAt(seat.getCreatedAt())
+                .build();
+    }
+
+    // 좌석 라벨 규칙은 빠르게 여러 좌석을 구분하려는 운영 목적을 따른다.
+    private String resolveSeatLabel(String prefix, Integer seatNo) {
+        return prefix + "-" + seatNo;
+    }
+
+    // 패턴이 없을 때도 운영자가 구간 라벨을 바로 알아볼 수 있게 기본 좌석명을 맞춘다.
+    private String resolveSeatName(String seatNamePattern, String label, Integer seatNo) {
+        String effectivePattern = seatNamePattern == null || seatNamePattern.isBlank()
+                ? "{label} 좌석"
+                : seatNamePattern;
+        return effectivePattern
+                .replace("{seatNo}", String.valueOf(seatNo))
+                .replace("{label}", label);
+    }
+
+    // 시설 좌석을 일괄 등록한다.
+    @Transactional
+    public FacilitySeatBulkPostRes createFacilitySeatsBulk(Long complexId, Long facilityId, FacilitySeatBulkPostReq req) {
+        validateAdminAccess(complexId);
+
+        Facility facility = getFacility(complexId, facilityId);
+
+        if (facility.getReservationType() != ReservationType.SEAT) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        if (req == null || req.getPrefix() == null || req.getPrefix().isBlank()
+                || req.getStartNo() == null || req.getEndNo() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (req.getStartNo() > req.getEndNo()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        int createdCount = req.getEndNo() - req.getStartNo() + 1;
+        if (createdCount > 100) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        List<Integer> seatNos = new ArrayList<>(createdCount);
+        for (int seatNo = req.getStartNo(); seatNo <= req.getEndNo(); seatNo++) {
+            seatNos.add(seatNo);
+        }
+
+        // 하나라도 겹치면 전부 실패시켜야 좌석 구간 생성 결과가 반쪽만 남지 않는다.
+        if (!facilitySeatRepository.findByFacilityIdAndSeatNoIn(facilityId, seatNos).isEmpty()) {
+            throw new BusinessException(FacilityReservationErrorCode.DUPLICATE_SEAT);
+        }
+
+        List<FacilitySeat> seats = seatNos.stream()
+                .map(seatNo -> {
+                    String label = resolveSeatLabel(req.getPrefix().trim(), seatNo);
+                    return FacilitySeat.builder()
+                            .facilityId(facilityId)
+                            .seatNo(seatNo)
+                            .seatName(resolveSeatName(req.getSeatNamePattern(), label, seatNo))
+                            .sortOrder(seatNo)
+                            .isActive(req.getIsActive() == null || req.getIsActive())
+                            .build();
+                })
+                .toList();
+
+        facilitySeatRepository.saveAll(seats);
+
+        return FacilitySeatBulkPostRes.builder()
+                .createdCount(createdCount)
+                .firstSeatNo(req.getStartNo())
+                .lastSeatNo(req.getEndNo())
                 .build();
     }
 
