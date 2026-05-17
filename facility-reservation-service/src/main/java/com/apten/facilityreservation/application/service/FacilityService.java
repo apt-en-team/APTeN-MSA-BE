@@ -40,6 +40,7 @@ import com.apten.facilityreservation.application.model.response.ResidentFacility
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
 import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
+import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
@@ -66,6 +67,7 @@ public class FacilityService {
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
     private final FacilityTypeRepository facilityTypeRepository;
+    private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilitySeatRepository facilitySeatRepository;
     private final ReservationRepository reservationRepository;
     private final ComplexCacheRepository complexCacheRepository;
@@ -84,6 +86,18 @@ public class FacilityService {
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.COMPLEX_NOT_FOUND));
     }
 
+    // 입주민 시설 접근 검증
+    private void validateResidentAccess(Long complexId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        complexCacheRepository.findByIdAndStatus(complexId, ComplexCacheStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.COMPLEX_NOT_FOUND));
+    }
+
     // 시설 조회
     private Facility getFacility(Long complexId, Long facilityId) {
         if (facilityId == null) {
@@ -92,6 +106,15 @@ public class FacilityService {
 
         return facilityRepository.findByIdAndComplexIdAndIsDeletedFalse(facilityId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
+    }
+
+    // 입주민이 조회 가능한 활성 시설을 조회한다.
+    private Facility getResidentFacility(Long complexId, Long facilityId) {
+        Facility facility = getFacility(complexId, facilityId);
+        if (Boolean.FALSE.equals(facility.getIsActive())) {
+            throw new BusinessException(FacilityReservationErrorCode.FACILITY_INACTIVE);
+        }
+        return facility;
     }
 
     // 시설 타입 조회
@@ -546,24 +569,57 @@ public class FacilityService {
 
     // 입주민 시설 목록을 조회한다. API-617
     public List<ResidentFacilityListRes> getResidentFacilityList(Long complexId, ResidentFacilityListReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) 입주민 단지 컨텍스트 complexId 기준으로 활성 시설 목록을 조회한다.
-        // 3) typeId 필터를 적용한다.
-        // 4) 시설 정책 기본값과 시설 override 값을 합쳐 응답 DTO를 구성한다.
-        return List.of();
+        validateResidentAccess(complexId);
+
+        Long typeId = req == null ? null : req.getTypeId();
+
+        return facilityRepository.findByComplexIdAndIsDeletedFalse(complexId)
+                .stream()
+                .filter(facility -> Boolean.TRUE.equals(facility.getIsActive()))
+                .filter(facility -> typeId == null || facility.getTypeId().equals(typeId))
+                .map(facility -> {
+                    FacilityPolicy policy = facilityPolicyRepository
+                            .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
+                            .orElse(null);
+
+                    return ResidentFacilityListRes.builder()
+                            .facilityId(facility.getId())
+                            .name(facility.getName())
+                            .typeId(facility.getTypeId())
+                            .description(facility.getDescription())
+                            .reservationType(facility.getReservationType())
+                            .maxCount(policy == null ? null : policy.getMaxReservationCount())
+                            .openTime(facility.getOpenTime())
+                            .closeTime(facility.getCloseTime())
+                            .slotMin(policy == null ? null : policy.getSlotMin())
+                            .baseFee(policy == null ? null : policy.getBaseFee())
+                            .build();
+                })
+                .toList();
     }
 
     // 입주민 시설 상세를 조회한다. API-618
     public ResidentFacilityDetailRes getResidentFacilityDetail(Long complexId, Long facilityId) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) 시설 활성 상태를 확인한다.
-        // 4) facility_policy와 facility override를 합쳐 slotMin, baseFee, cancelDeadlineHours를 계산한다.
-        return ResidentFacilityDetailRes.builder().facilityId(facilityId).build();
+        validateResidentAccess(complexId);
+
+        Facility facility = getResidentFacility(complexId, facilityId);
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
+                .orElse(null);
+
+        return ResidentFacilityDetailRes.builder()
+                .facilityId(facility.getId())
+                .typeId(facility.getTypeId())
+                .name(facility.getName())
+                .description(facility.getDescription())
+                .reservationType(facility.getReservationType())
+                .maxCount(policy == null ? null : policy.getMaxReservationCount())
+                .openTime(facility.getOpenTime())
+                .closeTime(facility.getCloseTime())
+                .slotMin(policy == null ? null : policy.getSlotMin())
+                .baseFee(policy == null ? null : policy.getBaseFee())
+                .cancelDeadlineHours(policy == null ? null : policy.getCancelDeadlineHours())
+                .build();
     }
 
     // 시설 이용 현황을 조회한다. API-644
