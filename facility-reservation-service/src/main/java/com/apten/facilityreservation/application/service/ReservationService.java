@@ -25,6 +25,7 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.Reservation;
+import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.entity.UserCache;
@@ -248,18 +249,42 @@ public class ReservationService {
     }
 
     // 내 예약을 취소한다.
+    @Transactional
     public ReservationCancelRes cancelReservation(Long userId, Long complexId, Long reservationId, ReservationCancelReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) reservationId가 userId 소유이며 complexId 소속인지 검증한다.
-        // 3) facility_policy.cancelDeadlineHours 기준으로 취소 가능 여부를 검증한다.
-        // 4) reservation 상태를 CANCELLED로 변경하고 USER 취소 사유를 저장한다.
-        // 5) 예약 취소 알림 이벤트 outbox 적재를 수행한다.
+
+        Reservation reservation = reservationRepository.findByIdAndUserId(reservationId, userId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        // 요청 단지 소속 검증
+        if (!reservation.getComplexId().equals(complexId)) {
+            throw new BusinessException(FacilityReservationErrorCode.RESERVATION_OWNER_MISMATCH);
+        }
+
+        // 이미 취소/완료 상태면 처리 불가
+        if (reservation.getStatus() == ReservationStatus.CANCELLED
+                || reservation.getStatus() == ReservationStatus.COMPLETED) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        // 정책 기준 취소 마감 검증
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, reservation.getFacilityId())
+                .orElse(null);
+        int cancelDeadlineHours = (policy != null) ? policy.getCancelDeadlineHours() : 2;
+        LocalDateTime reservationStart = LocalDateTime.of(reservation.getReservationDate(), reservation.getStartTime());
+        if (!LocalDateTime.now().isBefore(reservationStart.minusHours(cancelDeadlineHours))) {
+            throw new BusinessException(FacilityReservationErrorCode.CANCEL_TIME_EXPIRED);
+        }
+
+        reservation.cancel(ReservationCancelReason.USER);
+
+        // TODO: 예약 취소 알림 발행 (가은 담당)
+
         return ReservationCancelRes.builder()
-                .reservationId(reservationId)
-                .status(ReservationStatus.CANCELLED)
-                .cancelledAt(LocalDateTime.now())
+                .reservationId(reservation.getId())
+                .status(reservation.getStatus())
+                .cancelledAt(reservation.getCancelledAt())
                 .build();
     }
 
@@ -377,19 +402,29 @@ public class ReservationService {
     }
 
     // 관리자가 예약을 강제 취소한다.
+    @Transactional
     public AdminReservationCancelRes cancelReservationByAdmin(Long complexId, Long reservationId, AdminReservationCancelReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) reservationId가 현재 complexId 소속인지 검증한다.
-        // 3) 이미 취소/완료된 예약인지 상태를 검증한다.
-        // 4) ADMIN 취소 사유와 cancelledAt을 저장한다.
-        // 5) 예약 취소 알림 이벤트 outbox 적재를 수행한다.
+
+        Reservation reservation = reservationRepository.findByIdAndComplexId(reservationId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        // 이미 취소/완료 상태면 처리 불가
+        if (reservation.getStatus() == ReservationStatus.CANCELLED
+                || reservation.getStatus() == ReservationStatus.COMPLETED) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        // 관리자 강제 취소 — 취소 마감 시간 무관
+        reservation.cancel(ReservationCancelReason.ADMIN);
+
+        // TODO: 예약 강제 취소 알림 발행 (가은 담당)
+
         return AdminReservationCancelRes.builder()
-                .reservationId(reservationId)
-                .status(ReservationStatus.CANCELLED)
+                .reservationId(reservation.getId())
+                .status(reservation.getStatus())
                 .cancelReason(req.getReason())
-                .cancelledAt(LocalDateTime.now())
+                .cancelledAt(reservation.getCancelledAt())
                 .build();
     }
 
