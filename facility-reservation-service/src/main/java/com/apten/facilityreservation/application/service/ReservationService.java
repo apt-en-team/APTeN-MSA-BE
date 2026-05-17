@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -63,6 +64,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservationService {
 
     private static final Duration SEAT_HOLD_TTL = Duration.ofMinutes(15);
+
+    @Value("${apten.scheduler.reservation-complete.batch-size:100}")
+    private int reservationCompleteBatchSize;
 
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
@@ -705,15 +709,25 @@ public class ReservationService {
     }
 
     // 시간이 지난 예약을 완료 처리한다.
+    @Transactional
     public ReservationCompleteRes completeReservations() {
-        // TODO:
-        // 1) endTime이 지난 CONFIRMED 예약을 조회한다.
-        // 2) COMPLETED 상태와 completedAt을 저장한다.
-        // 3) householdId 기준 facility_usage_monthly 집계 대상과 연결한다.
-        // 4) 실제 배치/이벤트 발행은 2단계에서 구현한다.
+        LocalDateTime now = LocalDateTime.now();
+
+        // 스케줄러는 반복 실행되므로 한 번에 처리하는 수를 제한해 락 점유를 줄인다.
+        List<Reservation> completableReservations = reservationRepository.findCompletableReservations(
+                ReservationStatus.CONFIRMED,
+                now.toLocalDate(),
+                now.toLocalTime(),
+                PageRequest.of(0, Math.max(reservationCompleteBatchSize, 1))
+        );
+
+        // 완료 처리는 비용/현황 집계의 기준이 되므로 CONFIRMED만 COMPLETED로 바꾼다.
+        completableReservations.forEach(Reservation::complete);
+
+        // TODO: 완료 기준 비용 집계와 알림/이벤트 발행은 가은 담당 연동 후 추가한다.
         return ReservationCompleteRes.builder()
-                .completedCount(0)
-                .processedAt(LocalDateTime.now())
+                .completedCount(completableReservations.size())
+                .processedAt(now)
                 .build();
     }
 

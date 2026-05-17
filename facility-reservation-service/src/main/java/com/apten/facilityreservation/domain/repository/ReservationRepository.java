@@ -169,4 +169,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("toDate") LocalDate toDate,
             Pageable pageable
     );
+
+    // 완료 처리는 비용/현황 집계의 기준이 되므로 종료 시각이 지난 CONFIRMED만 조회한다.
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.status = :status
+          AND (
+            r.reservationDate < :currentDate
+            OR (r.reservationDate = :currentDate AND r.endTime < :currentTime)
+          )
+        ORDER BY r.reservationDate ASC, r.endTime ASC
+        """)
+    List<Reservation> findCompletableReservations(
+            @Param("status") ReservationStatus status,
+            @Param("currentDate") LocalDate currentDate,
+            @Param("currentTime") LocalTime currentTime,
+            Pageable pageable
+    );
 }
