@@ -33,6 +33,9 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // 관리자 단지 범위 단건 조회이다.
     Optional<GxReservation> findByIdAndComplexId(Long id, Long complexId);
 
+    // 사용자의 단지 내 전체 GX 예약 목록을 조회한다.
+    List<GxReservation> findByUserIdAndComplexId(Long userId, Long complexId);
+
     // GX는 승인 시점이 실제 과금 확정 시점에 가장 가깝기 때문에 approvedAt 기준으로 조회한다.
     List<GxReservation> findByStatusAndApprovedAtBetween(
             GxReservationStatus status,

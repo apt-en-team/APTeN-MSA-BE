@@ -9,6 +9,7 @@ import com.apten.facilityreservation.application.model.response.GxReservationCan
 import com.apten.facilityreservation.application.model.response.GxReservationPostRes;
 import com.apten.facilityreservation.application.model.response.GxReservationRejectRes;
 import com.apten.facilityreservation.application.model.response.GxWaitingRes;
+import com.apten.facilityreservation.application.model.response.MyGxReservationListRes;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
@@ -21,6 +22,9 @@ import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepos
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +38,50 @@ public class GxReservationService {
     private final GxProgramRepository gxProgramRepository;
     private final GxReservationRepository gxReservationRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+
+    // 내 GX 예약 목록을 조회한다.
+    @Transactional(readOnly = true)
+    public List<MyGxReservationListRes> getMyGxReservations(Long userId, Long complexId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        List<GxReservation> reservations = gxReservationRepository.findByUserIdAndComplexId(userId, complexId);
+
+        if (reservations.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> programIds = reservations.stream()
+                .map(GxReservation::getProgramId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, GxProgram> programMap = programIds.isEmpty()
+                ? Map.of()
+                : gxProgramRepository.findAllById(programIds)
+                        .stream()
+                        .collect(Collectors.toMap(GxProgram::getId, p -> p, (e1, e2) -> e1));
+
+        return reservations.stream()
+                .map(r -> {
+                    GxProgram p = r.getProgramId() != null ? programMap.get(r.getProgramId()) : null;
+                    return MyGxReservationListRes.builder()
+                            .gxReservationId(r.getId())
+                            .programId(r.getProgramId())
+                            .programName(p != null ? p.getName() : null)
+                            .startDate(p != null ? p.getStartDate() : null)
+                            .endDate(p != null ? p.getEndDate() : null)
+                            .startTime(p != null ? p.getStartTime() : null)
+                            .endTime(p != null ? p.getEndTime() : null)
+                            .daysOfWeek(p != null ? p.getDaysOfWeek() : null)
+                            .baseFee(p != null ? p.getBaseFee() : null)
+                            .status(r.getStatus())
+                            .waitNo(r.getWaitNo())
+                            .programStatus(p != null ? p.getStatus() : null)
+                            .build();
+                })
+                .toList();
+    }
 
     // GX 예약을 신청한다.
     @Transactional

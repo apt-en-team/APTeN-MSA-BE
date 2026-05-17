@@ -719,13 +719,22 @@ public class FacilityService {
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
+        // 타입 ID 목록으로 시설 타입을 일괄 조회해 N+1을 제거한다.
+        List<Long> typeIds = facilities.stream().map(Facility::getTypeId).distinct().toList();
+        java.util.Map<Long, FacilityType> typeMap = facilityTypeRepository.findAllById(typeIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(FacilityType::getId, t -> t));
+
         return facilities.stream()
                 .map(facility -> {
                     FacilityPolicy policy = policyMap.get(facility.getId());
+                    FacilityType type = typeMap.get(facility.getTypeId());
                     return ResidentFacilityListRes.builder()
                             .facilityId(facility.getId())
                             .name(facility.getName())
                             .typeId(facility.getTypeId())
+                            .typeCode(type != null ? type.getTypeCode() : null)
+                            .typeName(type != null ? type.getTypeName() : null)
                             .description(facility.getDescription())
                             .reservationType(facility.getReservationType())
                             .maxCount(policy == null ? null : policy.getMaxReservationCount())
@@ -747,10 +756,13 @@ public class FacilityService {
         FacilityPolicy policy = facilityPolicyRepository
                 .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
                 .orElse(null);
+        FacilityType type = facilityTypeRepository.findById(facility.getTypeId()).orElse(null);
 
         return ResidentFacilityDetailRes.builder()
                 .facilityId(facility.getId())
                 .typeId(facility.getTypeId())
+                .typeCode(type != null ? type.getTypeCode() : null)
+                .typeName(type != null ? type.getTypeName() : null)
                 .name(facility.getName())
                 .description(facility.getDescription())
                 .reservationType(facility.getReservationType())

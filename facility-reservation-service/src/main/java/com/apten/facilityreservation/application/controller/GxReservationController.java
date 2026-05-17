@@ -7,6 +7,8 @@ import com.apten.facilityreservation.application.model.request.GxReservationPost
 import com.apten.facilityreservation.application.model.response.GxReservationCancelRes;
 import com.apten.facilityreservation.application.model.response.GxReservationPostRes;
 import com.apten.facilityreservation.application.model.response.GxWaitingRes;
+import com.apten.facilityreservation.application.model.response.MyGxReservationListRes;
+import java.util.List;
 import com.apten.facilityreservation.application.service.GxReservationService;
 import com.apten.facilityreservation.application.service.FacilityRequestContextResolver;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,17 @@ public class GxReservationController {
 
     private final GxReservationService gxReservationService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
+
+    // API-640 내 GX 예약 목록 조회
+    @GetMapping("/api/gx-reservations/my")
+    public ResultResponse<List<MyGxReservationListRes>> getMyGxReservations(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveResidentContext(userId, userRole, complexId);
+        return ResultResponse.success("내 GX 예약 목록 조회 성공", gxReservationService.getMyGxReservations(context.getUserId(), context.getComplexId()));
+    }
 
     // API-637 GX 예약 신청
     @PostMapping("/api/gx-reservations")
