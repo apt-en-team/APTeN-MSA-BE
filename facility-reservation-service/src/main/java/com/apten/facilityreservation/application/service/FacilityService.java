@@ -37,6 +37,7 @@ import com.apten.facilityreservation.application.model.response.FacilityUsageSta
 import com.apten.facilityreservation.application.model.response.PageResponse;
 import com.apten.facilityreservation.application.model.response.ResidentFacilityDetailRes;
 import com.apten.facilityreservation.application.model.response.ResidentFacilityListRes;
+import com.apten.facilityreservation.application.model.response.ResidentSeatStatusRes;
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
 import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
@@ -884,6 +885,104 @@ public class FacilityService {
                         })
                         .toList())
                 .build();
+    }
+
+    // 입주민 좌석 상태를 조회한다. 다른 입주민 개인정보는 응답에 포함하지 않는다.
+    public List<ResidentSeatStatusRes> getResidentSeatStatus(Long complexId, Long facilityId, SeatStatusReq req) {
+        validateResidentAccess(complexId);
+        if (req == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        validateSlotRange(req.getTargetDate(), req.getStartTime(), req.getEndTime());
+
+        // 활성 시설인지 함께 검증한다.
+        Facility facility = getResidentFacility(complexId, facilityId);
+        if (facility.getReservationType() != ReservationType.SEAT) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        List<FacilitySeat> seats = facilitySeatRepository.findByFacilityIdAndIsActiveTrue(facilityId);
+        List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
+                .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, req.getTargetDate());
+        List<Reservation> confirmedReservations = reservationRepository
+                .findByFacilityIdAndReservationDateAndStatus(facilityId, req.getTargetDate(), ReservationStatus.CONFIRMED);
+        List<ReservationTempHold> activeHolds = reservationTempHoldRepository
+                .findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
+                        facilityId,
+                        req.getTargetDate(),
+                        ReservationHoldStatus.HOLDING,
+                        LocalDateTime.now()
+                );
+
+        // 시설 전체 차단 여부를 먼저 판단한다.
+        boolean facilityBlocked = blockTimes.stream()
+                .filter(blockTime -> blockTime.getSeatId() == null)
+                .anyMatch(blockTime -> isTimeOverlap(
+                        req.getStartTime(),
+                        req.getEndTime(),
+                        blockTime.getStartTime(),
+                        blockTime.getEndTime()
+                ));
+
+        return seats.stream()
+                .map(seat -> {
+                    if (facilityBlocked || isSeatBlocked(seat.getId(), blockTimes, req.getStartTime(), req.getEndTime())) {
+                        return ResidentSeatStatusRes.builder()
+                                .seatId(seat.getId())
+                                .seatNo(seat.getSeatNo())
+                                .seatName(seat.getSeatName())
+                                .status("BLOCKED")
+                                .holdExpiresAt(null)
+                                .build();
+                    }
+
+                    boolean isReserved = confirmedReservations.stream()
+                            .filter(reservation -> seat.getId().equals(reservation.getSeatId()))
+                            .anyMatch(reservation -> isTimeOverlap(
+                                    req.getStartTime(),
+                                    req.getEndTime(),
+                                    reservation.getStartTime(),
+                                    reservation.getEndTime()
+                            ));
+                    if (isReserved) {
+                        return ResidentSeatStatusRes.builder()
+                                .seatId(seat.getId())
+                                .seatNo(seat.getSeatNo())
+                                .seatName(seat.getSeatName())
+                                .status("RESERVED")
+                                .holdExpiresAt(null)
+                                .build();
+                    }
+
+                    ReservationTempHold holding = activeHolds.stream()
+                            .filter(hold -> seat.getId().equals(hold.getSeatId()))
+                            .filter(hold -> isTimeOverlap(
+                                    req.getStartTime(),
+                                    req.getEndTime(),
+                                    hold.getStartTime(),
+                                    hold.getEndTime()
+                            ))
+                            .findFirst()
+                            .orElse(null);
+                    if (holding != null) {
+                        return ResidentSeatStatusRes.builder()
+                                .seatId(seat.getId())
+                                .seatNo(seat.getSeatNo())
+                                .seatName(seat.getSeatName())
+                                .status("HOLDING")
+                                .holdExpiresAt(holding.getExpiresAt())
+                                .build();
+                    }
+
+                    return ResidentSeatStatusRes.builder()
+                            .seatId(seat.getId())
+                            .seatNo(seat.getSeatNo())
+                            .seatName(seat.getSeatName())
+                            .status("AVAILABLE")
+                            .holdExpiresAt(null)
+                            .build();
+                })
+                .toList();
     }
 
     // 좌석 차단은 좌석별 설비 이슈도 포함하므로 시설 전체 차단과 분리해 판단한다.
