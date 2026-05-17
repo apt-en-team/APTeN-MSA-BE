@@ -50,7 +50,6 @@ import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -522,48 +521,79 @@ public class FacilityService {
     }
 
     // 시설 좌석을 등록한다. API-614
+    @Transactional
     public FacilitySeatPostRes createFacilitySeat(Long complexId, Long facilityId, FacilitySeatPostReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) facility가 SEAT 예약 방식인지 확인한다.
-        // 4) seatNo 중복 여부를 검증한다.
-        // 5) 좌석 저장 및 응답 DTO 변환을 수행한다.
-        return FacilitySeatPostRes.builder()
-                .seatId(0L)
+        validateAdminAccess(complexId);
+
+        Facility facility = getFacility(complexId, facilityId);
+
+        if (facility.getReservationType() != ReservationType.SEAT) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        if (req.getSeatNo() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (facilitySeatRepository.existsByFacilityIdAndSeatNo(facilityId, req.getSeatNo())) {
+            throw new BusinessException(FacilityReservationErrorCode.DUPLICATE_SEAT);
+        }
+
+        FacilitySeat seat = facilitySeatRepository.save(FacilitySeat.builder()
                 .facilityId(facilityId)
                 .seatNo(req.getSeatNo())
                 .seatName(req.getSeatName())
-                .isActive(req.getIsActive())
-                .createdAt(LocalDateTime.now())
+                .sortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0)
+                .isActive(req.getIsActive() == null || req.getIsActive())
+                .build());
+
+        return FacilitySeatPostRes.builder()
+                .seatId(seat.getId())
+                .facilityId(seat.getFacilityId())
+                .seatNo(seat.getSeatNo())
+                .seatName(seat.getSeatName())
+                .isActive(seat.getIsActive())
+                .createdAt(seat.getCreatedAt())
                 .build();
     }
 
     // 시설 좌석 목록을 조회한다. API-615
     public List<FacilitySeatListRes> getFacilitySeatList(Long complexId, Long facilityId) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속인지 검증한다.
-        // 3) 시설별 좌석 목록을 조회한다.
-        return List.of();
+        validateAdminAccess(complexId);
+
+        getFacility(complexId, facilityId);
+
+        return facilitySeatRepository.findByFacilityIdOrderBySeatNoAsc(facilityId)
+                .stream()
+                .map(seat -> FacilitySeatListRes.builder()
+                        .seatId(seat.getId())
+                        .seatNo(seat.getSeatNo())
+                        .seatName(seat.getSeatName())
+                        .sortOrder(seat.getSortOrder())
+                        .isActive(seat.getIsActive())
+                        .build())
+                .toList();
     }
 
     // 시설 좌석을 수정한다. API-616
+    @Transactional
     public FacilitySeatPatchRes updateFacilitySeat(Long complexId, Long seatId, FacilitySeatPatchReq req) {
-        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) seatId가 현재 complexId 소속 시설의 좌석인지 검증한다.
-        // 3) seatName, sortOrder, isActive 수정 가능 여부를 검증한다.
-        // 4) Entity 저장 및 응답 DTO 변환을 수행한다.
+        validateAdminAccess(complexId);
+
+        FacilitySeat seat = facilitySeatRepository.findById(seatId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+
+        // 해당 좌석이 현재 complexId 소속 시설인지 검증한다.
+        getFacility(complexId, seat.getFacilityId());
+
+        seat.apply(req);
+
         return FacilitySeatPatchRes.builder()
-                .seatId(seatId)
-                .seatName(req.getSeatName())
-                .sortOrder(req.getSortOrder())
-                .isActive(req.getIsActive())
-                .updatedAt(LocalDateTime.now())
+                .seatId(seat.getId())
+                .seatName(seat.getSeatName())
+                .sortOrder(seat.getSortOrder())
+                .isActive(seat.getIsActive())
+                .updatedAt(seat.getUpdatedAt())
                 .build();
     }
 
