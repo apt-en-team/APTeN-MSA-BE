@@ -99,6 +99,41 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     // 예약 ID와 사용자 ID 기준 상세를 조회한다.
     Optional<Reservation> findByIdAndUserId(Long id, Long userId);
 
+    // 예약 ID와 단지 ID 기준 상세를 조회한다.
+    Optional<Reservation> findByIdAndComplexId(Long id, Long complexId);
+
+    // 관리자 예약 목록 조회 — status 필터 없음 (enum null 비교 회피)
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.complexId = :complexId
+          AND (:facilityId IS NULL OR r.facilityId = :facilityId)
+          AND (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
+        ORDER BY r.reservationDate DESC, r.startTime DESC
+        """)
+    Page<Reservation> findAdminReservations(
+            @Param("complexId") Long complexId,
+            @Param("facilityId") Long facilityId,
+            @Param("reservationDate") LocalDate reservationDate,
+            Pageable pageable
+    );
+
+    // 관리자 예약 목록 조회 — status 필터 포함 (enum non-null 보장)
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.complexId = :complexId
+          AND r.status = :status
+          AND (:facilityId IS NULL OR r.facilityId = :facilityId)
+          AND (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
+        ORDER BY r.reservationDate DESC, r.startTime DESC
+        """)
+    Page<Reservation> findAdminReservationsByStatus(
+            @Param("complexId") Long complexId,
+            @Param("status") ReservationStatus status,
+            @Param("facilityId") Long facilityId,
+            @Param("reservationDate") LocalDate reservationDate,
+            Pageable pageable
+    );
+
     // 내 예약 목록 조회 — status 필터 없음 (enum null 비교 회피)
     @Query("""
         SELECT r FROM Reservation r

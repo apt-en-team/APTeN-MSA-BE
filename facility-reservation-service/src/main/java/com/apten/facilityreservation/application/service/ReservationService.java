@@ -27,10 +27,12 @@ import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
+import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
+import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import com.apten.facilityreservation.infrastructure.redis.ReservationTempHoldRedisService;
 import java.time.LocalDateTime;
@@ -54,6 +56,7 @@ public class ReservationService {
     private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilitySeatRepository facilitySeatRepository;
     private final ReservationRepository reservationRepository;
+    private final UserCacheRepository userCacheRepository;
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
 
     // 예약 가능 시간 목록을 조회한다.
@@ -261,24 +264,116 @@ public class ReservationService {
     }
 
     // 관리자 예약 목록을 조회한다.
+    @Transactional(readOnly = true)
     public PageResponse<AdminReservationListRes> getAdminReservationList(Long complexId, AdminReservationListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) 관리자 단지 컨텍스트 complexId 기준 예약만 조회한다.
-        // 3) facilityId, reservationDate, status, page, size 필터를 적용한다.
-        // 4) residentName, seatNo, createdAt 정보를 함께 조합한다.
-        return PageResponse.empty(req.getPage(), req.getSize());
+
+        int page = req.getPage() != null ? Math.max(req.getPage(), 0) : 0;
+        int size = req.getSize() != null && req.getSize() > 0 ? req.getSize() : 20;
+        PageRequest pageable = PageRequest.of(page, size);
+
+        // status enum null 비교 회피: null 여부에 따라 쿼리 분기
+        Page<Reservation> reservationPage = (req.getStatus() != null)
+                ? reservationRepository.findAdminReservationsByStatus(complexId, req.getStatus(), req.getFacilityId(), req.getReservationDate(), pageable)
+                : reservationRepository.findAdminReservations(complexId, req.getFacilityId(), req.getReservationDate(), pageable);
+
+        List<Reservation> reservations = reservationPage.getContent();
+
+        // 시설명 batch 조회 (N+1 방지)
+        Map<Long, Facility> facilityMap = reservations.isEmpty() ? Map.of() :
+                facilityRepository.findAllById(
+                                reservations.stream().map(Reservation::getFacilityId).distinct().toList())
+                        .stream()
+                        .collect(Collectors.toMap(Facility::getId, f -> f));
+
+        // 좌석 번호 batch 조회 (N+1 방지)
+        List<Long> seatIds = reservations.stream()
+                .map(Reservation::getSeatId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, FacilitySeat> seatMap = seatIds.isEmpty() ? Map.of() :
+                facilitySeatRepository.findAllById(seatIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilitySeat::getId, s -> s));
+
+        // 입주민 이름 batch 조회 (N+1 방지)
+        List<Long> userIds = reservations.stream()
+                .map(Reservation::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of() :
+                userCacheRepository.findAllById(userIds)
+                        .stream()
+                        .collect(Collectors.toMap(UserCache::getId, u -> u));
+
+        List<AdminReservationListRes> items = reservations.stream()
+                .map(r -> {
+                    Facility facility = facilityMap.get(r.getFacilityId());
+                    FacilitySeat seat = r.getSeatId() != null ? seatMap.get(r.getSeatId()) : null;
+                    UserCache user = r.getUserId() != null ? userMap.get(r.getUserId()) : null;
+                    return AdminReservationListRes.builder()
+                            .reservationId(r.getId())
+                            .facilityId(r.getFacilityId())
+                            .facilityName(facility != null ? facility.getName() : null)
+                            .userId(r.getUserId())
+                            .residentName(user != null ? user.getName() : null)
+                            .reservationDate(r.getReservationDate())
+                            .startTime(r.getStartTime())
+                            .endTime(r.getEndTime())
+                            .seatNo(seat != null ? seat.getSeatNo() : null)
+                            .status(r.getStatus())
+                            .createdAt(r.getCreatedAt())
+                            .build();
+                })
+                .toList();
+
+        return PageResponse.<AdminReservationListRes>builder()
+                .content(items)
+                .page(page)
+                .size(size)
+                .totalElements(reservationPage.getTotalElements())
+                .totalPages(reservationPage.getTotalPages())
+                .hasNext(reservationPage.hasNext())
+                .build();
     }
 
     // 관리자 예약 상세를 조회한다.
+    @Transactional(readOnly = true)
     public AdminReservationDetailRes getAdminReservationDetail(Long complexId, Long reservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) reservationId가 현재 complexId 소속인지 검증한다.
-        // 3) residentName, facilityName, cancel/complete timestamps를 함께 조합한다.
-        return AdminReservationDetailRes.builder().reservationId(reservationId).build();
+
+        Reservation reservation = reservationRepository.findByIdAndComplexId(reservationId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId())
+                .orElse(null);
+
+        FacilitySeat seat = (reservation.getSeatId() != null)
+                ? facilitySeatRepository.findById(reservation.getSeatId()).orElse(null)
+                : null;
+
+        UserCache user = (reservation.getUserId() != null)
+                ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
+                : null;
+
+        return AdminReservationDetailRes.builder()
+                .reservationId(reservation.getId())
+                .userId(reservation.getUserId())
+                .residentName(user != null ? user.getName() : null)
+                .facilityId(reservation.getFacilityId())
+                .facilityName(facility != null ? facility.getName() : null)
+                .reservationDate(reservation.getReservationDate())
+                .startTime(reservation.getStartTime())
+                .endTime(reservation.getEndTime())
+                .seatNo(seat != null ? seat.getSeatNo() : null)
+                .status(reservation.getStatus())
+                .cancelReason(reservation.getCancelReason())
+                .cancelledAt(reservation.getCancelledAt())
+                .completedAt(reservation.getCompletedAt())
+                .createdAt(reservation.getCreatedAt())
+                .build();
     }
 
     // 관리자가 예약을 강제 취소한다.
