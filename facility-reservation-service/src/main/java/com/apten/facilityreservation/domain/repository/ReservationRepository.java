@@ -99,6 +99,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             LocalDate toDate
     );
 
+    // 월 비용 산정은 완료된 이용 실적만 반영해야 하므로 COMPLETED 기준으로 조회한다.
+    List<Reservation> findByStatusAndReservationDateBetween(
+            ReservationStatus status,
+            LocalDate fromDate,
+            LocalDate toDate
+    );
+
     // 예약 ID와 사용자 ID 기준 상세를 조회한다.
     Optional<Reservation> findByIdAndUserId(Long id, Long userId);
 

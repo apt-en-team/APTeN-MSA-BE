@@ -20,6 +20,9 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
     // 단지 소속 단건 조회한다.
     Optional<GxProgram> findByIdAndComplexId(Long id, Long complexId);
 
+    // 월 비용 산정은 프로그램별 요금을 한 번에 읽어 N+1을 피한다.
+    List<GxProgram> findByIdIn(List<Long> ids);
+
     // 관리자 GX 프로그램 목록 조회 - status 필터 없음
     @Query("""
         SELECT g FROM GxProgram g
