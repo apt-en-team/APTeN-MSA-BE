@@ -37,11 +37,9 @@ public class ReservationTempHoldRedisService {
             Duration ttl
     ) {
         String holdKey = buildHoldKey(facilityId, seatId, reservationDate, startTime, endTime);
-
-        // TODO 2단계에서 setIfAbsent(value, ttl)로 실제 선점을 구현한다.
-        // TODO value에는 holdId 또는 userId 등 추적 가능한 최소 값을 저장할지 결정한다.
-        // TODO Redis 장애 시 DB 기반 fallback 전략이 필요한지 검토한다.
-        return false;
+        // Redis 선점은 동일 슬롯 동시 요청에서 가장 먼저 충돌을 막는 1차 방어선이다.
+        return Boolean.TRUE.equals(stringRedisTemplate.opsForValue()
+                .setIfAbsent(holdKey, String.valueOf(userId), ttl));
     }
 
     // 선점 key 존재 여부를 조회한다.
