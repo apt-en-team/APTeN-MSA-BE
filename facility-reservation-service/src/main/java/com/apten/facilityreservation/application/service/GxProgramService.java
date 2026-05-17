@@ -106,7 +106,18 @@ public class GxProgramService {
                         complexId, req.getFacilityId(),
                         req.getFromDate(), req.getToDate(), pageable);
 
-        List<GxProgramListRes> items = page.getContent().stream()
+        List<GxProgram> programs = page.getContent();
+        List<Long> programIds = programs.stream().map(GxProgram::getId).toList();
+
+        // 상태별 인원 batch 집계 (N+1 방지)
+        Map<Long, Long> confirmedMap = programIds.isEmpty() ? Map.of() :
+                gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.CONFIRMED)
+                        .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Map<Long, Long> waitingMap = programIds.isEmpty() ? Map.of() :
+                gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.WAITING)
+                        .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        List<GxProgramListRes> items = programs.stream()
                 .map(p -> GxProgramListRes.builder()
                         .programId(p.getId())
                         .facilityId(p.getFacilityId())
@@ -118,9 +129,8 @@ public class GxProgramService {
                         .baseFee(p.getBaseFee())
                         .waitingEnabled(p.getWaitingEnabled())
                         .status(p.getStatus())
-                        // TODO: GxReservation 구현 후 실집계로 교체
-                        .confirmedCount(0)
-                        .waitingCount(0)
+                        .confirmedCount(confirmedMap.getOrDefault(p.getId(), 0L).intValue())
+                        .waitingCount(waitingMap.getOrDefault(p.getId(), 0L).intValue())
                         .build())
                 .toList();
 
@@ -157,10 +167,9 @@ public class GxProgramService {
                 .baseFee(program.getBaseFee())
                 .waitingEnabled(program.getWaitingEnabled())
                 .status(program.getStatus())
-                // TODO: GxReservation 구현 후 실집계로 교체
-                .confirmedCount(0)
-                .waitingCount(0)
-                .rejectedCount(0)
+                .confirmedCount((int) gxReservationRepository.countByProgramIdAndStatus(program.getId(), GxReservationStatus.CONFIRMED))
+                .waitingCount((int) gxReservationRepository.countByProgramIdAndStatus(program.getId(), GxReservationStatus.WAITING))
+                .rejectedCount((int) gxReservationRepository.countByProgramIdAndStatus(program.getId(), GxReservationStatus.REJECTED))
                 .build();
     }
 
