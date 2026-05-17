@@ -22,6 +22,7 @@ import com.apten.facilityreservation.application.model.response.ReservationPostR
 import com.apten.facilityreservation.application.model.response.TempHoldExpireRes;
 import com.apten.facilityreservation.application.model.response.SeatHoldPostRes;
 import com.apten.facilityreservation.domain.entity.Facility;
+import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.Reservation;
@@ -29,6 +30,8 @@ import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.entity.UserCache;
+import com.apten.facilityreservation.domain.enums.ReservationType;
+import com.apten.facilityreservation.domain.repository.FacilityBlockTimeRepository;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
@@ -37,6 +40,8 @@ import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import com.apten.facilityreservation.infrastructure.redis.ReservationTempHoldRedisService;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,6 +59,7 @@ public class ReservationService {
 
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
+    private final FacilityBlockTimeRepository facilityBlockTimeRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilitySeatRepository facilitySeatRepository;
     private final ReservationRepository reservationRepository;
@@ -61,16 +67,143 @@ public class ReservationService {
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
 
     // 예약 가능 시간 목록을 조회한다.
+    @Transactional(readOnly = true)
     public List<AvailableTimeListRes> getAvailableTimeList(Long userId, Long complexId, AvailableTimeListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) facilityId가 현재 complexId 소속이고 활성 상태인지 검증한다.
-        // 3) 운영 시간과 slotMin 기준으로 시간대를 생성한다.
-        // 4) facility_block_time 차단 시간대를 제외한다.
-        // 5) CONFIRMED 예약과 HOLDING TEMP_HOLD를 함께 반영해 예약 가능 여부를 계산한다.
-        // 6) Redis TEMP_HOLD 실시간 선점 확인은 2단계에서 구현한다.
-        return List.of();
+
+        if (req.getFacilityId() == null || req.getReservationDate() == null) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(req.getFacilityId())
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
+
+        if (!facility.getComplexId().equals(complexId)) {
+            throw new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND);
+        }
+
+        if (!Boolean.TRUE.equals(facility.getIsActive())) {
+            throw new BusinessException(FacilityReservationErrorCode.FACILITY_INACTIVE);
+        }
+
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, req.getFacilityId())
+                .orElse(null);
+
+        int slotMin = (policy != null && policy.getSlotMin() != null) ? policy.getSlotMin() : 30;
+        Integer maxReservationCount = (policy != null) ? policy.getMaxReservationCount() : null;
+
+        long openSec = facility.getOpenTime().toSecondOfDay();
+        long closeSec = facility.getCloseTime().toSecondOfDay();
+        long slotSec = (long) slotMin * 60;
+
+        List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
+                .findByFacilityIdAndBlockDateAndIsActiveTrue(req.getFacilityId(), req.getReservationDate());
+        List<Reservation> confirmedReservations = reservationRepository
+                .findByFacilityIdAndReservationDateAndStatus(req.getFacilityId(), req.getReservationDate(), ReservationStatus.CONFIRMED);
+
+        int seatTotalCount = 0;
+        if (facility.getReservationType() == ReservationType.SEAT) {
+            seatTotalCount = facilitySeatRepository.findByFacilityIdAndIsActiveTrue(req.getFacilityId()).size();
+        }
+
+        List<AvailableTimeListRes> result = new ArrayList<>();
+
+        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다
+        long slotStart = openSec;
+        if (slotSec >= 86400) {
+            // 슬롯이 하루 이상이면 운영 전체를 단일 슬롯으로 처리한다
+            result.add(buildSlot(facility, blockTimes, confirmedReservations, maxReservationCount, seatTotalCount,
+                    facility.getOpenTime(), facility.getCloseTime()));
+        } else {
+            while (slotStart + slotSec <= closeSec) {
+                LocalTime start = LocalTime.ofSecondOfDay(slotStart);
+                LocalTime end = LocalTime.ofSecondOfDay(slotStart + slotSec);
+                result.add(buildSlot(facility, blockTimes, confirmedReservations, maxReservationCount, seatTotalCount, start, end));
+                slotStart += slotSec;
+            }
+        }
+
+        return result;
+    }
+
+    private AvailableTimeListRes buildSlot(
+            Facility facility,
+            List<FacilityBlockTime> blockTimes,
+            List<Reservation> confirmedReservations,
+            Integer maxReservationCount,
+            int seatTotalCount,
+            LocalTime slotStart,
+            LocalTime slotEnd) {
+
+        // 시설 전체 차단 여부 — seatId=null이고 슬롯과 겹치는 차단 시간이 존재하면 차단
+        boolean facilityBlocked = blockTimes.stream()
+                .filter(b -> b.getSeatId() == null)
+                .anyMatch(b -> isSlotOverlap(slotStart, slotEnd, b.getStartTime(), b.getEndTime()));
+
+        if (facilityBlocked) {
+            return AvailableTimeListRes.builder()
+                    .startTime(slotStart)
+                    .endTime(slotEnd)
+                    .totalCount(null)
+                    .availableCount(null)
+                    .isReservable(false)
+                    .build();
+        }
+
+        ReservationType type = facility.getReservationType();
+
+        if (type == ReservationType.SEAT) {
+            long confirmedCount = confirmedReservations.stream()
+                    .filter(r -> slotStart.equals(r.getStartTime()) && slotEnd.equals(r.getEndTime()))
+                    .count();
+            long blockedSeatCount = blockTimes.stream()
+                    .filter(b -> b.getSeatId() != null)
+                    .filter(b -> isSlotOverlap(slotStart, slotEnd, b.getStartTime(), b.getEndTime()))
+                    .count();
+            // TODO: API-620 구현 후 Redis TEMP_HOLD 선점 수 반영
+            int availableCount = Math.max(0, seatTotalCount - (int) confirmedCount - (int) blockedSeatCount);
+            return AvailableTimeListRes.builder()
+                    .startTime(slotStart)
+                    .endTime(slotEnd)
+                    .totalCount(seatTotalCount)
+                    .availableCount(availableCount)
+                    .isReservable(availableCount > 0)
+                    .build();
+        }
+
+        if (type == ReservationType.COUNT) {
+            long confirmedCount = confirmedReservations.stream()
+                    .filter(r -> slotStart.equals(r.getStartTime()) && slotEnd.equals(r.getEndTime()))
+                    .count();
+            // TODO: API-620 구현 후 Redis TEMP_HOLD 선점 수 반영
+            Integer availableCount = maxReservationCount != null
+                    ? Math.max(0, maxReservationCount - (int) confirmedCount)
+                    : null;
+            boolean isReservable = maxReservationCount == null || availableCount > 0;
+            return AvailableTimeListRes.builder()
+                    .startTime(slotStart)
+                    .endTime(slotEnd)
+                    .totalCount(maxReservationCount)
+                    .availableCount(availableCount)
+                    .isReservable(isReservable)
+                    .build();
+        }
+
+        // APPROVAL: 정원 제한 없음, 시설 차단이 없으면 항상 신청 가능
+        return AvailableTimeListRes.builder()
+                .startTime(slotStart)
+                .endTime(slotEnd)
+                .totalCount(null)
+                .availableCount(null)
+                .isReservable(true)
+                .build();
+    }
+
+    private boolean isSlotOverlap(LocalTime slotStart, LocalTime slotEnd, LocalTime blockStart, LocalTime blockEnd) {
+        LocalTime effectiveStart = blockStart != null ? blockStart : LocalTime.MIN;
+        LocalTime effectiveEnd = blockEnd != null ? blockEnd : LocalTime.MAX;
+        return slotStart.isBefore(effectiveEnd) && slotEnd.isAfter(effectiveStart);
     }
 
     // 좌석 임시 선점을 생성한다.
