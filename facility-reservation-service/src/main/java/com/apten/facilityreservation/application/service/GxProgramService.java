@@ -324,38 +324,81 @@ public class GxProgramService {
     }
 
     // GX 일괄 승인을 처리한다.
+    @Transactional
     public GxBulkApproveRes bulkApprove(Long complexId, Long programId, GxBulkApproveReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO: GxReservation 구현 후 WAITING → CONFIRMED 일괄 처리
+
+        GxProgram program = getGxProgram(complexId, programId);
+
+        if (program.getStatus() == GxProgramStatus.CANCELLED) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
+        }
+
+        long confirmedCount = gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED);
+        long availableSlots = program.getMaxCount() - confirmedCount;
+
+        if (availableSlots <= 0) {
+            return GxBulkApproveRes.builder()
+                    .programId(programId)
+                    .approvedCount(0)
+                    .processedAt(LocalDateTime.now())
+                    .build();
+        }
+
+        // approveCount가 null이면 가용 슬롯 전부, 있으면 min(approveCount, availableSlots) 적용
+        long toApprove = (req.getApproveCount() != null)
+                ? Math.min(req.getApproveCount(), availableSlots)
+                : availableSlots;
+
+        List<GxReservation> waitingList = gxReservationRepository
+                .findByProgramIdAndStatusOrderByWaitNoAsc(programId, GxReservationStatus.WAITING);
+
+        int approved = 0;
+        for (GxReservation waiting : waitingList) {
+            if (approved >= toApprove) break;
+            waiting.approve();
+            approved++;
+        }
+
+        // TODO: 일괄 승인 알림 발행 (가은 담당)
+
         return GxBulkApproveRes.builder()
                 .programId(programId)
-                .approvedCount(0)
+                .approvedCount(approved)
                 .processedAt(LocalDateTime.now())
                 .build();
     }
 
     // GX 최소 인원 충족 여부를 검증한다.
+    @Transactional(readOnly = true)
     public GxMinimumCheckRes checkMinimum(Long complexId, Long programId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO: GxReservation 구현 후 CONFIRMED 인원 집계 및 minCount 비교
+
+        GxProgram program = getGxProgram(complexId, programId);
+
+        int confirmedCount = (int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED);
+
         return GxMinimumCheckRes.builder()
                 .programId(programId)
-                .minCount(0)
-                .confirmedCount(0)
-                .cancellable(false)
+                .minCount(program.getMinCount())
+                .confirmedCount(confirmedCount)
+                .cancellable(confirmedCount < program.getMinCount())
                 .build();
     }
 
     // GX 현황을 조회한다.
+    @Transactional(readOnly = true)
     public GxStatusRes getGxStatus(Long complexId, Long programId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO: GxReservation 구현 후 상태별 집계
+
+        getGxProgram(complexId, programId);
+
         return GxStatusRes.builder()
                 .programId(programId)
-                .confirmedCount(0)
-                .waitingCount(0)
-                .rejectedCount(0)
-                .cancelledCount(0)
+                .confirmedCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED))
+                .waitingCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.WAITING))
+                .rejectedCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.REJECTED))
+                .cancelledCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.CANCELLED))
                 .build();
     }
 
