@@ -6,7 +6,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 // 일반 예약 저장소이다.
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
@@ -94,4 +98,40 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     // 예약 ID와 사용자 ID 기준 상세를 조회한다.
     Optional<Reservation> findByIdAndUserId(Long id, Long userId);
+
+    // 내 예약 목록 조회 — status 필터 없음 (enum null 비교 회피)
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.userId = :userId
+          AND r.complexId = :complexId
+          AND (:fromDate IS NULL OR r.reservationDate >= :fromDate)
+          AND (:toDate IS NULL OR r.reservationDate <= :toDate)
+        ORDER BY r.reservationDate DESC, r.startTime DESC
+        """)
+    Page<Reservation> findMyReservations(
+            @Param("userId") Long userId,
+            @Param("complexId") Long complexId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            Pageable pageable
+    );
+
+    // 내 예약 목록 조회 — status 필터 포함 (enum non-null 보장)
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.userId = :userId
+          AND r.complexId = :complexId
+          AND r.status = :status
+          AND (:fromDate IS NULL OR r.reservationDate >= :fromDate)
+          AND (:toDate IS NULL OR r.reservationDate <= :toDate)
+        ORDER BY r.reservationDate DESC, r.startTime DESC
+        """)
+    Page<Reservation> findMyReservationsByStatus(
+            @Param("userId") Long userId,
+            @Param("complexId") Long complexId,
+            @Param("status") ReservationStatus status,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            Pageable pageable
+    );
 }

@@ -22,15 +22,27 @@ import com.apten.facilityreservation.application.model.response.ReservationPostR
 import com.apten.facilityreservation.application.model.response.TempHoldExpireRes;
 import com.apten.facilityreservation.application.model.response.SeatHoldPostRes;
 import com.apten.facilityreservation.domain.entity.Facility;
+import com.apten.facilityreservation.domain.entity.FacilityPolicy;
+import com.apten.facilityreservation.domain.entity.FacilitySeat;
+import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
+import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
+import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import com.apten.facilityreservation.infrastructure.redis.ReservationTempHoldRedisService;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 // 일반 시설 예약과 좌석 선점 관련 API 시그니처를 담당하는 서비스이다.
 @Service
@@ -39,6 +51,9 @@ public class ReservationService {
 
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
+    private final FacilityPolicyRepository facilityPolicyRepository;
+    private final FacilitySeatRepository facilitySeatRepository;
+    private final ReservationRepository reservationRepository;
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
 
     // 예약 가능 시간 목록을 조회한다.
@@ -124,24 +139,109 @@ public class ReservationService {
     }
 
     // 내 예약 목록을 조회한다.
+    @Transactional(readOnly = true)
     public PageResponse<MyReservationListRes> getMyReservationList(Long userId, Long complexId, MyReservationListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) userId와 complexId 기준으로 본인 예약만 조회한다.
-        // 3) fromDate, toDate, status 필터를 적용한다.
-        // 4) seatNo, createdAt 등 응답 필드를 함께 조합한다.
-        return PageResponse.empty(req.getPage(), req.getSize());
+
+        int page = req.getPage() != null ? Math.max(req.getPage(), 0) : 0;
+        int size = req.getSize() != null && req.getSize() > 0 ? req.getSize() : 20;
+        PageRequest pageable = PageRequest.of(page, size);
+
+        // status enum null 비교 회피: null 여부에 따라 쿼리 분기
+        Page<Reservation> reservationPage = (req.getStatus() != null)
+                ? reservationRepository.findMyReservationsByStatus(userId, complexId, req.getStatus(), req.getFromDate(), req.getToDate(), pageable)
+                : reservationRepository.findMyReservations(userId, complexId, req.getFromDate(), req.getToDate(), pageable);
+
+        List<Reservation> reservations = reservationPage.getContent();
+
+        // 시설명 batch 조회 (N+1 방지)
+        Map<Long, Facility> facilityMap = reservations.isEmpty() ? Map.of() :
+                facilityRepository.findAllById(
+                                reservations.stream().map(Reservation::getFacilityId).distinct().toList())
+                        .stream()
+                        .collect(Collectors.toMap(Facility::getId, f -> f));
+
+        // 좌석 번호 batch 조회 (N+1 방지)
+        List<Long> seatIds = reservations.stream()
+                .map(Reservation::getSeatId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, FacilitySeat> seatMap = seatIds.isEmpty() ? Map.of() :
+                facilitySeatRepository.findAllById(seatIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilitySeat::getId, s -> s));
+
+        List<MyReservationListRes> items = reservations.stream()
+                .map(r -> {
+                    Facility facility = facilityMap.get(r.getFacilityId());
+                    FacilitySeat seat = r.getSeatId() != null ? seatMap.get(r.getSeatId()) : null;
+                    return MyReservationListRes.builder()
+                            .reservationId(r.getId())
+                            .facilityName(facility != null ? facility.getName() : null)
+                            .reservationDate(r.getReservationDate())
+                            .startTime(r.getStartTime())
+                            .endTime(r.getEndTime())
+                            .seatNo(seat != null ? seat.getSeatNo() : null)
+                            .status(r.getStatus())
+                            .createdAt(r.getCreatedAt())
+                            .build();
+                })
+                .toList();
+
+        return PageResponse.<MyReservationListRes>builder()
+                .content(items)
+                .page(page)
+                .size(size)
+                .totalElements(reservationPage.getTotalElements())
+                .totalPages(reservationPage.getTotalPages())
+                .hasNext(reservationPage.hasNext())
+                .build();
     }
 
     // 내 예약 상세를 조회한다.
+    @Transactional(readOnly = true)
     public MyReservationDetailRes getMyReservationDetail(Long userId, Long complexId, Long reservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) reservationId가 userId 소유이며 complexId 소속인지 검증한다.
-        // 3) 취소 가능 여부와 seatNo, createdAt 정보를 함께 조합한다.
-        return MyReservationDetailRes.builder().reservationId(reservationId).build();
+
+        Reservation reservation = reservationRepository.findByIdAndUserId(reservationId, userId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
+
+        // 요청 단지 소속 검증
+        if (!reservation.getComplexId().equals(complexId)) {
+            throw new BusinessException(FacilityReservationErrorCode.RESERVATION_OWNER_MISMATCH);
+        }
+
+        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId())
+                .orElse(null);
+
+        FacilitySeat seat = (reservation.getSeatId() != null)
+                ? facilitySeatRepository.findById(reservation.getSeatId()).orElse(null)
+                : null;
+
+        // 취소 가능 여부 — CONFIRMED 상태이고 정책 기준 취소 마감 이전인 경우
+        boolean cancelable = false;
+        if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+            FacilityPolicy policy = facilityPolicyRepository
+                    .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, reservation.getFacilityId())
+                    .orElse(null);
+            int cancelDeadlineHours = (policy != null) ? policy.getCancelDeadlineHours() : 2;
+            LocalDateTime reservationStart = LocalDateTime.of(reservation.getReservationDate(), reservation.getStartTime());
+            cancelable = LocalDateTime.now().isBefore(reservationStart.minusHours(cancelDeadlineHours));
+        }
+
+        return MyReservationDetailRes.builder()
+                .reservationId(reservation.getId())
+                .facilityId(reservation.getFacilityId())
+                .facilityName(facility != null ? facility.getName() : null)
+                .seatNo(seat != null ? seat.getSeatNo() : null)
+                .reservationDate(reservation.getReservationDate())
+                .startTime(reservation.getStartTime())
+                .endTime(reservation.getEndTime())
+                .status(reservation.getStatus())
+                .cancelable(cancelable)
+                .createdAt(reservation.getCreatedAt())
+                .build();
     }
 
     // 내 예약을 취소한다.
