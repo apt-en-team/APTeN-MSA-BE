@@ -55,4 +55,38 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
             @Param("toDate") LocalDate toDate,
             Pageable pageable
     );
+
+    // 입주민 GX 프로그램 목록 조회 - status 필터 없음, CANCELLED 제외 (enum null 비교 회피)
+    @Query("""
+        SELECT g FROM GxProgram g
+        WHERE g.complexId = :complexId
+          AND g.status <> :cancelled
+          AND (:fromDate IS NULL OR g.endDate >= :fromDate)
+          AND (:toDate IS NULL OR g.startDate <= :toDate)
+        ORDER BY g.startDate DESC
+        """)
+    Page<GxProgram> findResidentGxPrograms(
+            @Param("complexId") Long complexId,
+            @Param("cancelled") GxProgramStatus cancelled,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            Pageable pageable
+    );
+
+    // 입주민 GX 프로그램 목록 조회 - status 필터 포함 (서비스에서 CANCELLED 진입 차단 보장)
+    @Query("""
+        SELECT g FROM GxProgram g
+        WHERE g.complexId = :complexId
+          AND g.status = :status
+          AND (:fromDate IS NULL OR g.endDate >= :fromDate)
+          AND (:toDate IS NULL OR g.startDate <= :toDate)
+        ORDER BY g.startDate DESC
+        """)
+    Page<GxProgram> findResidentGxProgramsByStatus(
+            @Param("complexId") Long complexId,
+            @Param("status") GxProgramStatus status,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            Pageable pageable
+    );
 }
