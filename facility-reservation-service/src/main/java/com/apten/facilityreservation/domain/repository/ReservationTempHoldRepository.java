@@ -39,6 +39,9 @@ public interface ReservationTempHoldRepository extends JpaRepository<Reservation
     // HOLDING 상태와 만료 시각 기준 만료 대상 목록을 조회한다.
     List<ReservationTempHold> findByHoldStatusAndExpiresAtBefore(ReservationHoldStatus holdStatus, LocalDateTime expiresAt);
 
+    // HOLDING 상태이면서 만료 시각이 현재와 같거나 이전인 만료 대상 목록을 조회한다.
+    List<ReservationTempHold> findByHoldStatusAndExpiresAtLessThanEqual(ReservationHoldStatus holdStatus, LocalDateTime expiresAt);
+
     // 특정 사용자의 HOLDING 선점을 조회한다.
     Optional<ReservationTempHold> findByIdAndUserIdAndHoldStatus(Long id, Long userId, ReservationHoldStatus holdStatus);
 

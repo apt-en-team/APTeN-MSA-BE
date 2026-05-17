@@ -322,16 +322,23 @@ public class ReservationService {
     }
 
     // 만료된 좌석 임시 선점을 자동 해제한다.
+    @Transactional
     public TempHoldExpireRes expireSeatHolds() {
-        // TODO:
-        // 1) holdStatus=HOLDING 이고 expiresAt이 지난 reservation_temp_hold 목록을 조회한다.
-        // 2) reservationTempHoldRedisService.existsHold(...)로 Redis key 존재 여부를 확인한다.
-        // 3) 만료된 데이터는 holdStatus를 EXPIRED로 변경한다.
-        // 4) Redis TTL 만료와 DB 상태 정합성 보정 전략은 2단계에서 구현한다.
-        // 5) expiredCount를 집계해 반환한다.
+        LocalDateTime now = LocalDateTime.now();
+
+        List<ReservationTempHold> expiredHolds = reservationTempHoldRepository
+                .findByHoldStatusAndExpiresAtLessThanEqual(ReservationHoldStatus.HOLDING, now);
+
+        expiredHolds.stream()
+                .map(ReservationTempHold::getComplexId)
+                .distinct()
+                .forEach(complexId -> featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY));
+
+        expiredHolds.forEach(ReservationTempHold::expire);
+
         return TempHoldExpireRes.builder()
-                .expiredCount(0)
-                .processedAt(LocalDateTime.now())
+                .expiredCount(expiredHolds.size())
+                .processedAt(now)
                 .build();
     }
 
