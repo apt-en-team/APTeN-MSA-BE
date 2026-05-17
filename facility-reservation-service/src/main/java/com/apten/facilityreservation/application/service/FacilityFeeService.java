@@ -181,28 +181,40 @@ public class FacilityFeeService {
     }
 
     // 시설 이용 비용을 Household Service로 발행한다.
+    @Transactional
     public FacilityFeePublishRes publishFacilityFees(FacilityFeePublishReq req) {
-        // TODO:
-        // 1) usageYear/usageMonth 기준 미발행 facility_usage_monthly를 조회한다.
-        // 2) Household Service로 비용 발행 outbox 적재는 2단계에서 구현한다.
-        // 3) 발행 성공 후 isPublished=true, publishedAt 저장을 수행한다.
-        // 4) 특정 단지 대상 발행 여부는 추후 내부 API 계약 확정 후 결정한다.
+        YearMonth yearMonth = resolveYearMonth(req.getUsageYear(), req.getUsageMonth());
+        List<FacilityUsageMonthly> publishTargets = facilityUsageMonthlyRepository
+                .findByUsageYearAndUsageMonthAndIsPublishedFalse(yearMonth.getYear(), yearMonth.getMonthValue());
+
+        // 이미 발행된 row를 다시 잡으면 Household Service 기준 데이터가 중복 처리될 수 있다.
+        publishTargets.forEach(FacilityUsageMonthly::markPublished);
+
+        // TODO: Household Service 비용 반영 이벤트 발행과 outbox 적재는 2단계에서 구현한다.
         return FacilityFeePublishRes.builder()
                 .usageYear(req.getUsageYear())
                 .usageMonth(req.getUsageMonth())
-                .publishedCount(0)
-                .published(false)
+                .publishedCount(publishTargets.size())
+                .published(!publishTargets.isEmpty())
                 .publishedAt(LocalDateTime.now())
                 .build();
     }
 
     private YearMonth resolveYearMonth(FacilityFeeCalculateReq req) {
-        if (req == null || req.getUsageYear() == null || req.getUsageMonth() == null) {
+        if (req == null) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
+        }
+
+        return resolveYearMonth(req.getUsageYear(), req.getUsageMonth());
+    }
+
+    private YearMonth resolveYearMonth(Integer usageYear, Integer usageMonth) {
+        if (usageYear == null || usageMonth == null) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
 
         try {
-            return YearMonth.of(req.getUsageYear(), req.getUsageMonth());
+            return YearMonth.of(usageYear, usageMonth);
         } catch (DateTimeException e) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
