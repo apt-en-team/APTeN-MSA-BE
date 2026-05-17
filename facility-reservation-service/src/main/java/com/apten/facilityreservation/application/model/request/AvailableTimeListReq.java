@@ -5,10 +5,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 
 // 예약 가능 시간 조회 요청 DTO이다.
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
