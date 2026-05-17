@@ -23,6 +23,20 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
     // 삭제되지 않은 시설을 조회한다.
     Optional<Facility> findByIdAndIsDeletedFalse(Long id);
 
+    // 입주민 시설 목록 조회 — isActive=true, isDeleted=false, typeId 선택 필터
+    @Query("""
+        SELECT f FROM Facility f
+        WHERE f.complexId = :complexId
+          AND f.isDeleted = false
+          AND f.isActive = true
+          AND (:typeId IS NULL OR f.typeId = :typeId)
+        ORDER BY f.createdAt DESC
+        """)
+    List<Facility> findResidentFacilities(
+            @Param("complexId") Long complexId,
+            @Param("typeId") Long typeId
+    );
+
     // 관리자 시설 목록 조회 - 예약 방식 필터 없음
     @Query("""
         SELECT f

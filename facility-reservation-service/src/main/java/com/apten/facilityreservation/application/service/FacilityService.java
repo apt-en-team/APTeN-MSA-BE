@@ -573,15 +573,22 @@ public class FacilityService {
 
         Long typeId = req == null ? null : req.getTypeId();
 
-        return facilityRepository.findByComplexIdAndIsDeletedFalse(complexId)
-                .stream()
-                .filter(facility -> Boolean.TRUE.equals(facility.getIsActive()))
-                .filter(facility -> typeId == null || facility.getTypeId().equals(typeId))
-                .map(facility -> {
-                    FacilityPolicy policy = facilityPolicyRepository
-                            .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
-                            .orElse(null);
+        List<Facility> facilities = facilityRepository.findResidentFacilities(complexId, typeId);
 
+        if (facilities.isEmpty()) {
+            return List.of();
+        }
+
+        // 시설 ID 목록으로 정책을 일괄 조회해 N+1을 제거한다.
+        List<Long> facilityIds = facilities.stream().map(Facility::getId).toList();
+        java.util.Map<Long, FacilityPolicy> policyMap = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
+
+        return facilities.stream()
+                .map(facility -> {
+                    FacilityPolicy policy = policyMap.get(facility.getId());
                     return ResidentFacilityListRes.builder()
                             .facilityId(facility.getId())
                             .name(facility.getName())

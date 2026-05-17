@@ -16,6 +16,9 @@ public interface FacilityPolicyRepository extends JpaRepository<FacilityPolicy, 
     // 단지와 시설 ID 기준 활성 정책을 조회한다.
     Optional<FacilityPolicy> findByComplexIdAndFacilityIdAndIsActiveTrue(Long complexId, Long facilityId);
 
+    // 단지와 시설 ID 목록 기준 활성 정책을 일괄 조회한다.
+    List<FacilityPolicy> findByComplexIdAndFacilityIdInAndIsActiveTrue(Long complexId, List<Long> facilityIds);
+
     // 단지 기준 시설 정책 목록 조회
     @Query("""
         SELECT p
