@@ -110,6 +110,14 @@ public class ReservationService {
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(req.getFacilityId(), req.getReservationDate());
         List<Reservation> confirmedReservations = reservationRepository
                 .findByFacilityIdAndReservationDateAndStatus(req.getFacilityId(), req.getReservationDate(), ReservationStatus.CONFIRMED);
+        // 날짜 기준으로 유효 HOLDING을 한 번에 읽어 슬롯 계산에서 재사용한다.
+        List<ReservationTempHold> activeHolds = reservationTempHoldRepository
+                .findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
+                        req.getFacilityId(),
+                        req.getReservationDate(),
+                        ReservationHoldStatus.HOLDING,
+                        LocalDateTime.now()
+                );
 
         int seatTotalCount = 0;
         if (facility.getReservationType() == ReservationType.SEAT) {
@@ -122,13 +130,13 @@ public class ReservationService {
         long slotStart = openSec;
         if (slotSec >= 86400) {
             // 슬롯이 하루 이상이면 운영 전체를 단일 슬롯으로 처리한다
-            result.add(buildSlot(facility, blockTimes, confirmedReservations, maxReservationCount, seatTotalCount,
+            result.add(buildSlot(facility, blockTimes, confirmedReservations, activeHolds, maxReservationCount, seatTotalCount,
                     facility.getOpenTime(), facility.getCloseTime()));
         } else {
             while (slotStart + slotSec <= closeSec) {
                 LocalTime start = LocalTime.ofSecondOfDay(slotStart);
                 LocalTime end = LocalTime.ofSecondOfDay(slotStart + slotSec);
-                result.add(buildSlot(facility, blockTimes, confirmedReservations, maxReservationCount, seatTotalCount, start, end));
+                result.add(buildSlot(facility, blockTimes, confirmedReservations, activeHolds, maxReservationCount, seatTotalCount, start, end));
                 slotStart += slotSec;
             }
         }
@@ -140,6 +148,7 @@ public class ReservationService {
             Facility facility,
             List<FacilityBlockTime> blockTimes,
             List<Reservation> confirmedReservations,
+            List<ReservationTempHold> activeHolds,
             Integer maxReservationCount,
             int seatTotalCount,
             LocalTime slotStart,
@@ -170,8 +179,11 @@ public class ReservationService {
                     .filter(b -> b.getSeatId() != null)
                     .filter(b -> isSlotOverlap(slotStart, slotEnd, b.getStartTime(), b.getEndTime()))
                     .count();
-            // TODO: API-620 구현 후 Redis TEMP_HOLD 선점 수 반영
-            int availableCount = Math.max(0, seatTotalCount - (int) confirmedCount - (int) blockedSeatCount);
+            // 유효 HOLDING도 좌석 점유로 간주해 잔여 좌석에서 차감한다.
+            long holdingCount = activeHolds.stream()
+                    .filter(h -> slotStart.equals(h.getStartTime()) && slotEnd.equals(h.getEndTime()))
+                    .count();
+            int availableCount = Math.max(0, seatTotalCount - (int) confirmedCount - (int) blockedSeatCount - (int) holdingCount);
             return AvailableTimeListRes.builder()
                     .startTime(slotStart)
                     .endTime(slotEnd)
@@ -185,9 +197,10 @@ public class ReservationService {
             long confirmedCount = confirmedReservations.stream()
                     .filter(r -> slotStart.equals(r.getStartTime()) && slotEnd.equals(r.getEndTime()))
                     .count();
-            // TODO: API-620 구현 후 Redis TEMP_HOLD 선점 수 반영
+            // COUNT형 HOLDING은 아직 생성하지 않으므로 현재는 0으로 본다.
+            long holdingCount = 0L;
             Integer availableCount = maxReservationCount != null
-                    ? Math.max(0, maxReservationCount - (int) confirmedCount)
+                    ? Math.max(0, maxReservationCount - (int) confirmedCount - (int) holdingCount)
                     : null;
             boolean isReservable = maxReservationCount == null || availableCount > 0;
             return AvailableTimeListRes.builder()

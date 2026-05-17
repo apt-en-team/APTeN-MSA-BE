@@ -54,4 +54,12 @@ public interface ReservationTempHoldRepository extends JpaRepository<Reservation
             LocalTime endTime,
             ReservationHoldStatus holdStatus
     );
+
+    // 날짜 기준 유효한 HOLDING 선점을 한 번에 조회한다.
+    List<ReservationTempHold> findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
+            Long facilityId,
+            LocalDate reservationDate,
+            ReservationHoldStatus holdStatus,
+            LocalDateTime expiresAt
+    );
 }
