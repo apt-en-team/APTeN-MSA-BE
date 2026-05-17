@@ -35,6 +35,9 @@ public class ResidentFacilityDetailRes {
     // 운영 종료 시간이다.
     private LocalTime closeTime;
 
+    // 운영 여부이다.
+    private Boolean isActive;
+
     // 적용 예약 단위이다.
     private Integer slotMin;
 

@@ -731,6 +731,7 @@ public class FacilityService {
                             .maxCount(policy == null ? null : policy.getMaxReservationCount())
                             .openTime(facility.getOpenTime())
                             .closeTime(facility.getCloseTime())
+                            .isActive(facility.getIsActive())
                             .slotMin(policy == null ? null : policy.getSlotMin())
                             .baseFee(policy == null ? null : policy.getBaseFee())
                             .build();
@@ -756,6 +757,7 @@ public class FacilityService {
                 .maxCount(policy == null ? null : policy.getMaxReservationCount())
                 .openTime(facility.getOpenTime())
                 .closeTime(facility.getCloseTime())
+                .isActive(facility.getIsActive())
                 .slotMin(policy == null ? null : policy.getSlotMin())
                 .baseFee(policy == null ? null : policy.getBaseFee())
                 .cancelDeadlineHours(policy == null ? null : policy.getCancelDeadlineHours())
