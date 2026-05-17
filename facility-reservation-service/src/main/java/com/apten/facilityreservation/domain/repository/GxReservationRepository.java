@@ -29,6 +29,9 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // userId와 complexId 기준 소유권+단지 범위를 동시에 검증하는 단건 조회이다.
     Optional<GxReservation> findByIdAndUserIdAndComplexId(Long id, Long userId, Long complexId);
 
+    // 관리자 단지 범위 단건 조회이다.
+    Optional<GxReservation> findByIdAndComplexId(Long id, Long complexId);
+
     // 복수 프로그램의 상태별 예약 수를 집계한다. (N+1 방지)
     @Query("SELECT r.programId, COUNT(r) FROM GxReservation r WHERE r.programId IN :programIds AND r.status = :status GROUP BY r.programId")
     List<Object[]> countByProgramIdInAndStatus(@Param("programIds") List<Long> programIds, @Param("status") GxReservationStatus status);

@@ -148,31 +148,61 @@ public class GxReservationService {
     }
 
     // GX 예약을 승인한다.
+    @Transactional
     public GxReservationApproveRes approveGxReservation(Long complexId, Long gxReservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) gxReservationId가 현재 complexId 소속인지 검증한다.
-        // 3) WAITING 상태와 정원 초과 여부 검증은 2단계에서 구현한다.
-        // 4) 승인 처리와 approvedAt 저장은 2단계에서 구현한다.
+
+        GxReservation reservation = gxReservationRepository
+                .findByIdAndComplexId(gxReservationId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
+
+        // WAITING 상태만 승인 가능
+        if (reservation.getStatus() != GxReservationStatus.WAITING) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        // 프로그램 정원 초과 여부 확인
+        GxProgram program = gxProgramRepository.findByIdAndComplexId(reservation.getProgramId(), complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
+
+        long confirmedCount = gxReservationRepository.countByProgramIdAndStatus(reservation.getProgramId(), GxReservationStatus.CONFIRMED);
+        if (confirmedCount >= program.getMaxCount()) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_CAPACITY_FULL);
+        }
+
+        reservation.approve();
+
+        // TODO: 승인 알림 발행 (가은 담당)
+
         return GxReservationApproveRes.builder()
-                .gxReservationId(gxReservationId)
-                .status(GxReservationStatus.CONFIRMED)
-                .approvedAt(LocalDateTime.now())
+                .gxReservationId(reservation.getId())
+                .status(reservation.getStatus())
+                .approvedAt(reservation.getApprovedAt())
                 .build();
     }
 
     // GX 예약을 거절한다.
+    @Transactional
     public GxReservationRejectRes rejectGxReservation(Long complexId, Long gxReservationId, GxReservationRejectReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-        // TODO:
-        // 1) FeatureAccessService로 FACILITY 기능 활성 여부를 확인한다.
-        // 2) gxReservationId가 현재 complexId 소속인지 검증한다.
-        // 3) WAITING 상태 검증과 REJECTED 처리 로직은 2단계에서 구현한다.
+
+        GxReservation reservation = gxReservationRepository
+                .findByIdAndComplexId(gxReservationId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
+
+        // WAITING 상태만 거절 가능
+        if (reservation.getStatus() != GxReservationStatus.WAITING) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        reservation.reject(req.getRejectReason());
+
+        // TODO: 거절 알림 발행 (가은 담당)
+
         return GxReservationRejectRes.builder()
-                .gxReservationId(gxReservationId)
-                .status(GxReservationStatus.REJECTED)
-                .rejectReason(req.getRejectReason())
+                .gxReservationId(reservation.getId())
+                .status(reservation.getStatus())
+                .rejectReason(reservation.getRejectReason())
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
