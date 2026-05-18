@@ -29,4 +29,10 @@ public interface ParkingZoneRepository extends JpaRepository<ParkingZone, Long> 
 
     // 주차 구역 식별자와 단지 기준으로 주차 구역을 조회한다.
     Optional<ParkingZone> findByIdAndComplexId(Long id, Long complexId);
+
+    // 단지 기준 활성 주차 구역 개수를 조회한다.
+    long countByComplexIdAndIsActiveTrue(Long complexId);
+
+    // 단지 기준 주차 구역 존재 여부를 조회한다.
+    boolean existsByComplexId(Long complexId);
 }

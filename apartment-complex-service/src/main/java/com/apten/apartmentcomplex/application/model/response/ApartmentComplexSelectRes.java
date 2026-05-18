@@ -16,5 +16,9 @@ public class ApartmentComplexSelectRes {
     private final String status;
     private final String statusName;
     private final Map<String, Boolean> features;
+    // 주차 운영 타입 code
+    private final String parkingTypeCode;
+    // 주차 운영 타입 표시 value
+    private final String parkingTypeValue;
     private final String adminPageUrl;
 }

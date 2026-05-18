@@ -38,6 +38,25 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
             @Param("zoneIds") List<Long> zoneIds
     );
 
+    // 단일 zone의 현재 입차 중인 차량 수를 단일 값으로 집계한다.
+    // 같은 차량번호의 더 최신 로그(보통 OUT)가 없는 IN 로그만 카운트한다.
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.zoneId = :zoneId
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentParkedInZone(
+            @Param("complexId") Long complexId,
+            @Param("zoneId") Long zoneId
+    );
+
     // 동적 필터로 입출차 기록을 페이지 조회한다.
     // 필수 파라미터는 complexId, 나머지는 NULL이면 해당 조건을 건너뛴다.
     // 차종 분류는 ParkingLog에 별도 컬럼이 없으므로 FK 분기로 판별한다.
@@ -115,28 +134,28 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
     );
 
     // 오늘과 어제의 입차/출차 건수를 한 쿼리에 집계
-    // 시안의 "오늘 입차 / 오늘 출차 / 전일 대비 차이" 계산용으로 사용한다.
-    // 어제~내일 0시 범위 한 번만 스캔하고 SUM CASE로 4값을 분리한다.
+// 시안의 "오늘 입차 / 오늘 출차 / 전일 대비 차이" 계산용으로 사용
+// 어제~내일 0시 범위 한 번만 스캔하고 SUM CASE로 4값 분리
     @Query("""
-            SELECT
-              SUM(CASE WHEN pl.loggedAt >= :todayStart
-                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
-                       THEN 1L ELSE 0L END),
-              SUM(CASE WHEN pl.loggedAt >= :todayStart
-                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.OUT
-                       THEN 1L ELSE 0L END),
-              SUM(CASE WHEN pl.loggedAt < :todayStart
-                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
-                       THEN 1L ELSE 0L END),
-              SUM(CASE WHEN pl.loggedAt < :todayStart
-                       AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.OUT
-                       THEN 1L ELSE 0L END)
-            FROM ParkingLog pl
-            WHERE pl.complexId = :complexId
-              AND pl.loggedAt >= :yesterdayStart
-              AND pl.loggedAt < :tomorrowStart
-            """)
-    Object[] sumTodayAndYesterdayCounts(
+        SELECT
+          SUM(CASE WHEN pl.loggedAt >= :todayStart
+                   AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+                   THEN 1L ELSE 0L END),
+          SUM(CASE WHEN pl.loggedAt >= :todayStart
+                   AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.OUT
+                   THEN 1L ELSE 0L END),
+          SUM(CASE WHEN pl.loggedAt < :todayStart
+                   AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+                   THEN 1L ELSE 0L END),
+          SUM(CASE WHEN pl.loggedAt < :todayStart
+                   AND pl.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.OUT
+                   THEN 1L ELSE 0L END)
+        FROM ParkingLog pl
+        WHERE pl.complexId = :complexId
+          AND pl.loggedAt >= :yesterdayStart
+          AND pl.loggedAt < :tomorrowStart
+        """)
+    List<Object[]> sumTodayAndYesterdayCounts(
             @Param("complexId") Long complexId,
             @Param("yesterdayStart") LocalDateTime yesterdayStart,
             @Param("todayStart") LocalDateTime todayStart,

@@ -17,5 +17,9 @@ public class ApartmentComplexGetRes {
     private final String statusName;
     private final String description;
     private final Map<String, Boolean> features;
+    // 주차 운영 타입 code
+    private final String parkingTypeCode;
+    // 주차 운영 타입 표시 value
+    private final String parkingTypeValue;
     private final LocalDateTime createdAt;
 }

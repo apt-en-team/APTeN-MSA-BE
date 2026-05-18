@@ -57,6 +57,7 @@ public class ApartmentComplexOutboxService {
                 .address(apartmentComplex.getAddress())
                 .status(resolveStatus(eventType, apartmentComplex))
                 .features(resolveFeatures(apartmentComplex.getId()))
+                .parkingType(apartmentComplex.getParkingType())
                 .build();
 
         // payload 생성 이후의 공통 Outbox 저장 흐름은 하나의 메서드로 위임한다.
