@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 // 시설 좌석 저장소이다.
 public interface FacilitySeatRepository extends JpaRepository<FacilitySeat, Long> {
 
+    // 좌석 ID와 시설 ID, 활성 여부 기준으로 좌석을 조회한다.
+    java.util.Optional<FacilitySeat> findByIdAndFacilityIdAndIsActiveTrue(Long id, Long facilityId);
+
     // 시설별 좌석 목록을 조회한다.
     List<FacilitySeat> findByFacilityId(Long facilityId);
 
@@ -15,6 +18,9 @@ public interface FacilitySeatRepository extends JpaRepository<FacilitySeat, Long
 
     // 좌석 번호 중복 여부를 확인한다.
     boolean existsByFacilityIdAndSeatNo(Long facilityId, Integer seatNo);
+
+    // 일괄 등록은 하나라도 겹치면 전체 실패해야 하므로 범위 좌석을 한 번에 조회한다.
+    List<FacilitySeat> findByFacilityIdAndSeatNoIn(Long facilityId, List<Integer> seatNos);
 
     // 시설 ID 기준으로 삭제되지 않은 좌석 목록을 조회한다.
     List<FacilitySeat> findByFacilityIdOrderBySeatNoAsc(Long facilityId);

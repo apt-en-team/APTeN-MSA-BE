@@ -14,6 +14,13 @@ public interface FacilityUsageMonthlyRepository extends JpaRepository<FacilityUs
     // 단지별 월 집계 목록을 조회한다.
     List<FacilityUsageMonthly> findByComplexIdAndUsageYearAndUsageMonth(Long complexId, Integer usageYear, Integer usageMonth);
 
+    // 월 집계 upsert는 세대별 기존 row를 한 번에 읽어야 N+1을 피할 수 있다.
+    List<FacilityUsageMonthly> findByHouseholdIdInAndUsageYearAndUsageMonth(
+            List<Long> householdIds,
+            Integer usageYear,
+            Integer usageMonth
+    );
+
     // 미발행 집계 목록을 조회한다.
     List<FacilityUsageMonthly> findByUsageYearAndUsageMonthAndIsPublishedFalse(Integer usageYear, Integer usageMonth);
 }

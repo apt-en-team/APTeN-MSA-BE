@@ -1,6 +1,5 @@
 package com.apten.facilityreservation.application.model.request;
 
-import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,6 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FacilityPolicyListReq {
 
-    // 시설 타입 코드 필터이다.
-    private FacilityTypeCode facilityTypeCode;
+    // 시설 ID 필터이다.
+    private Long facilityId;
 }

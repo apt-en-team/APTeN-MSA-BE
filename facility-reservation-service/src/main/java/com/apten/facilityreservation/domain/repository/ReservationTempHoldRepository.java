@@ -22,11 +22,25 @@ public interface ReservationTempHoldRepository extends JpaRepository<Reservation
             ReservationHoldStatus holdStatus
     );
 
+    // 같은 좌석 시간대의 유효한 HOLDING 선점 존재 여부를 확인한다.
+    boolean existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndHoldStatusAndExpiresAtAfter(
+            Long facilityId,
+            Long seatId,
+            LocalDate reservationDate,
+            LocalTime startTime,
+            LocalTime endTime,
+            ReservationHoldStatus holdStatus,
+            LocalDateTime expiresAt
+    );
+
     // 만료 시각이 지난 HOLDING 선점 목록을 조회한다.
     List<ReservationTempHold> findByExpiresAtBeforeAndHoldStatus(LocalDateTime expiresAt, ReservationHoldStatus holdStatus);
 
     // HOLDING 상태와 만료 시각 기준 만료 대상 목록을 조회한다.
     List<ReservationTempHold> findByHoldStatusAndExpiresAtBefore(ReservationHoldStatus holdStatus, LocalDateTime expiresAt);
+
+    // HOLDING 상태이면서 만료 시각이 현재와 같거나 이전인 만료 대상 목록을 조회한다.
+    List<ReservationTempHold> findByHoldStatusAndExpiresAtLessThanEqual(ReservationHoldStatus holdStatus, LocalDateTime expiresAt);
 
     // 특정 사용자의 HOLDING 선점을 조회한다.
     Optional<ReservationTempHold> findByIdAndUserIdAndHoldStatus(Long id, Long userId, ReservationHoldStatus holdStatus);
@@ -39,5 +53,13 @@ public interface ReservationTempHoldRepository extends JpaRepository<Reservation
             LocalTime startTime,
             LocalTime endTime,
             ReservationHoldStatus holdStatus
+    );
+
+    // 날짜 기준 유효한 HOLDING 선점을 한 번에 조회한다.
+    List<ReservationTempHold> findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
+            Long facilityId,
+            LocalDate reservationDate,
+            ReservationHoldStatus holdStatus,
+            LocalDateTime expiresAt
     );
 }

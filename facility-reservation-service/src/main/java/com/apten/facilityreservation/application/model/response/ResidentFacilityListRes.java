@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import com.apten.facilityreservation.domain.enums.ReservationType;
 import java.math.BigDecimal;
 import java.time.LocalTime;
@@ -20,6 +21,12 @@ public class ResidentFacilityListRes {
     // 시설 타입 ID이다.
     private Long typeId;
 
+    // 시설 타입 코드이다.
+    private FacilityTypeCode typeCode;
+
+    // 시설 타입명이다.
+    private String typeName;
+
     // 시설 설명이다.
     private String description;
 
@@ -34,6 +41,9 @@ public class ResidentFacilityListRes {
 
     // 운영 종료 시간이다.
     private LocalTime closeTime;
+
+    // 운영 여부이다.
+    private Boolean isActive;
 
     // 적용 예약 단위이다.
     private Integer slotMin;

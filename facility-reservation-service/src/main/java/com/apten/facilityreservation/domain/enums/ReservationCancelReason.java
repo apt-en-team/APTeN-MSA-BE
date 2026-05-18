@@ -33,9 +33,9 @@ public enum ReservationCancelReason implements EnumMapperType {
     @jakarta.persistence.Converter(autoApply = true)
     public static class CodeConverter extends AbstractEnumCodeConverter<ReservationCancelReason> {
 
-        // ReservationCancelReason 전용 converter를 만든다.
+        // 예약 생성 시점에는 취소 사유가 없으므로 null 허용
         public CodeConverter() {
-            super(ReservationCancelReason.class);
+            super(ReservationCancelReason.class, true);
         }
     }
 }

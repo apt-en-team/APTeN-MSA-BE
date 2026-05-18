@@ -2,6 +2,7 @@ package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import lombok.Builder;
@@ -38,6 +39,9 @@ public class ResidentGxProgramDetailRes {
 
     // 운영 요일이다.
     private String daysOfWeek;
+
+    // 프로그램 요금이다.
+    private BigDecimal baseFee;
 
     // 최대 인원이다.
     private Integer maxCount;
