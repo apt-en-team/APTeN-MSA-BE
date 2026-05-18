@@ -1,6 +1,7 @@
 package com.apten.facilityreservation.application.model.request;
 
 import com.apten.facilityreservation.domain.enums.ReservationType;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import java.time.LocalTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
+@AllArgsConstructor(onConstructor_ = {@JsonCreator})
 public class FacilityPatchReq {
 
     // 시설 타입 ID이다.
@@ -31,5 +32,8 @@ public class FacilityPatchReq {
 
     // 운영 종료 시간이다.
     private LocalTime closeTime;
+
+    // 시설 최대 동시 이용 인원이다. null이면 변경하지 않는다.
+    private Integer maxCount;
 
 }

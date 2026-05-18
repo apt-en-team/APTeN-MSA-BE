@@ -45,8 +45,8 @@ public class FacilityListRes {
     // 예약 단위 타입 표시명이다. 정책 미등록 시 null.
     private String usageUnitTypeName;
 
-    // 최대 예약 인원이다. 정책 미등록 또는 미설정 시 null.
-    private Integer maxReservationCount;
+    // 시설 최대 동시 이용 인원이다. 미설정 시 null.
+    private Integer maxCount;
 
     // 예약 단위 표시용 라벨이다. 정책 미등록 시 null. 예: "60분", "하루"
     private String reservationUnitLabel;

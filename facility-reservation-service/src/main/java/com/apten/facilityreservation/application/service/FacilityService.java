@@ -148,6 +148,9 @@ public class FacilityService {
         if (req == null || req.getName() == null || req.getName().isBlank() || req.getTypeId() == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
+        if (req.getMaxCount() != null && req.getMaxCount() < 1) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
     }
 
     // 시설 수정 요청 검증
@@ -155,6 +158,9 @@ public class FacilityService {
         if (req == null || req.getName() == null || req.getName().isBlank()
                 || req.getTypeId() == null || req.getReservationType() == null
                 || req.getOpenTime() == null || req.getCloseTime() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        if (req.getMaxCount() != null && req.getMaxCount() < 1) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
@@ -258,6 +264,7 @@ public class FacilityService {
                 .reservationType(reservationType)
                 .openTime(req.getOpenTime())
                 .closeTime(req.getCloseTime())
+                .maxCount(req.getMaxCount())
                 .isActive(req.getIsActive() == null || req.getIsActive())
                 .isDeleted(false)
                 .build());
@@ -323,12 +330,12 @@ public class FacilityService {
                             .openTime(facility.getOpenTime())
                             .closeTime(facility.getCloseTime())
                             .isActive(facility.getIsActive())
+                            .maxCount(facility.getMaxCount())
                             .baseFee(policy != null ? policy.getBaseFee() : null)
                             .slotMin(policy != null ? policy.getSlotMin() : null)
                             .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
                             .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
                                     ? policy.getUsageUnitType().getLabel() : null)
-                            .maxReservationCount(policy != null ? policy.getMaxReservationCount() : null)
                             .reservationUnitLabel(buildReservationUnitLabel(policy))
                             .build();
                 })
@@ -387,12 +394,12 @@ public class FacilityService {
                 .openTime(facility.getOpenTime())
                 .closeTime(facility.getCloseTime())
                 .isActive(facility.getIsActive())
+                .maxCount(facility.getMaxCount())
                 .baseFee(policy != null ? policy.getBaseFee() : null)
                 .slotMin(policy != null ? policy.getSlotMin() : null)
                 .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
                 .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
                         ? policy.getUsageUnitType().getLabel() : null)
-                .maxReservationCount(policy != null ? policy.getMaxReservationCount() : null)
                 .reservationUnitLabel(buildReservationUnitLabel(policy))
                 .createdAt(facility.getCreatedAt())
                 .updatedAt(facility.getUpdatedAt())
