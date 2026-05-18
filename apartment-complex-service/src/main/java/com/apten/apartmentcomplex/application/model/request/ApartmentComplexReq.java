@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.application.model.request;
 
+import com.apten.common.enums.ParkingType;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -20,6 +21,8 @@ public class ApartmentComplexReq {
     private String zipCode;
     private String description;
     private Map<String, Boolean> features;
+    // 단지 주차 운영 타입 enum (NONE/BASIC/SENSOR)
+    private ParkingType parkingType;
     private String managerEmail;
     private String managerPassword;
     private String managerName;

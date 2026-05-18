@@ -119,6 +119,7 @@ public class ApartmentComplexService {
                 .zipCode(req.getZipCode())
                 .status(ApartmentComplexStatus.ACTIVE)
                 .description(req.getDescription())
+                .parkingType(req.getParkingType() != null ? req.getParkingType() : ParkingType.NONE)
                 .build();
         ApartmentComplex savedApartmentComplex = apartmentComplexRepository.save(apartmentComplex);
         // 단지 저장 직후 complex_feature 원본을 함께 저장한다.
