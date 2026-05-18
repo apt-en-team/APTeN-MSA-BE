@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.enums.FeatureCode;
+import com.apten.common.enums.ParkingType;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
@@ -96,21 +97,25 @@ public class ParkingVehicleReferenceCacheService {
         }
     }
 
-    // 단지의 주차 설정 row와 기본 zone을 함께 보장한다.
-    // setting row가 없으면 NONE 기본값으로 생성하고, zone이 없으면 기본 zone 1개를 함께 생성한다.
-    // parking_type은 관리자가 PATCH로 변경하는 값이므로 이벤트로 덮어쓰지 않는다.
+    // 단지 이벤트 기반 parking_setting 동기화 + 기본 zone 보장
     public void ensureParkingSetting(ApartmentComplexEventPayload payload) {
         if (payload == null || payload.getApartmentComplexId() == null) {
             return;
         }
 
         Long complexId = payload.getApartmentComplexId();
+        ParkingType parkingType = payload.getParkingType();
 
-        // parking_setting row 보장 (이미 있으면 parking_type 보존)
-        if (!parkingSettingRepository.existsByComplexId(complexId)) {
-            ParkingSetting parkingSetting = ParkingSetting.builder()
-                    .complexId(complexId)
-                    .build();
+        // parking_setting row 동기화 — 신규는 이벤트 값으로 생성, 기존은 parking_type만 갱신
+        ParkingSetting parkingSetting = parkingSettingRepository.findByComplexId(complexId).orElse(null);
+        if (parkingSetting == null) {
+            ParkingSetting.ParkingSettingBuilder builder = ParkingSetting.builder().complexId(complexId);
+            if (parkingType != null) {
+                builder.parkingType(parkingType);
+            }
+            parkingSettingRepository.save(builder.build());
+        } else if (parkingType != null) {
+            parkingSetting.changeType(parkingType);
             parkingSettingRepository.save(parkingSetting);
         }
 

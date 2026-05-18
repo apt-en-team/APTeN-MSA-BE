@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.enums.FeatureCode;
+import com.apten.common.enums.ParkingType;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.parkingvehicle.application.model.request.*;

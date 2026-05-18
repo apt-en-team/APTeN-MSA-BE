@@ -1,7 +1,7 @@
 package com.apten.parkingvehicle.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
-import com.apten.parkingvehicle.domain.enums.ParkingType;
+import com.apten.common.enums.ParkingType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

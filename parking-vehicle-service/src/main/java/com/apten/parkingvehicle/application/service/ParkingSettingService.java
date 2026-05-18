@@ -7,7 +7,7 @@ import com.apten.parkingvehicle.application.model.request.ParkingSettingPatchReq
 import com.apten.parkingvehicle.application.model.response.ParkingSettingGetRes;
 import com.apten.parkingvehicle.application.model.response.ParkingSettingPatchRes;
 import com.apten.parkingvehicle.domain.entity.ParkingSetting;
-import com.apten.parkingvehicle.domain.enums.ParkingType;
+import com.apten.common.enums.ParkingType;
 import com.apten.parkingvehicle.domain.repository.ParkingSettingRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import lombok.RequiredArgsConstructor;
