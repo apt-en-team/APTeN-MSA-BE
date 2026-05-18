@@ -217,6 +217,18 @@ public class FacilityService {
                 .build();
     }
 
+    // 정책 기준 예약 단위 표시 라벨을 생성한다.
+    // MINUTE: slotMin값+"분" (예: "60분"), DAY: "하루", 정책 없으면 null
+    private String buildReservationUnitLabel(FacilityPolicy policy) {
+        if (policy == null || policy.getUsageUnitType() == null) {
+            return null;
+        }
+        return switch (policy.getUsageUnitType()) {
+            case MINUTE -> policy.getSlotMin() != null ? policy.getSlotMin() + "분" : null;
+            case DAY -> "하루";
+        };
+    }
+
     // 관리자 시설 등록
     @Transactional
     public FacilityPostRes createFacility(Long complexId, FacilityPostReq req) {
@@ -316,6 +328,8 @@ public class FacilityService {
                             .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
                             .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
                                     ? policy.getUsageUnitType().getLabel() : null)
+                            .maxReservationCount(policy != null ? policy.getMaxReservationCount() : null)
+                            .reservationUnitLabel(buildReservationUnitLabel(policy))
                             .build();
                 })
                 .toList();
@@ -378,6 +392,8 @@ public class FacilityService {
                 .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
                 .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
                         ? policy.getUsageUnitType().getLabel() : null)
+                .maxReservationCount(policy != null ? policy.getMaxReservationCount() : null)
+                .reservationUnitLabel(buildReservationUnitLabel(policy))
                 .createdAt(facility.getCreatedAt())
                 .updatedAt(facility.getUpdatedAt())
                 .seats(seats)
