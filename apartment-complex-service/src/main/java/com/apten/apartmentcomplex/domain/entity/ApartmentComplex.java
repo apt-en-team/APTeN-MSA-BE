@@ -2,6 +2,7 @@ package com.apten.apartmentcomplex.domain.entity;
 
 import com.apten.apartmentcomplex.domain.enums.ApartmentComplexStatus;
 import com.apten.common.entity.BaseEntity;
+import com.apten.common.enums.ParkingType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -57,6 +58,11 @@ public class ApartmentComplex extends BaseEntity {
     @Column(name = "description")
     private String description;
 
+    // 단지 주차 운영 타입은 converter를 통해 DB에는 code로 저장된다
+    @Builder.Default
+    @Column(name = "parking_type", nullable = false, length = 2)
+    private ParkingType parkingType = ParkingType.NONE;
+
     // 단지 기본 정보를 수정할 때 사용한다.
     public void update(
             String name,
@@ -79,5 +85,10 @@ public class ApartmentComplex extends BaseEntity {
     // 단지 활성 상태를 별도 API에서 변경할 때 사용한다.
     public void changeStatus(ApartmentComplexStatus status) {
         this.status = status;
+    }
+
+    // 단지 주차 운영 타입 변경
+    public void changeParkingType(ParkingType parkingType) {
+        this.parkingType = parkingType;
     }
 }

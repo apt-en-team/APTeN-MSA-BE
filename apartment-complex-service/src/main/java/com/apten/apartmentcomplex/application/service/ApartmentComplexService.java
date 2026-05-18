@@ -249,6 +249,10 @@ public class ApartmentComplexService {
         complex.updateSummary(req.getName(), req.getDescription());
         // 기능 설정 요청이 있으면 단지 기능 사용 여부도 함께 갱신한다.
         upsertFeatures(complex, req.getFeatures());
+        // 주차 운영 타입 요청이 있으면 단지 원본의 parking_type을 함께 갱신한다.
+        if (req.getParkingType() != null) {
+            complex.changeParkingType(req.getParkingType());
+        }
 
         // Kafka 직접 발행 대신 수정 이벤트를 같은 트랜잭션 안에서 Outbox에 적재한다
         apartmentComplexOutboxService.saveUpdatedEvent(complex);
