@@ -34,6 +34,7 @@ import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminUpdat
 import com.apten.apartmentcomplex.infrastructure.kafka.ApartmentComplexOutboxService;
 import com.apten.apartmentcomplex.infrastructure.mapper.ApartmentComplexMapper;
 import com.apten.common.enums.FeatureCode;
+import com.apten.common.enums.ParkingType;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.common.exception.BusinessException;
 import java.time.LocalDateTime;
@@ -164,6 +165,8 @@ public class ApartmentComplexService {
                 .managerEmail(createdAdmin.getEmail())
                 .managerPhone(defaultIfBlank(createdAdmin.getPhone(), req.getManagerPhone()))
                 .features(toFeatureResponseMap(normalizedFeatures))
+                .parkingTypeCode(toParkingTypeCode(savedApartmentComplex.getParkingType()))
+                .parkingTypeValue(toParkingTypeValue(savedApartmentComplex.getParkingType()))
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -199,6 +202,8 @@ public class ApartmentComplexService {
                         .statusName(toStatusName(complex.getStatus()))
                         .description(complex.getDescription())
                         .features(featureMaps.getOrDefault(complex.getId(), getDefaultFeatureMap()))
+                        .parkingTypeCode(toParkingTypeCode(complex.getParkingType()))
+                        .parkingTypeValue(toParkingTypeValue(complex.getParkingType()))
                         .createdAt(complex.getCreatedAt())
                         .build())
                 .toList();
@@ -229,6 +234,8 @@ public class ApartmentComplexService {
                 .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
                 .features(getFeatureMap(complex.getId()))
+                .parkingTypeCode(toParkingTypeCode(complex.getParkingType()))
+                .parkingTypeValue(toParkingTypeValue(complex.getParkingType()))
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
@@ -261,6 +268,8 @@ public class ApartmentComplexService {
                 .code(code)
                 .name(complex.getName())
                 .description(complex.getDescription())
+                .parkingTypeCode(toParkingTypeCode(complex.getParkingType()))
+                .parkingTypeValue(toParkingTypeValue(complex.getParkingType()))
                 .updatedAt(complex.getUpdatedAt())
                 .build();
     }
@@ -489,6 +498,8 @@ public class ApartmentComplexService {
                 .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
                 .features(getFeatureMap(complex.getId()))
+                .parkingTypeCode(toParkingTypeCode(complex.getParkingType()))
+                .parkingTypeValue(toParkingTypeValue(complex.getParkingType()))
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
@@ -509,6 +520,8 @@ public class ApartmentComplexService {
                 .statusName(toStatusName(complex.getStatus()))
                 .description(complex.getDescription())
                 .features(getFeatureMap(complex.getId()))
+                .parkingTypeCode(toParkingTypeCode(complex.getParkingType()))
+                .parkingTypeValue(toParkingTypeValue(complex.getParkingType()))
                 .createdAt(complex.getCreatedAt())
                 .updatedAt(complex.getUpdatedAt())
                 .build();
@@ -567,6 +580,8 @@ public class ApartmentComplexService {
                 .status(toStatusCode(complex.getStatus()))
                 .statusName(toStatusName(complex.getStatus()))
                 .features(getFeatureMap(complex.getId()))
+                .parkingTypeCode(toParkingTypeCode(complex.getParkingType()))
+                .parkingTypeValue(toParkingTypeValue(complex.getParkingType()))
                 .adminPageUrl(adminPageUrl)
                 .build();
     }
@@ -851,6 +866,16 @@ public class ApartmentComplexService {
     // enum 상태는 API 응답에서 표시명도 함께 내려줄 수 있게 변환한다.
     private String toStatusName(ApartmentComplexStatus status) {
         return status.getValue();
+    }
+
+    // 주차 운영 타입 code 변환 — null 방어 포함
+    private String toParkingTypeCode(ParkingType parkingType) {
+        return parkingType == null ? null : parkingType.getCode();
+    }
+
+    // 주차 운영 타입 표시 value 변환 — null 방어 포함
+    private String toParkingTypeValue(ParkingType parkingType) {
+        return parkingType == null ? null : parkingType.getValue();
     }
 
     private String resolveAdminRoleName(String adminRole) {

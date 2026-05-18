@@ -12,5 +12,9 @@ public class ApartmentComplexPatchRes {
     private final String code;
     private final String name;
     private final String description;
+    // 주차 운영 타입 code
+    private final String parkingTypeCode;
+    // 주차 운영 타입 표시 value
+    private final String parkingTypeValue;
     private final LocalDateTime updatedAt;
 }

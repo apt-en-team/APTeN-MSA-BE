@@ -59,6 +59,7 @@ public class ApartmentComplex extends BaseEntity {
     private String description;
 
     // 단지 주차 운영 타입은 converter를 통해 DB에는 code로 저장된다
+    @Convert(converter = ParkingType.CodeConverter.class)
     @Builder.Default
     @Column(name = "parking_type", nullable = false, length = 2)
     private ParkingType parkingType = ParkingType.NONE;
