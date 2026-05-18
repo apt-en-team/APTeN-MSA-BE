@@ -1,6 +1,8 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import com.apten.facilityreservation.domain.enums.ReservationType;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -38,6 +40,18 @@ public class FacilityDetailRes {
 
     // 활성 여부이다.
     private Boolean isActive;
+
+    // 기본 요금이다. 정책 미등록 시 null.
+    private BigDecimal baseFee;
+
+    // 예약 슬롯 단위(분)이다. 정책 미등록 시 null.
+    private Integer slotMin;
+
+    // 예약 단위 타입이다. 정책 미등록 시 null.
+    private FacilityUsageUnitType usageUnitType;
+
+    // 예약 단위 타입 표시명이다. 정책 미등록 시 null.
+    private String usageUnitTypeName;
 
     // 좌석 목록이다.
     private List<SeatItem> seats;

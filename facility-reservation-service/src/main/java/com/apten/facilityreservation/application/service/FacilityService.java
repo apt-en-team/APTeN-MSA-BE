@@ -290,19 +290,45 @@ public class FacilityService {
                 pageRequest
         );
 
+        List<Facility> facilities = facilityPage.getContent();
+        List<Long> facilityIds = facilities.stream().map(Facility::getId).toList();
+
+        // 정책 배치 조회 (N+1 방지)
+        Map<Long, FacilityPolicy> policyMap = facilityIds.isEmpty() ? Map.of() :
+                facilityPolicyRepository.findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
+
         // 목록 응답 변환
-        Page<FacilityListRes> responsePage = facilityPage.map(facility -> FacilityListRes.builder()
-                .facilityId(facility.getId())
-                .typeId(facility.getTypeId())
-                .name(facility.getName())
-                .reservationType(facility.getReservationType())
-                .openTime(facility.getOpenTime())
-                .closeTime(facility.getCloseTime())
-                .isActive(facility.getIsActive())
-                .build());
+        List<FacilityListRes> items = facilities.stream()
+                .map(facility -> {
+                    FacilityPolicy policy = policyMap.get(facility.getId());
+                    return FacilityListRes.builder()
+                            .facilityId(facility.getId())
+                            .typeId(facility.getTypeId())
+                            .name(facility.getName())
+                            .reservationType(facility.getReservationType())
+                            .openTime(facility.getOpenTime())
+                            .closeTime(facility.getCloseTime())
+                            .isActive(facility.getIsActive())
+                            .baseFee(policy != null ? policy.getBaseFee() : null)
+                            .slotMin(policy != null ? policy.getSlotMin() : null)
+                            .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
+                            .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
+                                    ? policy.getUsageUnitType().getLabel() : null)
+                            .build();
+                })
+                .toList();
 
         // 페이지 응답 변환
-        return toPageResponse(responsePage);
+        return PageResponse.<FacilityListRes>builder()
+                .content(items)
+                .page(page)
+                .size(size)
+                .totalElements(facilityPage.getTotalElements())
+                .totalPages(facilityPage.getTotalPages())
+                .hasNext(facilityPage.hasNext())
+                .build();
     }
 
     // 관리자 시설 상세를 조회한다. API-603
@@ -315,6 +341,11 @@ public class FacilityService {
 
         // 시설 타입 정보 조회
         FacilityType facilityType = getFacilityType(facility.getTypeId());
+
+        // 활성 정책 조회 (없으면 null)
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
+                .orElse(null);
 
         // 좌석 목록 기본값
         List<FacilityDetailRes.SeatItem> seats = List.of();
@@ -342,6 +373,11 @@ public class FacilityService {
                 .openTime(facility.getOpenTime())
                 .closeTime(facility.getCloseTime())
                 .isActive(facility.getIsActive())
+                .baseFee(policy != null ? policy.getBaseFee() : null)
+                .slotMin(policy != null ? policy.getSlotMin() : null)
+                .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
+                .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
+                        ? policy.getUsageUnitType().getLabel() : null)
                 .createdAt(facility.getCreatedAt())
                 .updatedAt(facility.getUpdatedAt())
                 .seats(seats)
