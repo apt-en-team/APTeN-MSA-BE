@@ -4,6 +4,7 @@ import com.apten.common.entity.BaseEntity;
 import com.apten.common.enums.ParkingType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -38,6 +39,7 @@ public class ParkingSetting extends BaseEntity {
     private Long complexId;
 
     // 주차 운영 타입 (NONE / BASIC / SENSOR)
+    @Convert(converter = ParkingType.CodeConverter.class)
     @Builder.Default
     @Column(name = "parking_type", nullable = false, length = 20)
     private ParkingType parkingType = ParkingType.NONE;
