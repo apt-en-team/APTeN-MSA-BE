@@ -9,7 +9,9 @@ import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.entity.UserCache;
+import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.enums.ReservationKind;
+import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
@@ -70,16 +72,23 @@ public class AdminReservationOverviewService {
             return List.of();
         }
 
-        List<Long> userIds = reservations.stream().map(Reservation::getUserId).distinct().toList();
-        List<Long> householdIds = reservations.stream().map(Reservation::getHouseholdId).distinct().toList();
-        List<Long> facilityIds = reservations.stream().map(Reservation::getFacilityId).distinct().toList();
+        // null ID는 캐시 조회에서 제외한다
+        List<Long> userIds = reservations.stream()
+                .map(Reservation::getUserId).filter(id -> id != null).distinct().toList();
+        List<Long> householdIds = reservations.stream()
+                .map(Reservation::getHouseholdId).filter(id -> id != null).distinct().toList();
+        List<Long> facilityIds = reservations.stream()
+                .map(Reservation::getFacilityId).filter(id -> id != null).distinct().toList();
 
-        Map<Long, UserCache> userMap = userCacheRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(UserCache::getId, Function.identity()));
-        Map<Long, HouseholdCache> householdMap = householdCacheRepository.findAllById(householdIds).stream()
-                .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
-        Map<Long, Facility> facilityMap = facilityRepository.findAllById(facilityIds).stream()
-                .collect(Collectors.toMap(Facility::getId, Function.identity()));
+        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of()
+                : userCacheRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of()
+                : householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
+        Map<Long, Facility> facilityMap = facilityIds.isEmpty() ? Map.of()
+                : facilityRepository.findAllById(facilityIds).stream()
+                        .collect(Collectors.toMap(Facility::getId, Function.identity()));
 
         return reservations.stream().map(r -> {
             UserCache user = userMap.get(r.getUserId());
@@ -95,9 +104,13 @@ public class AdminReservationOverviewService {
                     .residentName(user != null ? user.getName() : null)
                     .dong(household != null ? household.getBuildingNo() : null)
                     .ho(household != null ? household.getUnitNo() : null)
+                    .unit(buildUnit(household))
                     .status(r.getStatus().name())
                     .statusName(r.getStatus().getValue())
+                    .cancelable(r.getStatus() == ReservationStatus.CONFIRMED)
                     .reservationDate(r.getReservationDate())
+                    .startTime(r.getStartTime())
+                    .endTime(r.getEndTime())
                     .createdAt(r.getCreatedAt())
                     .build();
         }).toList();
@@ -114,29 +127,40 @@ public class AdminReservationOverviewService {
             return List.of();
         }
 
-        List<Long> programIds = gxList.stream().map(GxReservation::getProgramId).distinct().toList();
-        List<Long> userIds = gxList.stream().map(GxReservation::getUserId).distinct().toList();
-        List<Long> householdIds = gxList.stream().map(GxReservation::getHouseholdId).distinct().toList();
+        List<Long> programIds = gxList.stream()
+                .map(GxReservation::getProgramId).filter(id -> id != null).distinct().toList();
+        List<Long> userIds = gxList.stream()
+                .map(GxReservation::getUserId).filter(id -> id != null).distinct().toList();
+        List<Long> householdIds = gxList.stream()
+                .map(GxReservation::getHouseholdId).filter(id -> id != null).distinct().toList();
 
-        Map<Long, GxProgram> programMap = gxProgramRepository.findByIdIn(programIds).stream()
-                .collect(Collectors.toMap(GxProgram::getId, Function.identity()));
+        Map<Long, GxProgram> programMap = programIds.isEmpty() ? Map.of()
+                : gxProgramRepository.findByIdIn(programIds).stream()
+                        .collect(Collectors.toMap(GxProgram::getId, Function.identity()));
         List<Long> facilityIds = programMap.values().stream()
-                .map(GxProgram::getFacilityId).distinct().toList();
+                .map(GxProgram::getFacilityId).filter(id -> id != null).distinct().toList();
 
-        Map<Long, UserCache> userMap = userCacheRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(UserCache::getId, Function.identity()));
-        Map<Long, HouseholdCache> householdMap = householdCacheRepository.findAllById(householdIds).stream()
-                .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
-        Map<Long, Facility> facilityMap = facilityRepository.findAllById(facilityIds).stream()
-                .collect(Collectors.toMap(Facility::getId, Function.identity()));
+        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of()
+                : userCacheRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of()
+                : householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
+        Map<Long, Facility> facilityMap = facilityIds.isEmpty() ? Map.of()
+                : facilityRepository.findAllById(facilityIds).stream()
+                        .collect(Collectors.toMap(Facility::getId, Function.identity()));
 
         return gxList.stream().map(r -> {
             UserCache user = userMap.get(r.getUserId());
             HouseholdCache household = householdMap.get(r.getHouseholdId());
             GxProgram program = programMap.get(r.getProgramId());
             Facility facility = program != null ? facilityMap.get(program.getFacilityId()) : null;
+            // GX는 WAITING/CONFIRMED 상태에서만 취소 가능하다
+            boolean cancelable = r.getStatus() == GxReservationStatus.WAITING
+                    || r.getStatus() == GxReservationStatus.CONFIRMED;
             return AdminReservationOverviewRes.builder()
                     .reservationId(r.getId())
+                    .gxReservationId(r.getId())
                     .reservationKind(ReservationKind.GX)
                     .facilityId(program != null ? program.getFacilityId() : null)
                     .facilityName(facility != null ? facility.getName() : null)
@@ -147,11 +171,27 @@ public class AdminReservationOverviewService {
                     .residentName(user != null ? user.getName() : null)
                     .dong(household != null ? household.getBuildingNo() : null)
                     .ho(household != null ? household.getUnitNo() : null)
+                    .unit(buildUnit(household))
                     .status(r.getStatus().name())
                     .statusName(r.getStatus().getValue())
+                    .cancelable(cancelable)
+                    .startDate(program != null ? program.getStartDate() : null)
+                    .endDate(program != null ? program.getEndDate() : null)
+                    .startTime(program != null ? program.getStartTime() : null)
+                    .endTime(program != null ? program.getEndTime() : null)
                     .createdAt(r.getCreatedAt())
                     .build();
         }).toList();
+    }
+
+    // household 캐시가 null이거나 동/호 정보가 없으면 null을 반환한다
+    private String buildUnit(HouseholdCache household) {
+        if (household == null
+                || household.getBuildingNo() == null
+                || household.getUnitNo() == null) {
+            return null;
+        }
+        return household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
     }
 
     private PageResponse<AdminReservationOverviewRes> buildPageResponse(

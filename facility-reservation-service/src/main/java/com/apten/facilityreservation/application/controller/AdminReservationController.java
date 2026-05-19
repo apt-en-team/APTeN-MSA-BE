@@ -45,6 +45,19 @@ public class AdminReservationController {
         return ResultResponse.success("관리자 예약 목록 조회 성공", reservationService.getAdminReservationList(context.getComplexId(), req));
     }
 
+    // 관리자 예약 통합 개요 조회 — FACILITY/GX 통합 목록 (/{reservationId} 보다 먼저 선언해야 literal 경로가 정확히 매칭된다)
+    @GetMapping("/api/admin/reservations/overview")
+    public ResultResponse<PageResponse<AdminReservationOverviewRes>> getAdminReservationOverview(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @ModelAttribute AdminReservationOverviewReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("관리자 예약 통합 개요 조회 성공", adminReservationOverviewService.getOverview(context.getComplexId(), req));
+    }
+
     // API-627 관리자 예약 상세 조회
     @GetMapping("/api/admin/reservations/{reservationId}")
     public ResultResponse<AdminReservationDetailRes> getAdminReservationDetail(
@@ -56,19 +69,6 @@ public class AdminReservationController {
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("관리자 예약 상세 조회 성공", reservationService.getAdminReservationDetail(context.getComplexId(), reservationId));
-    }
-
-    // 관리자 예약 통합 개요 조회 — FACILITY/GX 통합 목록
-    @GetMapping("/api/admin/reservations/overview")
-    public ResultResponse<PageResponse<AdminReservationOverviewRes>> getAdminReservationOverview(
-            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
-            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
-            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
-            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
-            @ModelAttribute AdminReservationOverviewReq req
-    ) {
-        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
-        return ResultResponse.success("관리자 예약 통합 개요 조회 성공", adminReservationOverviewService.getOverview(context.getComplexId(), req));
     }
 
     // API-628 관리자 예약 강제 취소
