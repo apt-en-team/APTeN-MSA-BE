@@ -4,6 +4,7 @@ import com.apten.parkingvehicle.domain.enums.SensorStatus;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisOperations;
@@ -143,6 +144,23 @@ public class SensorStatusRepository {
             return 0L;
         }
         return Long.valueOf(raw);
+    }
+
+    // zone 카운터 일괄 조회. 키 없는 zone은 0L로 채워 반환
+    public Map<Long, Long> getZoneOccupiedMap(List<Long> zoneIds) {
+        if (zoneIds == null || zoneIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<String> keys = zoneIds.stream()
+                .map(this::buildZoneOccupiedKey)
+                .toList();
+        List<String> rawValues = redisTemplate.opsForValue().multiGet(keys);
+        Map<Long, Long> result = new LinkedHashMap<>(zoneIds.size());
+        for (int i = 0; i < zoneIds.size(); i++) {
+            String raw = (rawValues == null) ? null : rawValues.get(i);
+            result.put(zoneIds.get(i), raw == null ? 0L : Long.valueOf(raw));
+        }
+        return result;
     }
 
     // 센서 Hash 존재 여부 확인
