@@ -24,6 +24,8 @@ public enum EventType {
     VEHICLE_UPDATED, // 차량 수정 스냅샷 이벤트
     VEHICLE_DELETED, // 차량 삭제 스냅샷 이벤트
 
+    PARKING_SPOT_CHANGED, // 자리 점유 상태 변경 이벤트
+
     FACILITY_USAGE_COMPLETED, // 시설 이용 완료 스냅샷 이벤트
     VISITOR_USAGE_SUMMARIZED, // 방문차량 월 집계 스냅샷 이벤트
 

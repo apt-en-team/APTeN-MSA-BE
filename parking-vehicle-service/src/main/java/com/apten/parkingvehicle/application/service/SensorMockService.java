@@ -10,6 +10,7 @@ import com.apten.parkingvehicle.domain.enums.SensorStatus;
 import com.apten.parkingvehicle.domain.repository.ParkingSensorRepository;
 import com.apten.parkingvehicle.domain.repository.ParkingZoneRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
+import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import com.apten.parkingvehicle.infrastructure.redis.SensorChangePublisher;
 import com.apten.parkingvehicle.infrastructure.redis.SensorStatusRepository;
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class SensorMockService {
     private final ParkingSensorRepository parkingSensorRepository;
     private final ParkingZoneRepository parkingZoneRepository;
     private final SensorChangePublisher sensorChangePublisher;
+    private final ParkingVehicleOutboxService parkingVehicleOutboxService;
 
     // 센서 초기 상태를 Redis에 등록한다. DB ParkingSensor와 ParkingZone에서 spotNumber와 zoneTotalSlots를 보강한다.
     public void initSensor(SensorMockPostReq request) {
@@ -71,6 +73,7 @@ public class SensorMockService {
         ParkingSpotChangedEvent event = buildSpotChangedEvent(sensorCode);
         if (event != null) {
             sensorChangePublisher.publish(event);
+            parkingVehicleOutboxService.saveParkingSpotChangedEvent(event);
         }
         return next;
     }
