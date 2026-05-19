@@ -22,6 +22,9 @@ public class SensorStatusRepository {
     // zone 점유 카운터 키 형식
     private static final String ZONE_OCCUPIED_KEY_FORMAT = "parking:zone:%d:occupied";
 
+    // 등록 센서 코드 Set 키
+    private static final String REGISTERED_SET_KEY = "parking:sensors:registered";
+
     // 센서 Hash status 필드
     private static final String FIELD_STATUS = "status";
 
@@ -52,6 +55,7 @@ public class SensorStatusRepository {
                 operations.opsForHash().put(sensorKey, FIELD_CHANGED_AT, now);
                 operations.opsForHash().put(sensorKey, FIELD_ZONE_ID, String.valueOf(zoneId));
                 operations.opsForHash().put(sensorKey, FIELD_COMPLEX_ID, String.valueOf(complexId));
+                operations.opsForSet().add(REGISTERED_SET_KEY, sensorCode);
                 // 초기 상태가 점유면 zone 카운터 1 증가
                 if (initialStatus == SensorStatus.OCCUPIED) {
                     operations.opsForValue().increment(zoneKey);
@@ -137,6 +141,11 @@ public class SensorStatusRepository {
     public boolean exists(String sensorCode) {
         Boolean has = redisTemplate.hasKey(buildSensorKey(sensorCode));
         return Boolean.TRUE.equals(has);
+    }
+
+    // 등록 센서 중 무작위 1개 코드 조회
+    public String getRandomSensorCode() {
+        return redisTemplate.opsForSet().randomMember(REGISTERED_SET_KEY);
     }
 
     // 센서 Hash 키 조합

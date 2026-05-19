@@ -30,3 +30,7 @@ constants:
 apten:
   outbox:
     enabled: true
+  scheduler:
+    parking-mock:
+      enabled: ${APTEN_SCHEDULER_PARKING_MOCK_ENABLED:true}
+      fixed-delay-ms: ${APTEN_SCHEDULER_PARKING_MOCK_FIXED_DELAY_MS:7000}
