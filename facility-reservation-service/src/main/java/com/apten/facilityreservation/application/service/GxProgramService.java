@@ -2,12 +2,14 @@ package com.apten.facilityreservation.application.service;
 
 import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
+import com.apten.facilityreservation.application.model.request.AdminGxReservationListReq;
 import com.apten.facilityreservation.application.model.request.GxBulkApproveReq;
 import com.apten.facilityreservation.application.model.request.GxProgramCancelReq;
 import com.apten.facilityreservation.application.model.request.GxProgramListReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPatchReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPostReq;
 import com.apten.facilityreservation.application.model.request.ResidentGxProgramListReq;
+import com.apten.facilityreservation.application.model.response.AdminGxReservationListRes;
 import com.apten.facilityreservation.application.model.response.GxBulkApproveRes;
 import com.apten.facilityreservation.application.model.response.GxMinimumCheckRes;
 import com.apten.facilityreservation.application.model.response.GxProgramCancelRes;
@@ -23,6 +25,8 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
+import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
@@ -30,11 +34,14 @@ import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilityTypeRepository;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
+import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -52,6 +59,8 @@ public class GxProgramService {
     private final FacilityTypeRepository facilityTypeRepository;
     private final GxProgramRepository gxProgramRepository;
     private final GxReservationRepository gxReservationRepository;
+    private final UserCacheRepository userCacheRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
 
     // GX 프로그램을 등록한다.
     @Transactional
@@ -416,10 +425,87 @@ public class GxProgramService {
                 .build();
     }
 
+    // 관리자 GX 프로그램 신청자 목록을 조회한다.
+    @Transactional(readOnly = true)
+    public PageResponse<AdminGxReservationListRes> getAdminGxReservationList(Long complexId, Long programId, AdminGxReservationListReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        getGxProgram(complexId, programId);
+
+        List<GxReservation> reservations = req.getStatus() != null
+                ? gxReservationRepository.findByProgramIdAndStatusOrderByCreatedAtAsc(programId, req.getStatus())
+                : gxReservationRepository.findByProgramIdOrderByCreatedAtAsc(programId);
+
+        if (reservations.isEmpty()) {
+            return PageResponse.empty(req.getPage(), req.getSize());
+        }
+
+        List<Long> userIds = reservations.stream()
+                .map(GxReservation::getUserId).filter(id -> id != null).distinct().toList();
+        List<Long> householdIds = reservations.stream()
+                .map(GxReservation::getHouseholdId).filter(id -> id != null).distinct().toList();
+
+        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of()
+                : userCacheRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of()
+                : householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
+
+        List<AdminGxReservationListRes> items = reservations.stream().map(r -> {
+            UserCache user = userMap.get(r.getUserId());
+            HouseholdCache household = householdMap.get(r.getHouseholdId());
+            return AdminGxReservationListRes.builder()
+                    .gxReservationId(r.getId())
+                    .userId(r.getUserId())
+                    .householdId(r.getHouseholdId())
+                    .residentName(user != null ? user.getName() : null)
+                    .dong(household != null ? household.getBuildingNo() : null)
+                    .ho(household != null ? household.getUnitNo() : null)
+                    .unit(buildUnit(household))
+                    .status(r.getStatus())
+                    .statusName(r.getStatus() != null ? r.getStatus().getValue() : null)
+                    .waitNo(r.getWaitNo())
+                    .approvedAt(r.getApprovedAt())
+                    .rejectReason(r.getRejectReason())
+                    .cancelReason(r.getCancelReason())
+                    .cancelledAt(r.getCancelledAt())
+                    .createdAt(r.getCreatedAt())
+                    .build();
+        }).toList();
+
+        int page = Math.max(req.getPage(), 0);
+        int size = req.getSize() > 0 ? req.getSize() : 20;
+        long total = items.size();
+        int totalPages = (int) Math.ceil((double) total / size);
+        int fromIndex = page * size;
+        int toIndex = (int) Math.min((long) fromIndex + size, total);
+        List<AdminGxReservationListRes> content = fromIndex >= total ? List.of() : items.subList(fromIndex, toIndex);
+
+        return PageResponse.<AdminGxReservationListRes>builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(total)
+                .totalPages(totalPages)
+                .hasNext(toIndex < total)
+                .build();
+    }
+
     // complexId 소속 GX 프로그램을 단건 조회한다.
     private GxProgram getGxProgram(Long complexId, Long programId) {
         return gxProgramRepository.findByIdAndComplexId(programId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
+    }
+
+    // household 캐시가 null이거나 동/호 정보가 없으면 null을 반환한다
+    private String buildUnit(HouseholdCache household) {
+        if (household == null
+                || household.getBuildingNo() == null
+                || household.getUnitNo() == null) {
+            return null;
+        }
+        return household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
     }
 
     // 시설 존재, complexId 소속, GX 타입, 활성 여부를 검증한다.
