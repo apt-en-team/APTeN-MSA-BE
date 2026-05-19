@@ -3,13 +3,20 @@ package com.apten.parkingvehicle.application.model.event;
 
 import com.apten.parkingvehicle.domain.enums.SensorStatus;
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 // SSE로 발행하는 자리 단위 점유 상태 변경 이벤트이다.
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ParkingSpotChangedEvent {
+
+    // 단지 ID이다.
+    private Long complexId;
 
     // 센서 식별 코드이다.
     private String sensorCode;

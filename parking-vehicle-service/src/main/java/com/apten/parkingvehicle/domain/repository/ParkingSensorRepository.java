@@ -26,6 +26,9 @@ public interface ParkingSensorRepository extends JpaRepository<ParkingSensor, Lo
     // 주차 구역 기준 주차 센서 목록 조회 (자리 번호 오름차순)
     List<ParkingSensor> findByZoneIdAndIsDeletedFalseOrderBySpotNumberAsc(Long zoneId);
 
+    // 단지와 sensorCode 조합 단건 조회 (미삭제 한정)
+    Optional<ParkingSensor> findByComplexIdAndSensorCodeAndIsDeletedFalse(Long complexId, String sensorCode);
+
     // 단지 내 sensorCode 중복 여부 확인
     boolean existsByComplexIdAndSensorCodeAndIsDeletedFalse(Long complexId, String sensorCode);
 

@@ -26,22 +26,28 @@ public class SensorStatusRepository {
     private static final String REGISTERED_SET_KEY = "parking:sensors:registered";
 
     // 센서 Hash status 필드
-    private static final String FIELD_STATUS = "status";
+    public static final String FIELD_STATUS = "status";
 
     // 센서 Hash changed_at 필드
-    private static final String FIELD_CHANGED_AT = "changed_at";
+    public static final String FIELD_CHANGED_AT = "changed_at";
 
     // 센서 Hash zone_id 필드
-    private static final String FIELD_ZONE_ID = "zone_id";
+    public static final String FIELD_ZONE_ID = "zone_id";
 
     // 센서 Hash complex_id 필드
-    private static final String FIELD_COMPLEX_ID = "complex_id";
+    public static final String FIELD_COMPLEX_ID = "complex_id";
+
+    // 센서 Hash spot_number 필드
+    public static final String FIELD_SPOT_NUMBER = "spot_number";
+
+    // 센서 Hash zone_total_slots 필드
+    public static final String FIELD_ZONE_TOTAL_SLOTS = "zone_total_slots";
 
     // 문자열 키/값 전용 RedisTemplate
     private final RedisTemplate<String, String> redisTemplate;
 
     // 센서 초기 상태 등록
-    public void initSensor(String sensorCode, Long zoneId, Long complexId, SensorStatus initialStatus) {
+    public void initSensor(String sensorCode, Long zoneId, Long complexId, String spotNumber, Integer zoneTotalSlots, SensorStatus initialStatus) {
         String sensorKey = buildSensorKey(sensorCode);
         String zoneKey = buildZoneOccupiedKey(zoneId);
         String now = LocalDateTime.now().toString();
@@ -55,6 +61,8 @@ public class SensorStatusRepository {
                 operations.opsForHash().put(sensorKey, FIELD_CHANGED_AT, now);
                 operations.opsForHash().put(sensorKey, FIELD_ZONE_ID, String.valueOf(zoneId));
                 operations.opsForHash().put(sensorKey, FIELD_COMPLEX_ID, String.valueOf(complexId));
+                operations.opsForHash().put(sensorKey, FIELD_SPOT_NUMBER, spotNumber);
+                operations.opsForHash().put(sensorKey, FIELD_ZONE_TOTAL_SLOTS, String.valueOf(zoneTotalSlots));
                 operations.opsForSet().add(REGISTERED_SET_KEY, sensorCode);
                 // 초기 상태가 점유면 zone 카운터 1 증가
                 if (initialStatus == SensorStatus.OCCUPIED) {
