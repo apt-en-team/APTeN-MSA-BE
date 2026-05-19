@@ -4,21 +4,28 @@ import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
 import com.apten.facilityreservation.application.model.request.GxReservationPostReq;
 import com.apten.facilityreservation.application.model.request.GxReservationRejectReq;
+import com.apten.facilityreservation.application.model.response.AdminGxReservationDetailRes;
 import com.apten.facilityreservation.application.model.response.GxReservationApproveRes;
 import com.apten.facilityreservation.application.model.response.GxReservationCancelRes;
 import com.apten.facilityreservation.application.model.response.GxReservationPostRes;
 import com.apten.facilityreservation.application.model.response.GxReservationRejectRes;
 import com.apten.facilityreservation.application.model.response.GxWaitingRes;
 import com.apten.facilityreservation.application.model.response.MyGxReservationListRes;
+import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
+import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
 import com.apten.facilityreservation.domain.enums.GxReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
+import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
+import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +45,9 @@ public class GxReservationService {
     private final GxProgramRepository gxProgramRepository;
     private final GxReservationRepository gxReservationRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+    private final UserCacheRepository userCacheRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
+    private final FacilityRepository facilityRepository;
 
     // 내 GX 예약 목록을 조회한다.
     @Transactional(readOnly = true)
@@ -252,6 +262,98 @@ public class GxReservationService {
                 .status(reservation.getStatus())
                 .rejectReason(reservation.getRejectReason())
                 .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 관리자 GX 예약 단건 상세를 조회한다.
+    @Transactional(readOnly = true)
+    public AdminGxReservationDetailRes getAdminGxReservationDetail(Long complexId, Long gxReservationId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        GxReservation reservation = gxReservationRepository
+                .findByIdAndComplexId(gxReservationId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
+
+        GxProgram program = reservation.getProgramId() != null
+                ? gxProgramRepository.findById(reservation.getProgramId()).orElse(null)
+                : null;
+
+        Facility facility = (program != null && program.getFacilityId() != null)
+                ? facilityRepository.findById(program.getFacilityId()).orElse(null)
+                : null;
+
+        // 캐시 데이터가 없으면 null로 내려가도 된다
+        UserCache userCache = reservation.getUserId() != null
+                ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
+                : null;
+        HouseholdCache householdCache = reservation.getHouseholdId() != null
+                ? householdCacheRepository.findByHouseholdId(reservation.getHouseholdId()).orElse(null)
+                : null;
+
+        String buildingNo = householdCache != null ? householdCache.getBuildingNo() : null;
+        String unitNo = householdCache != null ? householdCache.getUnitNo() : null;
+        String unit = (buildingNo != null && unitNo != null) ? buildingNo + "동 " + unitNo + "호" : null;
+
+        return AdminGxReservationDetailRes.builder()
+                .gxReservationId(reservation.getId())
+                .programId(reservation.getProgramId())
+                .programName(program != null ? program.getName() : null)
+                .facilityId(program != null ? program.getFacilityId() : null)
+                .facilityName(facility != null ? facility.getName() : null)
+                .userId(reservation.getUserId())
+                .householdId(reservation.getHouseholdId())
+                .residentName(userCache != null ? userCache.getName() : null)
+                .dong(buildingNo)
+                .ho(unitNo)
+                .unit(unit)
+                .status(reservation.getStatus())
+                .statusName(reservation.getStatus().getValue())
+                .waitNo(reservation.getWaitNo())
+                .startDate(program != null ? program.getStartDate() : null)
+                .endDate(program != null ? program.getEndDate() : null)
+                .startTime(program != null ? program.getStartTime() : null)
+                .endTime(program != null ? program.getEndTime() : null)
+                .baseFee(program != null ? program.getBaseFee() : null)
+                .approvedAt(reservation.getApprovedAt())
+                .rejectReason(reservation.getRejectReason())
+                .cancelReason(reservation.getCancelReason())
+                .cancelledAt(reservation.getCancelledAt())
+                .createdAt(reservation.getCreatedAt())
+                .build();
+    }
+
+    // 관리자가 GX 예약을 강제 취소한다.
+    @Transactional
+    public GxReservationCancelRes cancelGxReservationByAdmin(Long complexId, Long gxReservationId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        GxReservation reservation = gxReservationRepository
+                .findByIdAndComplexId(gxReservationId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
+
+        // CONFIRMED 또는 WAITING 상태만 취소 가능
+        if (reservation.getStatus() != GxReservationStatus.CONFIRMED
+                && reservation.getStatus() != GxReservationStatus.WAITING) {
+            throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        boolean wasConfirmed = reservation.getStatus() == GxReservationStatus.CONFIRMED;
+        reservation.cancel(GxReservationCancelReason.ADMIN);
+
+        // CONFIRMED 취소 시 첫 번째 WAITING 예약을 자동 승격
+        if (wasConfirmed) {
+            List<GxReservation> waitingList = gxReservationRepository
+                    .findByProgramIdAndStatusOrderByWaitNoAsc(reservation.getProgramId(), GxReservationStatus.WAITING);
+            if (!waitingList.isEmpty()) {
+                waitingList.get(0).approve();
+            }
+        }
+
+        return GxReservationCancelRes.builder()
+                .gxReservationId(reservation.getId())
+                .status(reservation.getStatus())
+                .cancelReason(reservation.getCancelReason())
+                .cancelledAt(reservation.getCancelledAt())
                 .build();
     }
 }
