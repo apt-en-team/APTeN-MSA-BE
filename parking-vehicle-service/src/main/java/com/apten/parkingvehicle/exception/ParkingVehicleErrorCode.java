@@ -40,6 +40,8 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     // 비활성 상태인 주차 구역에 입출차 등록을 시도한 경우
     PARKING_ZONE_INACTIVE(HttpStatus.BAD_REQUEST, "PVH_400_05", "비활성 상태의 주차 구역입니다."),
     PARKING_TYPE_NONE(HttpStatus.BAD_REQUEST, "PVH_400_06", "주차 운영 타입이 미사용 상태입니다."),
+    // 센서 운영 단지가 아닌 곳에서 실시간 점유 구독을 요청한 경우
+    PARKING_TYPE_NOT_SENSOR(HttpStatus.BAD_REQUEST, "PVH_400_10", "센서 운영 단지만 실시간 점유 구독을 지원합니다."),
     // 면수는 1 이상이어야 한다
     INVALID_TOTAL_SLOTS(HttpStatus.BAD_REQUEST, "PVH_400_07", "주차 면수는 1 이상이어야 합니다."),
     // PATCH로 활성→비활성 전환을 시도한 경우 (DELETE API 사용 유도)
