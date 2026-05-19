@@ -46,4 +46,34 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // 복수 프로그램의 상태별 예약 수를 집계한다. (N+1 방지)
     @Query("SELECT r.programId, COUNT(r) FROM GxReservation r WHERE r.programId IN :programIds AND r.status = :status GROUP BY r.programId")
     List<Object[]> countByProgramIdInAndStatus(@Param("programIds") List<Long> programIds, @Param("status") GxReservationStatus status);
+
+    // 관리자 GX 예약 통합 개요 조회 — status 필터 없음
+    @Query("""
+        SELECT r FROM GxReservation r
+        WHERE r.complexId = :complexId
+          AND (:facilityId IS NULL OR r.programId IN (
+                SELECT p.id FROM GxProgram p WHERE p.facilityId = :facilityId
+              ))
+        ORDER BY r.createdAt DESC
+        """)
+    List<GxReservation> findAdminGxReservationsForOverview(
+            @Param("complexId") Long complexId,
+            @Param("facilityId") Long facilityId
+    );
+
+    // 관리자 GX 예약 통합 개요 조회 — status 필터 포함 (enum null 비교 회피)
+    @Query("""
+        SELECT r FROM GxReservation r
+        WHERE r.complexId = :complexId
+          AND r.status = :status
+          AND (:facilityId IS NULL OR r.programId IN (
+                SELECT p.id FROM GxProgram p WHERE p.facilityId = :facilityId
+              ))
+        ORDER BY r.createdAt DESC
+        """)
+    List<GxReservation> findAdminGxReservationsForOverviewByStatus(
+            @Param("complexId") Long complexId,
+            @Param("status") GxReservationStatus status,
+            @Param("facilityId") Long facilityId
+    );
 }

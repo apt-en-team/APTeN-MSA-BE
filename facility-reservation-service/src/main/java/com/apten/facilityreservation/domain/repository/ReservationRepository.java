@@ -196,4 +196,34 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("currentTime") LocalTime currentTime,
             Pageable pageable
     );
+
+    // 관리자 예약 통합 개요 조회 — status 필터 없음
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.complexId = :complexId
+          AND (:facilityId IS NULL OR r.facilityId = :facilityId)
+          AND (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
+        ORDER BY r.createdAt DESC
+        """)
+    List<Reservation> findAdminReservationsForOverview(
+            @Param("complexId") Long complexId,
+            @Param("facilityId") Long facilityId,
+            @Param("reservationDate") LocalDate reservationDate
+    );
+
+    // 관리자 예약 통합 개요 조회 — status 필터 포함 (enum null 비교 회피)
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.complexId = :complexId
+          AND r.status = :status
+          AND (:facilityId IS NULL OR r.facilityId = :facilityId)
+          AND (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
+        ORDER BY r.createdAt DESC
+        """)
+    List<Reservation> findAdminReservationsForOverviewByStatus(
+            @Param("complexId") Long complexId,
+            @Param("status") ReservationStatus status,
+            @Param("facilityId") Long facilityId,
+            @Param("reservationDate") LocalDate reservationDate
+    );
 }
