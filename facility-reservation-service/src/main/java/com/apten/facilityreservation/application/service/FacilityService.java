@@ -48,6 +48,7 @@ import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.entity.ReservationTempHold;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
@@ -88,6 +89,7 @@ public class FacilityService {
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
     private final ReservationTempHoldRepository reservationTempHoldRepository;
     private final UserCacheRepository userCacheRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
 
 
     // 시설 관리자 접근 검증
@@ -1017,6 +1019,15 @@ public class FacilityService {
                 userCacheRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
 
+        // 동/호수 표시를 위해 HouseholdCache를 batch 조회한다. 캐시 미동기 시 null로 내려간다.
+        Set<Long> householdIds = confirmedReservations.stream()
+                .map(Reservation::getHouseholdId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
+
         return CountStatusRes.builder()
                 .facilityId(facilityId)
                 .targetDate(req.getTargetDate())
@@ -1026,9 +1037,17 @@ public class FacilityService {
                 .users(confirmedReservations.stream()
                         .map(reservation -> {
                             UserCache user = userMap.get(reservation.getUserId());
+                            HouseholdCache household = householdMap.get(reservation.getHouseholdId());
+                            String buildingNo = household != null ? household.getBuildingNo() : null;
+                            String unitNo = household != null ? household.getUnitNo() : null;
+                            String unit = (buildingNo != null && unitNo != null)
+                                    ? buildingNo + "동 " + unitNo + "호" : null;
                             return CountStatusRes.UserItem.builder()
                                     .reservationId(reservation.getId())
                                     .residentName(user != null ? user.getName() : null)
+                                    .dong(buildingNo)
+                                    .ho(unitNo)
+                                    .unit(unit)
                                     .build();
                         })
                         .toList())

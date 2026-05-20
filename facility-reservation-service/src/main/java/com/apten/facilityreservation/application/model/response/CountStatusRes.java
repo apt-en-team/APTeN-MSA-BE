@@ -33,5 +33,9 @@ public class CountStatusRes {
     public static class UserItem {
         private Long reservationId;
         private String residentName;
+        // HouseholdCache 기반. 캐시 미동기 시 null 가능
+        private String dong;
+        private String ho;
+        private String unit;
     }
 }
