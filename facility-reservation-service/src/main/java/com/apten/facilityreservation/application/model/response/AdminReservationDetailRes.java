@@ -1,7 +1,6 @@
 package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
-import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -49,8 +48,11 @@ public class AdminReservationDetailRes {
     // 좌석 번호이다.
     private Integer seatNo;
 
-    // 예약 상태이다.
-    private ReservationStatus status;
+    // 예약 상태 코드이다. 예: CONFIRMED, CANCELLED, COMPLETED
+    private String status;
+
+    // 예약 상태 표시명이다.
+    private String statusName;
 
     // 취소 사유이다.
     private ReservationCancelReason cancelReason;

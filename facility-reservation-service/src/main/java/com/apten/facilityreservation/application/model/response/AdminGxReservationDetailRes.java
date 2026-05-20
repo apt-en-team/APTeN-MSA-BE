@@ -1,7 +1,6 @@
 package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.GxReservationCancelReason;
-import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,8 +46,8 @@ public class AdminGxReservationDetailRes {
     // 동호 통합 표시이다. 예: 101동 202호
     private String unit;
 
-    // 예약 상태이다.
-    private GxReservationStatus status;
+    // 예약 상태 코드이다. 예: CONFIRMED, WAITING, CANCELLED, REJECTED
+    private String status;
 
     // 예약 상태 표시명이다.
     private String statusName;

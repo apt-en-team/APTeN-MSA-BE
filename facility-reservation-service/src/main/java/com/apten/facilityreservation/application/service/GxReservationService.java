@@ -302,7 +302,7 @@ public class GxReservationService {
                 .dong(buildingNo)
                 .ho(unitNo)
                 .unit(unit)
-                .status(reservation.getStatus())
+                .status(reservation.getStatus().name())
                 .statusName(reservation.getStatus().getValue())
                 .waitNo(reservation.getWaitNo())
                 .startDate(program != null ? program.getStartDate() : null)
