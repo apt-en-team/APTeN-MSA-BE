@@ -165,8 +165,9 @@ public class FacilityService {
     }
 
     // 현황 조회는 슬롯 범위 해석이 핵심이므로 시작/종료 시각이 모두 필요하다.
+    // 익일 마감(endTime < startTime) 허용 — 동일 시각만 거부한다.
     private void validateSlotRange(LocalDate targetDate, LocalTime startTime, LocalTime endTime) {
-        if (targetDate == null || startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+        if (targetDate == null || startTime == null || endTime == null || startTime.equals(endTime)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
