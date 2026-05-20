@@ -47,6 +47,12 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     @Query("SELECT r.programId, COUNT(r) FROM GxReservation r WHERE r.programId IN :programIds AND r.status = :status GROUP BY r.programId")
     List<Object[]> countByProgramIdInAndStatus(@Param("programIds") List<Long> programIds, @Param("status") GxReservationStatus status);
 
+    // 통계 — 단지 기준 상태별 GX 예약 수
+    long countByComplexIdAndStatus(Long complexId, GxReservationStatus status);
+
+    // 통계 — 단지 기준 기간별 GX 예약 생성 수
+    long countByComplexIdAndCreatedAtBetween(Long complexId, LocalDateTime from, LocalDateTime to);
+
     // 관리자 GX 프로그램 신청자 전체 목록 조회 — 신청 시각 오름차순
     List<GxReservation> findByProgramIdOrderByCreatedAtAsc(Long programId);
 

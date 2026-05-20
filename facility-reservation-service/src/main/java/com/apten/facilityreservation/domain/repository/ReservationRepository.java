@@ -3,6 +3,7 @@ package com.apten.facilityreservation.domain.repository;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -196,6 +197,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("currentTime") LocalTime currentTime,
             Pageable pageable
     );
+
+    // 통계 — 단지 기준 오늘 예약 수
+    long countByComplexIdAndReservationDate(Long complexId, LocalDate reservationDate);
+
+    // 통계 — 단지 기준 상태별 예약 수
+    long countByComplexIdAndStatus(Long complexId, ReservationStatus status);
+
+    // 통계 — 단지 기준 기간별 예약 생성 수
+    long countByComplexIdAndCreatedAtBetween(Long complexId, LocalDateTime from, LocalDateTime to);
 
     // 관리자 예약 통합 개요 조회 — status 필터 없음
     @Query("""
