@@ -4,6 +4,7 @@ import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
 import com.apten.facilityreservation.application.model.request.AdminGxReservationListReq;
 import com.apten.facilityreservation.application.model.request.GxBulkApproveReq;
+import com.apten.facilityreservation.application.model.request.GxCloseWaitingReq;
 import com.apten.facilityreservation.application.model.request.GxProgramCancelReq;
 import com.apten.facilityreservation.application.model.request.GxProgramListReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPatchReq;
@@ -11,6 +12,7 @@ import com.apten.facilityreservation.application.model.request.GxProgramPostReq;
 import com.apten.facilityreservation.application.model.request.ResidentGxProgramListReq;
 import com.apten.facilityreservation.application.model.response.AdminGxReservationListRes;
 import com.apten.facilityreservation.application.model.response.GxBulkApproveRes;
+import com.apten.facilityreservation.application.model.response.GxCloseWaitingRes;
 import com.apten.facilityreservation.application.model.response.GxMinimumCheckRes;
 import com.apten.facilityreservation.application.model.response.GxProgramCancelRes;
 import com.apten.facilityreservation.application.model.response.GxProgramDetailRes;
@@ -433,6 +435,40 @@ public class GxProgramService {
                 .waitingCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.WAITING))
                 .rejectedCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.REJECTED))
                 .cancelledCount((int) gxReservationRepository.countByProgramIdAndStatus(programId, GxReservationStatus.CANCELLED))
+                .build();
+    }
+
+    // GX 프로그램 모집을 마감한다. 잔여 WAITING 신청자를 일괄 거절하고 프로그램을 CLOSED 상태로 변경한다.
+    @Transactional
+    public GxCloseWaitingRes closeWaiting(Long complexId, Long programId, GxCloseWaitingReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        GxProgram program = getGxProgram(complexId, programId);
+
+        if (program.getStatus() == GxProgramStatus.CANCELLED) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
+        }
+        if (program.getStatus() == GxProgramStatus.CLOSED) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_RECRUITING_CLOSED);
+        }
+
+        String rejectReason = (req != null && req.getRejectReason() != null && !req.getRejectReason().isBlank())
+                ? req.getRejectReason()
+                : "모집 마감으로 인한 거절";
+
+        // 잔여 WAITING 신청자를 일괄 거절한다.
+        List<GxReservation> waitingList = gxReservationRepository
+                .findByProgramIdAndStatus(programId, GxReservationStatus.WAITING);
+        waitingList.forEach(r -> r.reject(rejectReason));
+        // TODO: 일괄 거절 알림 발행 (가은 담당)
+
+        program.close();
+
+        return GxCloseWaitingRes.builder()
+                .programId(program.getId())
+                .status(program.getStatus())
+                .rejectedCount(waitingList.size())
+                .processedAt(LocalDateTime.now())
                 .build();
     }
 

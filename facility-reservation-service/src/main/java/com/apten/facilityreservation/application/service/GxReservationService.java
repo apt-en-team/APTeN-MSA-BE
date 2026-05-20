@@ -98,12 +98,16 @@ public class GxReservationService {
     public GxReservationPostRes createGxReservation(Long userId, Long complexId, GxReservationPostReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        GxProgram program = gxProgramRepository.findByIdAndComplexId(req.getProgramId(), complexId)
+        // 비관적 락으로 GxProgram 행을 선점해 waitNo 동시 충돌을 방지한다.
+        GxProgram program = gxProgramRepository.findByIdAndComplexIdForUpdate(req.getProgramId(), complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
         // OPEN 상태 프로그램만 신청 가능
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
             throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
+        }
+        if (program.getStatus() == GxProgramStatus.CLOSED) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_RECRUITING_CLOSED);
         }
         if (program.getStatus() != GxProgramStatus.OPEN) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
@@ -121,7 +125,6 @@ public class GxReservationService {
 
         // 전원 대기형 정책: 정원 미만이어도 모든 신청자는 WAITING으로 접수된다.
         long currentWaiting = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.WAITING);
-        // TODO: 동시 신청 시 waitNo 충돌 가능성 있음 — 비관적 락 또는 DB 시퀀스 적용 검토 필요
         int waitNo = (int) (currentWaiting + 1);
 
         GxReservation reservation = gxReservationRepository.save(GxReservation.builder()

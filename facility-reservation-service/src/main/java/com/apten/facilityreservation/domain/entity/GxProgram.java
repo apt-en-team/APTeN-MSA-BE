@@ -141,4 +141,9 @@ public class GxProgram extends BaseEntity {
     public void cancel() {
         this.status = GxProgramStatus.CANCELLED;
     }
+
+    // GX 프로그램을 모집 마감 상태로 변경한다.
+    public void close() {
+        this.status = GxProgramStatus.CLOSED;
+    }
 }
