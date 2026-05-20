@@ -32,6 +32,9 @@ public interface ParkingSensorRepository extends JpaRepository<ParkingSensor, Lo
     // 단지 내 sensorCode 중복 여부 확인
     boolean existsByComplexIdAndSensorCodeAndIsDeletedFalse(Long complexId, String sensorCode);
 
+    // zone 기준 미삭제 센서 존재 여부 확인
+    boolean existsByZoneIdAndIsDeletedFalse(Long zoneId);
+
     // zone 내 spotNumber 중복 여부 확인
     boolean existsByZoneIdAndSpotNumberAndIsDeletedFalse(Long zoneId, String spotNumber);
 

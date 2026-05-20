@@ -59,6 +59,8 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     // 단지 내 sensorCode 중복 (사전 검증 또는 DB unique 위반)
     DUPLICATE_SENSOR_CODE(HttpStatus.CONFLICT, "PVH_409_09", "이미 등록된 센서 코드입니다."),
     DUPLICATE_SPOT_NUMBER(HttpStatus.CONFLICT, "PVH_409_10", "해당 주차 구역에 이미 등록된 자리 번호입니다."),
+    // 매핑된 센서가 남아 있는 zone에 삭제를 시도한 경우
+    ZONE_HAS_MAPPED_SENSORS(HttpStatus.CONFLICT, "PVH_409_11", "구역에 매핑된 센서가 있어 삭제할 수 없습니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_01", "이벤트 발행에 실패했습니다."),
     PARKING_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_07", "주차 설정을 찾을 수 없습니다."),
     INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_02", "내부 서비스 처리 중 오류가 발생했습니다."),

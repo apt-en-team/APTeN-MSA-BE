@@ -55,6 +55,9 @@ public class ParkingService {
     // 단지 주차 운영 타입 확인용 설정 저장소이다.
     private final ParkingSettingRepository parkingSettingRepository;
 
+    // 주차 센서 저장소 (zone 삭제 시 매핑 센서 존재 여부 검증에 사용)
+    private final ParkingSensorRepository parkingSensorRepository;
+
     // SENSOR 단지 zone 카운터 Redis 저장소
     private final SensorStatusRepository sensorStatusRepository;
 
@@ -610,7 +613,10 @@ public class ParkingService {
             throw new BusinessException(ParkingVehicleErrorCode.ZONE_HAS_PARKED_VEHICLES);
         }
 
-        // TODO: parking_sensor 매핑이 있으면 삭제 차단 (센서 도메인 설계 후 추가)
+        // 매핑된 센서가 남아 있는 zone은 비활성화 차단 (센서 고아 데이터, 무의미한 자리 점유 갱신 방지)
+        if (parkingSensorRepository.existsByZoneIdAndIsDeletedFalse(zoneId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.ZONE_HAS_MAPPED_SENSORS);
+        }
 
         // 소프트 삭제 (parking_log FK 보존을 위해 hard delete 안 함)
         zone.deactivate();
