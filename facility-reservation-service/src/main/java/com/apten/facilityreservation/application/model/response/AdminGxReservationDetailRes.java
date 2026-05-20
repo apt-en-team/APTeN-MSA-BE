@@ -85,4 +85,10 @@ public class AdminGxReservationDetailRes {
 
     // 신청 시각이다.
     private LocalDateTime createdAt;
+
+    // 프로그램의 현재 확정 예약 인원이다.
+    private Long confirmedCount;
+
+    // 프로그램 최대 수용 인원이다.
+    private Integer maxCount;
 }

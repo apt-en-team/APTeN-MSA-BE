@@ -285,6 +285,11 @@ public class GxReservationService {
         String unitNo = householdCache != null ? householdCache.getUnitNo() : null;
         String unit = (buildingNo != null && unitNo != null) ? buildingNo + "동 " + unitNo + "호" : null;
 
+        long confirmedCount = reservation.getProgramId() != null
+                ? gxReservationRepository.countByProgramIdAndStatus(
+                        reservation.getProgramId(), GxReservationStatus.CONFIRMED)
+                : 0L;
+
         return AdminGxReservationDetailRes.builder()
                 .gxReservationId(reservation.getId())
                 .programId(reservation.getProgramId())
@@ -310,6 +315,8 @@ public class GxReservationService {
                 .cancelReason(reservation.getCancelReason())
                 .cancelledAt(reservation.getCancelledAt())
                 .createdAt(reservation.getCreatedAt())
+                .confirmedCount(confirmedCount)
+                .maxCount(program != null ? program.getMaxCount() : null)
                 .build();
     }
 

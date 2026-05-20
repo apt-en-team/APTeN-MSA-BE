@@ -37,6 +37,7 @@ import com.apten.facilityreservation.domain.repository.FacilityBlockTimeReposito
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.domain.repository.ReservationTempHoldRepository;
@@ -73,6 +74,7 @@ public class ReservationService {
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilitySeatRepository facilitySeatRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
     private final ReservationRepository reservationRepository;
     private final ReservationTempHoldRepository reservationTempHoldRepository;
@@ -667,10 +669,28 @@ public class ReservationService {
                 ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
                 : null;
 
+        com.apten.facilityreservation.domain.entity.HouseholdCache household =
+                (reservation.getHouseholdId() != null)
+                        ? householdCacheRepository.findByHouseholdId(reservation.getHouseholdId()).orElse(null)
+                        : null;
+
+        String unit = null;
+        if (household != null && household.getBuildingNo() != null && household.getUnitNo() != null) {
+            unit = household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
+        }
+
+        long currentCount = (reservation.getFacilityId() != null && reservation.getReservationDate() != null)
+                ? reservationRepository.countByFacilityIdAndReservationDateAndStatus(
+                        reservation.getFacilityId(), reservation.getReservationDate(), ReservationStatus.CONFIRMED)
+                : 0L;
+
         return AdminReservationDetailRes.builder()
                 .reservationId(reservation.getId())
                 .userId(reservation.getUserId())
                 .residentName(user != null ? user.getName() : null)
+                .dong(household != null ? household.getBuildingNo() : null)
+                .ho(household != null ? household.getUnitNo() : null)
+                .unit(unit)
                 .facilityId(reservation.getFacilityId())
                 .facilityName(facility != null ? facility.getName() : null)
                 .reservationDate(reservation.getReservationDate())
@@ -682,6 +702,8 @@ public class ReservationService {
                 .cancelledAt(reservation.getCancelledAt())
                 .completedAt(reservation.getCompletedAt())
                 .createdAt(reservation.getCreatedAt())
+                .currentCount(currentCount)
+                .maxCount(facility != null ? facility.getMaxCount() : null)
                 .build();
     }
 

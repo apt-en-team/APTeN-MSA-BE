@@ -22,6 +22,15 @@ public class AdminReservationDetailRes {
     // 입주민 이름이다.
     private String residentName;
 
+    // 동 정보이다.
+    private String dong;
+
+    // 호 정보이다.
+    private String ho;
+
+    // 동호 통합 표시이다. 예: 101동 202호
+    private String unit;
+
     // 시설 ID이다.
     private Long facilityId;
 
@@ -54,4 +63,10 @@ public class AdminReservationDetailRes {
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
+
+    // 해당 날짜의 확정 예약 인원이다.
+    private Long currentCount;
+
+    // 시설 최대 수용 인원이다.
+    private Integer maxCount;
 }

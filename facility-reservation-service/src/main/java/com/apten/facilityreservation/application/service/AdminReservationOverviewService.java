@@ -58,13 +58,44 @@ public class AdminReservationOverviewService {
                 Comparator.nullsLast(Comparator.naturalOrder())
         ).reversed());
 
+        // 예약자명 Like 필터
+        String residentNameFilter = req.getResidentName();
+        if (residentNameFilter != null && !residentNameFilter.isBlank()) {
+            String keyword = residentNameFilter.toLowerCase();
+            items = items.stream()
+                    .filter(item -> item.getResidentName() != null
+                            && item.getResidentName().toLowerCase().contains(keyword))
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
+
+        // 시설명/프로그램명 Like 필터
+        String facilityNameFilter = req.getFacilityName();
+        if (facilityNameFilter != null && !facilityNameFilter.isBlank()) {
+            String keyword = facilityNameFilter.toLowerCase();
+            items = items.stream()
+                    .filter(item -> {
+                        boolean facilityMatch = item.getFacilityName() != null
+                                && item.getFacilityName().toLowerCase().contains(keyword);
+                        boolean programMatch = item.getProgramName() != null
+                                && item.getProgramName().toLowerCase().contains(keyword);
+                        return facilityMatch || programMatch;
+                    })
+                    .collect(Collectors.toCollection(ArrayList::new));
+        }
+
         return buildPageResponse(items, req.getPage(), req.getSize());
     }
 
     private List<AdminReservationOverviewRes> fetchFacilityItems(Long complexId, AdminReservationOverviewReq req) {
-        List<Reservation> reservations = req.getFacilityStatus() != null
+        // status 파라미터를 ReservationStatus로 변환한다. WAITING은 FACILITY에 해당 없으므로 빈 결과를 반환한다.
+        ReservationStatus facilityStatus = resolveFacilityStatus(req.getStatus());
+        if (req.getStatus() != null && !req.getStatus().isBlank() && facilityStatus == null) {
+            return List.of();
+        }
+
+        List<Reservation> reservations = facilityStatus != null
                 ? reservationRepository.findAdminReservationsForOverviewByStatus(
-                        complexId, req.getFacilityStatus(), req.getFacilityId(), req.getReservationDate())
+                        complexId, facilityStatus, req.getFacilityId(), req.getReservationDate())
                 : reservationRepository.findAdminReservationsForOverview(
                         complexId, req.getFacilityId(), req.getReservationDate());
 
@@ -72,7 +103,6 @@ public class AdminReservationOverviewService {
             return List.of();
         }
 
-        // null ID는 캐시 조회에서 제외한다
         List<Long> userIds = reservations.stream()
                 .map(Reservation::getUserId).filter(id -> id != null).distinct().toList();
         List<Long> householdIds = reservations.stream()
@@ -117,9 +147,15 @@ public class AdminReservationOverviewService {
     }
 
     private List<AdminReservationOverviewRes> fetchGxItems(Long complexId, AdminReservationOverviewReq req) {
-        List<GxReservation> gxList = req.getGxStatus() != null
+        // status 파라미터를 GxReservationStatus로 변환한다. COMPLETED는 GX에 해당 없으므로 빈 결과를 반환한다.
+        GxReservationStatus gxStatus = resolveGxStatus(req.getStatus());
+        if (req.getStatus() != null && !req.getStatus().isBlank() && gxStatus == null) {
+            return List.of();
+        }
+
+        List<GxReservation> gxList = gxStatus != null
                 ? gxReservationRepository.findAdminGxReservationsForOverviewByStatus(
-                        complexId, req.getGxStatus(), req.getFacilityId())
+                        complexId, gxStatus, req.getFacilityId())
                 : gxReservationRepository.findAdminGxReservationsForOverview(
                         complexId, req.getFacilityId());
 
@@ -155,7 +191,6 @@ public class AdminReservationOverviewService {
             HouseholdCache household = householdMap.get(r.getHouseholdId());
             GxProgram program = programMap.get(r.getProgramId());
             Facility facility = program != null ? facilityMap.get(program.getFacilityId()) : null;
-            // GX는 WAITING/CONFIRMED 상태에서만 취소 가능하다
             boolean cancelable = r.getStatus() == GxReservationStatus.WAITING
                     || r.getStatus() == GxReservationStatus.CONFIRMED;
             return AdminReservationOverviewRes.builder()
@@ -184,7 +219,29 @@ public class AdminReservationOverviewService {
         }).toList();
     }
 
-    // household 캐시가 null이거나 동/호 정보가 없으면 null을 반환한다
+    // status 문자열을 ReservationStatus로 변환한다. WAITING은 FACILITY에 없으므로 null을 반환한다.
+    private ReservationStatus resolveFacilityStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        return switch (status.toUpperCase()) {
+            case "CONFIRMED" -> ReservationStatus.CONFIRMED;
+            case "CANCELLED" -> ReservationStatus.CANCELLED;
+            case "COMPLETED" -> ReservationStatus.COMPLETED;
+            default -> null;
+        };
+    }
+
+    // status 문자열을 GxReservationStatus로 변환한다. COMPLETED는 GX에 없으므로 null을 반환한다.
+    private GxReservationStatus resolveGxStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        return switch (status.toUpperCase()) {
+            case "CONFIRMED" -> GxReservationStatus.CONFIRMED;
+            case "CANCELLED" -> GxReservationStatus.CANCELLED;
+            case "WAITING" -> GxReservationStatus.WAITING;
+            case "REJECTED" -> GxReservationStatus.REJECTED;
+            default -> null;
+        };
+    }
+
     private String buildUnit(HouseholdCache household) {
         if (household == null
                 || household.getBuildingNo() == null
