@@ -74,4 +74,10 @@ public class FacilityBlockTime extends BaseEntity {
     public void deactivate() {
         this.isActive = false;
     }
+
+    public void updateSchedule(LocalDate blockDate, LocalTime startTime, LocalTime endTime) {
+        this.blockDate = blockDate;
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
 }

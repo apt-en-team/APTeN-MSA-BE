@@ -7,6 +7,7 @@ import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeBatchPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityListReq;
 import com.apten.facilityreservation.application.model.request.FacilityPatchReq;
@@ -20,30 +21,7 @@ import com.apten.facilityreservation.application.model.request.FacilityTypePostR
 import com.apten.facilityreservation.application.model.request.FacilityUsageStatusReq;
 import com.apten.facilityreservation.application.model.request.ResidentFacilityListReq;
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
-import com.apten.facilityreservation.application.model.response.CountStatusRes;
-import com.apten.facilityreservation.application.model.response.FacilityActivePatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchDeactivateRes;
-import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchPostRes;
-import com.apten.facilityreservation.application.model.response.FacilityBlockTimeListRes;
-import com.apten.facilityreservation.application.model.response.FacilityBlockTimePostRes;
-import com.apten.facilityreservation.application.model.response.FacilityDeleteRes;
-import com.apten.facilityreservation.application.model.response.FacilityDetailRes;
-import com.apten.facilityreservation.application.model.response.FacilityListRes;
-import com.apten.facilityreservation.application.model.response.FacilityPatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityPostRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatListRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatPatchRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatBulkPostRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatPostRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypeListRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypePatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypePostRes;
-import com.apten.facilityreservation.application.model.response.FacilityUsageStatusRes;
-import com.apten.facilityreservation.application.model.response.PageResponse;
-import com.apten.facilityreservation.application.model.response.ResidentFacilityDetailRes;
-import com.apten.facilityreservation.application.model.response.ResidentFacilityListRes;
-import com.apten.facilityreservation.application.model.response.ResidentSeatStatusRes;
-import com.apten.facilityreservation.application.model.response.SeatStatusRes;
+import com.apten.facilityreservation.application.model.response.*;
 import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
@@ -692,6 +670,43 @@ public class FacilityService {
                 .batchId(batchId)
                 .deactivatedCount(deactivatedCount)
                 .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 시설 차단 시간 단건 비활성화 — isActive=false 처리한다
+    @Transactional
+    public FacilityBlockTimeDeactivateRes deactivateFacilityBlockTime(Long complexId, Long facilityId, Long blockTimeId) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+        FacilityBlockTime blockTime = facilityBlockTimeRepository.findById(blockTimeId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+        if (!blockTime.getFacilityId().equals(facility.getId())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        blockTime.deactivate();
+        return FacilityBlockTimeDeactivateRes.builder()
+                .facilityBlockTimeId(blockTime.getId())
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 시설 차단 시간 단건 수정 — blockDate·시작·종료 시각을 변경한다
+    @Transactional
+    public FacilityBlockTimePatchRes updateFacilityBlockTime(Long complexId, Long facilityId, Long blockTimeId, FacilityBlockTimePatchReq req) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+        FacilityBlockTime blockTime = facilityBlockTimeRepository.findById(blockTimeId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+        if (!blockTime.getFacilityId().equals(facility.getId())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        blockTime.updateSchedule(req.getBlockDate(), req.getStartTime(), req.getEndTime());
+        return FacilityBlockTimePatchRes.builder()
+                .facilityBlockTimeId(blockTime.getId())
+                .blockDate(blockTime.getBlockDate())
+                .startTime(blockTime.getStartTime())
+                .endTime(blockTime.getEndTime())
+                .isActive(blockTime.getIsActive())
                 .build();
     }
 
