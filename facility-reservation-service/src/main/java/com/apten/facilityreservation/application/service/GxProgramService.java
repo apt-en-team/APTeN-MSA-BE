@@ -29,6 +29,7 @@ import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
+import com.apten.facilityreservation.domain.enums.GxReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilityTypeRepository;
@@ -224,7 +225,12 @@ public class GxProgramService {
 
         program.cancel();
 
-        // TODO: 관련 GxReservation 일괄 취소 처리 및 알림 발행은 2단계에서 구현
+        // 관련 WAITING/CONFIRMED 예약을 일괄 취소한다. 이미 CANCELLED/REJECTED인 예약은 제외된다.
+        gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.WAITING)
+                .forEach(r -> r.cancel(GxReservationCancelReason.ADMIN));
+        gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED)
+                .forEach(r -> r.cancel(GxReservationCancelReason.ADMIN));
+        // TODO: 일괄 취소 알림 발행 (가은 담당)
 
         return GxProgramCancelRes.builder()
                 .programId(program.getId())
@@ -385,6 +391,11 @@ public class GxProgramService {
 
         // TODO: 일괄 승인 알림 발행 (가은 담당)
 
+        // 일괄 승인 후 남은 WAITING 순번을 재정렬한다.
+        if (approved > 0) {
+            resequenceWaitingNos(programId);
+        }
+
         return GxBulkApproveRes.builder()
                 .programId(programId)
                 .approvedCount(approved)
@@ -490,6 +501,15 @@ public class GxProgramService {
                 .totalPages(totalPages)
                 .hasNext(toIndex < total)
                 .build();
+    }
+
+    // 승인/취소 후 남은 WAITING 순번을 1부터 재정렬한다.
+    private void resequenceWaitingNos(Long programId) {
+        List<GxReservation> waitingList = gxReservationRepository
+                .findByProgramIdAndStatusOrderByWaitNoAsc(programId, GxReservationStatus.WAITING);
+        for (int i = 0; i < waitingList.size(); i++) {
+            waitingList.get(i).assignWaitNo(i + 1);
+        }
     }
 
     // complexId 소속 GX 프로그램을 단건 조회한다.

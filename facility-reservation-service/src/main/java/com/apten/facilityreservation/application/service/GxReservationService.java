@@ -119,27 +119,17 @@ public class GxReservationService {
                 .findByUserIdAndStatus(userId, "ACTIVE")
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.USER_NOT_FOUND));
 
-        long confirmedCount = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.CONFIRMED);
-
-        GxReservationStatus status;
-        Integer waitNo = null;
-
-        if (confirmedCount < program.getMaxCount()) {
-            status = GxReservationStatus.CONFIRMED;
-        } else if (Boolean.TRUE.equals(program.getWaitingEnabled())) {
-            long currentWaiting = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.WAITING);
-            status = GxReservationStatus.WAITING;
-            waitNo = (int) (currentWaiting + 1);
-        } else {
-            throw new BusinessException(FacilityReservationErrorCode.GX_CAPACITY_FULL);
-        }
+        // 전원 대기형 정책: 정원 미만이어도 모든 신청자는 WAITING으로 접수된다.
+        long currentWaiting = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.WAITING);
+        // TODO: 동시 신청 시 waitNo 충돌 가능성 있음 — 비관적 락 또는 DB 시퀀스 적용 검토 필요
+        int waitNo = (int) (currentWaiting + 1);
 
         GxReservation reservation = gxReservationRepository.save(GxReservation.builder()
                 .complexId(complexId)
                 .programId(req.getProgramId())
                 .userId(userId)
                 .householdId(memberCache.getHouseholdId())
-                .status(status)
+                .status(GxReservationStatus.WAITING)
                 .waitNo(waitNo)
                 .build());
 
@@ -184,18 +174,10 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        boolean wasConfirmed = reservation.getStatus() == GxReservationStatus.CONFIRMED;
         reservation.cancel(GxReservationCancelReason.USER);
 
-        // CONFIRMED 취소 시 첫 번째 WAITING 예약을 자동 승격
-        if (wasConfirmed) {
-            List<GxReservation> waitingList = gxReservationRepository
-                    .findByProgramIdAndStatusOrderByWaitNoAsc(reservation.getProgramId(), GxReservationStatus.WAITING);
-            if (!waitingList.isEmpty()) {
-                waitingList.get(0).approve();
-                // TODO: 대기자 승격 알림 발행 (가은 담당)
-            }
-        }
+        // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
+        resequenceWaitingNos(reservation.getProgramId());
 
         return GxReservationCancelRes.builder()
                 .gxReservationId(reservation.getId())
@@ -232,6 +214,9 @@ public class GxReservationService {
 
         // TODO: 승인 알림 발행 (가은 담당)
 
+        // 승인 후 남은 WAITING 순번을 재정렬한다.
+        resequenceWaitingNos(reservation.getProgramId());
+
         return GxReservationApproveRes.builder()
                 .gxReservationId(reservation.getId())
                 .status(reservation.getStatus())
@@ -256,6 +241,9 @@ public class GxReservationService {
         reservation.reject(req.getRejectReason());
 
         // TODO: 거절 알림 발행 (가은 담당)
+
+        // 거절 후 남은 WAITING 순번을 재정렬한다.
+        resequenceWaitingNos(reservation.getProgramId());
 
         return GxReservationRejectRes.builder()
                 .gxReservationId(reservation.getId())
@@ -337,17 +325,10 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        boolean wasConfirmed = reservation.getStatus() == GxReservationStatus.CONFIRMED;
         reservation.cancel(GxReservationCancelReason.ADMIN);
 
-        // CONFIRMED 취소 시 첫 번째 WAITING 예약을 자동 승격
-        if (wasConfirmed) {
-            List<GxReservation> waitingList = gxReservationRepository
-                    .findByProgramIdAndStatusOrderByWaitNoAsc(reservation.getProgramId(), GxReservationStatus.WAITING);
-            if (!waitingList.isEmpty()) {
-                waitingList.get(0).approve();
-            }
-        }
+        // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
+        resequenceWaitingNos(reservation.getProgramId());
 
         return GxReservationCancelRes.builder()
                 .gxReservationId(reservation.getId())
@@ -355,5 +336,14 @@ public class GxReservationService {
                 .cancelReason(reservation.getCancelReason())
                 .cancelledAt(reservation.getCancelledAt())
                 .build();
+    }
+
+    // 승인/취소/거절 후 남은 WAITING 순번을 1부터 재정렬한다.
+    private void resequenceWaitingNos(Long programId) {
+        List<GxReservation> waitingList = gxReservationRepository
+                .findByProgramIdAndStatusOrderByWaitNoAsc(programId, GxReservationStatus.WAITING);
+        for (int i = 0; i < waitingList.size(); i++) {
+            waitingList.get(i).assignWaitNo(i + 1);
+        }
     }
 }
