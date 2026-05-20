@@ -33,4 +33,7 @@ public class FacilityBlockTimeListRes {
 
     // 활성 여부이다.
     private Boolean isActive;
+
+    // 반복 차단 그룹 ID이다. null이면 단건 등록
+    private Long batchId;
 }

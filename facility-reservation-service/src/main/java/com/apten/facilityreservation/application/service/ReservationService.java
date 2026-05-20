@@ -108,6 +108,10 @@ public class ReservationService {
 
         long openSec = facility.getOpenTime().toSecondOfDay();
         long closeSec = facility.getCloseTime().toSecondOfDay();
+        // 자정을 넘기는 운영 시간(예: 22:00~02:00)은 마감 초에 하루치를 더해 슬롯 범위를 연장한다
+        if (closeSec <= openSec) {
+            closeSec += 86400;
+        }
         long slotSec = (long) slotMin * 60;
 
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
@@ -130,7 +134,7 @@ public class ReservationService {
 
         List<AvailableTimeListRes> result = new ArrayList<>();
 
-        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다
+        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다. % 86400으로 LocalTime 범위를 유지한다.
         long slotStart = openSec;
         if (slotSec >= 86400) {
             // 슬롯이 하루 이상이면 운영 전체를 단일 슬롯으로 처리한다
@@ -138,8 +142,8 @@ public class ReservationService {
                     facility.getOpenTime(), facility.getCloseTime()));
         } else {
             while (slotStart + slotSec <= closeSec) {
-                LocalTime start = LocalTime.ofSecondOfDay(slotStart);
-                LocalTime end = LocalTime.ofSecondOfDay(slotStart + slotSec);
+                LocalTime start = LocalTime.ofSecondOfDay(slotStart % 86400);
+                LocalTime end = LocalTime.ofSecondOfDay((slotStart + slotSec) % 86400);
                 result.add(buildSlot(facility, blockTimes, confirmedReservations, activeHolds, maxReservationCount, seatTotalCount, start, end));
                 slotStart += slotSec;
             }
@@ -738,7 +742,7 @@ public class ReservationService {
                 || req.getReservationDate() == null
                 || req.getStartTime() == null
                 || req.getEndTime() == null
-                || !req.getStartTime().isBefore(req.getEndTime())) {
+                || req.getStartTime().equals(req.getEndTime())) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
     }
@@ -763,16 +767,30 @@ public class ReservationService {
                 || req.getReservationDate() == null
                 || req.getStartTime() == null
                 || req.getEndTime() == null
-                || !req.getStartTime().isBefore(req.getEndTime())) {
+                || req.getStartTime().equals(req.getEndTime())) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
     }
 
     private void validateReservationTimeWindow(Facility facility, LocalTime startTime, LocalTime endTime) {
-        if (startTime.isBefore(facility.getOpenTime())
-                || endTime.isAfter(facility.getCloseTime())) {
-            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        LocalTime open = facility.getOpenTime();
+        LocalTime close = facility.getCloseTime();
+        // closeTime <= openTime이면 익일 마감(예: 22:00~02:00)으로 판단한다
+        boolean isOvernight = !close.isAfter(open);
+        if (isOvernight) {
+            if (!isWithinOvernightRange(startTime, open, close) || !isWithinOvernightRange(endTime, open, close)) {
+                throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+            }
+        } else {
+            if (startTime.isBefore(open) || endTime.isAfter(close)) {
+                throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+            }
         }
+    }
+
+    // 익일 마감 운영 범위 검증 — open 이후이거나 close 이전이면 유효한 시간대
+    private boolean isWithinOvernightRange(LocalTime time, LocalTime open, LocalTime close) {
+        return !time.isBefore(open) || !time.isAfter(close);
     }
 
     private void validateReservationBlockTime(

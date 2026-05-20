@@ -5,6 +5,7 @@ import com.apten.common.constants.HeaderConstants;
 import com.apten.facilityreservation.application.model.dto.FacilityRequestContext;
 import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimeBatchPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityListReq;
@@ -20,6 +21,8 @@ import com.apten.facilityreservation.application.model.request.FacilityUsageStat
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
 import com.apten.facilityreservation.application.model.response.CountStatusRes;
 import com.apten.facilityreservation.application.model.response.FacilityActivePatchRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchDeactivateRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchPostRes;
 import com.apten.facilityreservation.application.model.response.FacilityBlockTimeListRes;
 import com.apten.facilityreservation.application.model.response.FacilityBlockTimePostRes;
 import com.apten.facilityreservation.application.model.response.FacilityDeleteRes;
@@ -210,6 +213,35 @@ public class AdminFacilityController {
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("시설 차단 시간 조회 성공", facilityService.getFacilityBlockTimeList(context.getComplexId(), facilityId, req));
+    }
+
+    // 반복 차단 배치 등록 — 요일 선택 + 기간으로 여러 날짜에 걸친 차단을 한 번에 생성한다
+    @PostMapping("/api/admin/facilities/{facilityId}/block-times/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<FacilityBlockTimeBatchPostRes> createFacilityBlockTimeBatch(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @RequestBody FacilityBlockTimeBatchPostReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("반복 차단 시간 배치 등록 성공", facilityService.createFacilityBlockTimeBatch(context.getComplexId(), facilityId, req));
+    }
+
+    // 반복 차단 그룹 비활성화 — batchId 기준 is_active=false 일괄 처리
+    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/batch/{batchId}/deactivate")
+    public ResultResponse<FacilityBlockTimeBatchDeactivateRes> deactivateFacilityBlockTimeBatch(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @PathVariable Long batchId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("반복 차단 그룹 비활성화 성공", facilityService.deactivateFacilityBlockTimeBatch(context.getComplexId(), facilityId, batchId));
     }
 
     // API-614 시설 좌석 등록

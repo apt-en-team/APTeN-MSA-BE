@@ -5,6 +5,7 @@ import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimeBatchPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityListReq;
@@ -21,6 +22,8 @@ import com.apten.facilityreservation.application.model.request.ResidentFacilityL
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
 import com.apten.facilityreservation.application.model.response.CountStatusRes;
 import com.apten.facilityreservation.application.model.response.FacilityActivePatchRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchDeactivateRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchPostRes;
 import com.apten.facilityreservation.application.model.response.FacilityBlockTimeListRes;
 import com.apten.facilityreservation.application.model.response.FacilityBlockTimePostRes;
 import com.apten.facilityreservation.application.model.response.FacilityDeleteRes;
@@ -58,6 +61,7 @@ import com.apten.facilityreservation.domain.repository.*;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import lombok.RequiredArgsConstructor;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -66,6 +70,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -174,9 +179,9 @@ public class FacilityService {
         }
     }
 
-    // 운영 시간 검증
+    // 운영 시간 검증 — openTime < closeTime(일반) 또는 openTime > closeTime(익일 마감) 모두 허용
     private void validateTime(java.time.LocalTime openTime, java.time.LocalTime closeTime) {
-        if (openTime == null || closeTime == null || !openTime.isBefore(closeTime)) {
+        if (openTime == null || closeTime == null || openTime.equals(closeTime)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
@@ -608,8 +613,86 @@ public class FacilityService {
                         .endTime(blockTime.getEndTime())
                         .reason(blockTime.getReason())
                         .isActive(blockTime.getIsActive())
+                        .batchId(blockTime.getBatchId())
                         .build())
                 .toList();
+    }
+
+    // 반복 차단 시간 배치 등록 — daysOfWeek × [validFrom, validUntil] 범위 날짜마다 FacilityBlockTime 행을 생성하고 공통 batchId로 묶는다
+    @Transactional
+    public FacilityBlockTimeBatchPostRes createFacilityBlockTimeBatch(Long complexId, Long facilityId, FacilityBlockTimeBatchPostReq req) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+
+        if (req == null || req.getDaysOfWeek() == null || req.getDaysOfWeek().isEmpty()
+                || req.getValidFrom() == null || req.getValidUntil() == null
+                || req.getValidFrom().isAfter(req.getValidUntil())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        boolean hasStart = req.getStartTime() != null;
+        boolean hasEnd = req.getEndTime() != null;
+        if (hasStart != hasEnd || (hasStart && !req.getStartTime().isBefore(req.getEndTime()))) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (req.getSeatId() != null) {
+            FacilitySeat seat = facilitySeatRepository.findById(req.getSeatId())
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+            if (!seat.getFacilityId().equals(facility.getId())) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+        }
+
+        // 양의 Long batchId — 같은 배치 그룹을 하나의 where 절로 처리하기 위한 식별자
+        long batchId = UUID.randomUUID().getLeastSignificantBits() & 0x7FFFFFFFFFFFFFFFL;
+
+        List<FacilityBlockTime> blockTimes = new ArrayList<>();
+        LocalDate current = req.getValidFrom();
+        while (!current.isAfter(req.getValidUntil())) {
+            if (req.getDaysOfWeek().contains(current.getDayOfWeek())) {
+                blockTimes.add(FacilityBlockTime.builder()
+                        .facilityId(facility.getId())
+                        .seatId(req.getSeatId())
+                        .blockDate(current)
+                        .startTime(req.getStartTime())
+                        .endTime(req.getEndTime())
+                        .reason(req.getReason())
+                        .batchId(batchId)
+                        .isActive(true)
+                        .build());
+            }
+            current = current.plusDays(1);
+        }
+
+        if (blockTimes.isEmpty()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        facilityBlockTimeRepository.saveAll(blockTimes);
+
+        return FacilityBlockTimeBatchPostRes.builder()
+                .batchId(batchId)
+                .facilityId(facility.getId())
+                .createdCount(blockTimes.size())
+                .validFrom(req.getValidFrom())
+                .validUntil(req.getValidUntil())
+                .daysOfWeek(req.getDaysOfWeek())
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 반복 차단 그룹 비활성화 — batchId가 같은 모든 행의 is_active를 false로 변경한다
+    @Transactional
+    public FacilityBlockTimeBatchDeactivateRes deactivateFacilityBlockTimeBatch(Long complexId, Long facilityId, Long batchId) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+        int deactivatedCount = facilityBlockTimeRepository.deactivateByBatchIdAndFacilityId(batchId, facility.getId());
+        return FacilityBlockTimeBatchDeactivateRes.builder()
+                .batchId(batchId)
+                .deactivatedCount(deactivatedCount)
+                .processedAt(LocalDateTime.now())
+                .build();
     }
 
     // 시설 좌석을 등록한다. API-614
