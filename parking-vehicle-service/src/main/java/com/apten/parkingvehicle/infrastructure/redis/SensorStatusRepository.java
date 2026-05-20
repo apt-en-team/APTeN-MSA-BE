@@ -83,6 +83,35 @@ public class SensorStatusRepository {
         return SensorStatus.valueOf(raw);
     }
 
+    // 센서 상태 일괄 조회. SessionCallback + pipeline으로 1 round trip 처리
+    // RedisTemplate 직렬화기를 그대로 사용해 단건 조회와 byte 일관성 보장. status 없는 센서는 맵에서 제외
+    public Map<String, SensorStatus> getStatusMap(List<String> sensorCodes) {
+        if (sensorCodes == null || sensorCodes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Object> rawResults = redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            public Object execute(RedisOperations operations) {
+                for (String sensorCode : sensorCodes) {
+                    operations.opsForHash().get(buildSensorKey(sensorCode), FIELD_STATUS);
+                }
+                return null;
+            }
+        });
+
+        Map<String, SensorStatus> result = new LinkedHashMap<>(sensorCodes.size());
+        for (int i = 0; i < sensorCodes.size(); i++) {
+            Object raw = rawResults.get(i);
+            if (raw == null) {
+                continue;
+            }
+            result.put(sensorCodes.get(i), SensorStatus.valueOf((String) raw));
+        }
+        return result;
+    }
+
     // 센서 Hash 전체 조회
     public Map<String, String> getSensorHash(String sensorCode) {
         Map<Object, Object> raw = redisTemplate.opsForHash().entries(buildSensorKey(sensorCode));

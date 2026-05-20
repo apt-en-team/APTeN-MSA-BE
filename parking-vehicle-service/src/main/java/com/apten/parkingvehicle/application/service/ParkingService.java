@@ -55,6 +55,9 @@ public class ParkingService {
     // 단지 주차 운영 타입 확인용 설정 저장소이다.
     private final ParkingSettingRepository parkingSettingRepository;
 
+    // SENSOR 단지 검증 서비스 (입주민 자리 목록 조회 시 운영 타입 검증에 사용)
+    private final ParkingSettingService parkingSettingService;
+
     // 주차 센서 저장소 (zone 삭제 시 매핑 센서 존재 여부 검증에 사용)
     private final ParkingSensorRepository parkingSensorRepository;
 
@@ -871,6 +874,62 @@ public class ParkingService {
                 .zones(zoneStatuses)
                 .updatedAt(LocalDateTime.now())
                 .build();
+    }
+
+    // 입주민 자리 맵 화면용 zone 단위 자리 목록을 조회한다.
+    // SENSOR 단지 한정. DB ParkingSensor 목록에 Redis Hash status를 합산해 자리별 점유 상태까지 내려준다.
+    @Transactional(readOnly = true)
+    public List<ResidentParkingSpotRes> getResidentParkingSpots(String userRole, Long complexId, Long zoneId) {
+        // 입주민 컨텍스트 해석 (X-COMPLEX-ID 헤더 기반, USER 한정)
+        Long targetComplexId = resolveResidentContextComplexId(userRole, complexId);
+        // 주차 기능 활성 여부 검증
+        featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
+        // SENSOR 단지 한정 — BASIC/NONE 단지면 PARKING_TYPE_NOT_SENSOR
+        parkingSettingService.validateSensorType(targetComplexId);
+
+        // path variable zoneId 필수값 방어
+        if (zoneId == null) {
+            throw new BusinessException(ParkingVehicleErrorCode.INVALID_PARAMETER);
+        }
+
+        // zone 단지 일치 + 존재 검증 (다른 단지 zone 접근 차단)
+        ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(zoneId, targetComplexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
+
+        // is_deleted=false 자리 목록만 조회 (spotNumber 오름차순, 비활성 센서도 포함)
+        List<ParkingSensor> sensors = parkingSensorRepository
+                .findByZoneIdAndIsDeletedFalseOrderBySpotNumberAsc(zone.getId());
+        if (sensors.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // sensorCode 추출 후 Redis pipeline으로 status 일괄 조회. 다운 시 503 전환
+        List<String> sensorCodes = sensors.stream()
+                .map(ParkingSensor::getSensorCode)
+                .toList();
+        Map<String, SensorStatus> statusMap;
+        try {
+            statusMap = sensorStatusRepository.getStatusMap(sensorCodes);
+        } catch (DataAccessException e) {
+            log.warn("센서 점유 상태 Redis 일괄 조회 실패 complexId={}, zoneId={}", targetComplexId, zoneId, e);
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_SENSOR_STATUS_UNAVAILABLE);
+        }
+
+        // 자리별 DTO 변환. Redis에 status 없는 센서는 UNKNOWN으로 명시
+        return sensors.stream()
+                .map(sensor -> {
+                    SensorStatus status = statusMap.get(sensor.getSensorCode());
+                    String statusValue = (status != null) ? status.name() : "UNKNOWN";
+                    return ResidentParkingSpotRes.builder()
+                            .sensorId(sensor.getId())
+                            .zoneId(sensor.getZoneId())
+                            .spotNumber(sensor.getSpotNumber())
+                            .sensorCode(sensor.getSensorCode())
+                            .isActive(sensor.getIsActive())
+                            .status(statusValue)
+                            .build();
+                })
+                .toList();
     }
 
     // SENSOR 단지 전용 입주민 주차현황 응답 빌드. zone 카운터 Redis 일괄 조회
