@@ -41,6 +41,19 @@ public class ParkingSettingService {
         return ParkingSettingGetRes.of(setting.getComplexId(), setting.getParkingType());
     }
 
+    // 단지가 센서 운영 타입인지 검증한다.
+    @Transactional(readOnly = true)
+    public void validateSensorType(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        ParkingSetting setting = parkingSettingRepository.findByComplexId(complexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
+        if (setting.getParkingType() != ParkingType.SENSOR) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NOT_SENSOR);
+        }
+    }
+
     // 단지의 주차 운영 타입을 변경한다.
     @Transactional
     public ParkingSettingPatchRes updateParkingSetting(

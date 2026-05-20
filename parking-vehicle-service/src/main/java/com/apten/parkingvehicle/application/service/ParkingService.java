@@ -10,7 +10,10 @@ import com.apten.parkingvehicle.domain.entity.*;
 import com.apten.parkingvehicle.domain.enums.*;
 import com.apten.parkingvehicle.domain.repository.*;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
+import com.apten.parkingvehicle.infrastructure.redis.SensorStatusRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,10 +24,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.*;
 import java.util.stream.Collectors;
 
 // 주차 구역, 입출차, 통계 API를 담당하는 응용 서비스이다.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ParkingService {
@@ -49,6 +54,12 @@ public class ParkingService {
 
     // 단지 주차 운영 타입 확인용 설정 저장소이다.
     private final ParkingSettingRepository parkingSettingRepository;
+
+    // 주차 센서 저장소 (zone 삭제 시 매핑 센서 존재 여부 검증에 사용)
+    private final ParkingSensorRepository parkingSensorRepository;
+
+    // SENSOR 단지 zone 카운터 Redis 저장소
+    private final SensorStatusRepository sensorStatusRepository;
 
     // 입출차 기록을 조회한다.
     // 단지 컨텍스트로 범위를 제한하고, 기간/차량번호/입출차/차종 필터를 적용해서 페이지로 반환한다.
@@ -602,7 +613,10 @@ public class ParkingService {
             throw new BusinessException(ParkingVehicleErrorCode.ZONE_HAS_PARKED_VEHICLES);
         }
 
-        // TODO: parking_sensor 매핑이 있으면 삭제 차단 (센서 도메인 설계 후 추가)
+        // 매핑된 센서가 남아 있는 zone은 비활성화 차단 (센서 고아 데이터, 무의미한 자리 점유 갱신 방지)
+        if (parkingSensorRepository.existsByZoneIdAndIsDeletedFalse(zoneId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.ZONE_HAS_MAPPED_SENSORS);
+        }
 
         // 소프트 삭제 (parking_log FK 보존을 위해 hard delete 안 함)
         zone.deactivate();
@@ -655,10 +669,10 @@ public class ParkingService {
 
         if (unit == ParkingStatisticsUnit.HOURLY) {
             // 24개 슬롯 (0~23시)
-            labels = new java.util.ArrayList<>(24);
-            inCount = new java.util.ArrayList<>(24);
-            outCount = new java.util.ArrayList<>(24);
-            slotEndTimes = new java.util.ArrayList<>(24);
+            labels = new ArrayList<>(24);
+            inCount = new ArrayList<>(24);
+            outCount = new ArrayList<>(24);
+            slotEndTimes = new ArrayList<>(24);
             for (int h = 0; h < 24; h++) {
                 labels.add(String.format("%02d시", h));
                 inCount.add(0);
@@ -677,10 +691,10 @@ public class ParkingService {
             }
         } else {
             // 7개 슬롯 (최근 7일)
-            labels = new java.util.ArrayList<>(7);
-            inCount = new java.util.ArrayList<>(7);
-            outCount = new java.util.ArrayList<>(7);
-            slotEndTimes = new java.util.ArrayList<>(7);
+            labels = new ArrayList<>(7);
+            inCount = new ArrayList<>(7);
+            outCount = new ArrayList<>(7);
+            slotEndTimes = new ArrayList<>(7);
             // 날짜 -> 슬롯 인덱스 맵으로 빠르게 매칭
             Map<LocalDate, Integer> dateIndexMap = new HashMap<>();
             for (int d = 0; d < 7; d++) {
@@ -779,6 +793,11 @@ public class ParkingService {
             throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NONE);
         }
 
+        // SENSOR 단지 Redis zone 카운터 실시간 점유 수 집계
+        if (parkingType == ParkingType.SENSOR) {
+            return buildSensorBasedStatus(targetComplexId, parkingType);
+        }
+
         // 활성 구역만 조회 (비활성 구역은 응답에서 제외)
         List<ParkingZone> activeZones = parkingZoneRepository.findByComplexIdAndIsActiveTrue(targetComplexId);
 
@@ -814,11 +833,88 @@ public class ParkingService {
         // 구역별 응답 항목 생성 + 전체 집계 누적
         int totalSlots = 0;
         int totalParked = 0;
-        List<ResidentParkingStatusRes.ZoneStatus> zoneStatuses = new java.util.ArrayList<>();
+        List<ResidentParkingStatusRes.ZoneStatus> zoneStatuses = new ArrayList<>();
         for (ParkingZone zone : activeZones) {
             int zoneTotal = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
             int zoneParked = parkedCountByZone.getOrDefault(zone.getId(), 0);
             // 잔여 면수가 음수가 되지 않도록 0으로 하한 처리 (입차 수가 면수를 초과하는 비정상 케이스 방어)
+            int zoneRemaining = Math.max(zoneTotal - zoneParked, 0);
+
+            zoneStatuses.add(ResidentParkingStatusRes.ZoneStatus.builder()
+                    .zoneId(zone.getId())
+                    .areaName(zone.getAreaName())
+                    .zoneName(zone.getZoneName())
+                    .totalSlots(zoneTotal)
+                    .currentParkedCount(zoneParked)
+                    .remainingSlots(zoneRemaining)
+                    .build());
+
+            totalSlots += zoneTotal;
+            totalParked += zoneParked;
+        }
+
+        // 단지 전체 잔여 면수와 점유율 계산
+        int totalRemaining = Math.max(totalSlots - totalParked, 0);
+        BigDecimal occupancyRate = totalSlots == 0
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(totalParked)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(totalSlots), 2, RoundingMode.HALF_UP);
+
+        return ResidentParkingStatusRes.builder()
+                .parkingTypeCode(parkingType.getCode())
+                .parkingTypeValue(parkingType.getValue())
+                .totalSlots(totalSlots)
+                .currentParkedCount(totalParked)
+                .remainingSlots(totalRemaining)
+                .occupancyRate(occupancyRate)
+                .zones(zoneStatuses)
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // SENSOR 단지 전용 입주민 주차현황 응답 빌드. zone 카운터 Redis 일괄 조회
+    private ResidentParkingStatusRes buildSensorBasedStatus(Long complexId, ParkingType parkingType) {
+        // 활성 구역만 조회
+        List<ParkingZone> activeZones = parkingZoneRepository.findByComplexIdAndIsActiveTrue(complexId);
+
+        // 활성 구역이 없으면 빈 응답으로 즉시 반환
+        if (activeZones.isEmpty()) {
+            return ResidentParkingStatusRes.builder()
+                    .parkingTypeCode(parkingType.getCode())
+                    .parkingTypeValue(parkingType.getValue())
+                    .totalSlots(0)
+                    .currentParkedCount(0)
+                    .remainingSlots(0)
+                    .occupancyRate(BigDecimal.ZERO)
+                    .zones(Collections.emptyList())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }
+
+        // 활성 zone ID 리스트
+        List<Long> zoneIds = activeZones.stream()
+                .map(ParkingZone::getId)
+                .toList();
+
+        // Redis zone 카운터 일괄 조회. 다운 시 503 전환
+        Map<Long, Long> occupiedMap;
+        try {
+            occupiedMap = sensorStatusRepository.getZoneOccupiedMap(zoneIds);
+        } catch (DataAccessException e) {
+            log.warn("센서 점유 상태 Redis 조회 실패 complexId={}", complexId, e);
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_SENSOR_STATUS_UNAVAILABLE);
+        }
+
+        // 구역별 응답 항목 생성 + 전체 집계 누적
+        int totalSlots = 0;
+        int totalParked = 0;
+        List<ResidentParkingStatusRes.ZoneStatus> zoneStatuses = new ArrayList<>();
+        for (ParkingZone zone : activeZones) {
+            int zoneTotal = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
+            // Redis 카운터(Long) → int 변환, 분산 카운터 일관성 깨질 때 음수 방어
+            Long zoneOccupiedLong = occupiedMap.getOrDefault(zone.getId(), 0L);
+            int zoneParked = Math.max(zoneOccupiedLong.intValue(), 0);
             int zoneRemaining = Math.max(zoneTotal - zoneParked, 0);
 
             zoneStatuses.add(ResidentParkingStatusRes.ZoneStatus.builder()

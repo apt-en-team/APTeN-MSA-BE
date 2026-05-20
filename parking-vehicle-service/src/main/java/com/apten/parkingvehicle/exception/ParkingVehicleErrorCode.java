@@ -40,6 +40,8 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     // 비활성 상태인 주차 구역에 입출차 등록을 시도한 경우
     PARKING_ZONE_INACTIVE(HttpStatus.BAD_REQUEST, "PVH_400_05", "비활성 상태의 주차 구역입니다."),
     PARKING_TYPE_NONE(HttpStatus.BAD_REQUEST, "PVH_400_06", "주차 운영 타입이 미사용 상태입니다."),
+    // 센서 운영 단지가 아닌 곳에서 실시간 점유 구독을 요청한 경우
+    PARKING_TYPE_NOT_SENSOR(HttpStatus.BAD_REQUEST, "PVH_400_10", "센서 운영 단지만 실시간 점유 구독을 지원합니다."),
     // 면수는 1 이상이어야 한다
     INVALID_TOTAL_SLOTS(HttpStatus.BAD_REQUEST, "PVH_400_07", "주차 면수는 1 이상이어야 합니다."),
     // PATCH로 활성→비활성 전환을 시도한 경우 (DELETE API 사용 유도)
@@ -57,9 +59,14 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     // 단지 내 sensorCode 중복 (사전 검증 또는 DB unique 위반)
     DUPLICATE_SENSOR_CODE(HttpStatus.CONFLICT, "PVH_409_09", "이미 등록된 센서 코드입니다."),
     DUPLICATE_SPOT_NUMBER(HttpStatus.CONFLICT, "PVH_409_10", "해당 주차 구역에 이미 등록된 자리 번호입니다."),
+    // 매핑된 센서가 남아 있는 zone에 삭제를 시도한 경우
+    ZONE_HAS_MAPPED_SENSORS(HttpStatus.CONFLICT, "PVH_409_11", "구역에 매핑된 센서가 있어 삭제할 수 없습니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_01", "이벤트 발행에 실패했습니다."),
     PARKING_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_07", "주차 설정을 찾을 수 없습니다."),
-    INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_02", "내부 서비스 처리 중 오류가 발생했습니다.");
+    INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PVH_500_02", "내부 서비스 처리 중 오류가 발생했습니다."),
+
+    // 외부 의존성 일시 불가 (PVH_503_*)
+    PARKING_SENSOR_STATUS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "PVH_503_01", "센서 점유 상태 조회가 일시적으로 불가능합니다.");
 
     // HTTP 상태값
     private final HttpStatus status;

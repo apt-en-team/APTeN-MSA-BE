@@ -1,19 +1,26 @@
 package com.apten.parkingvehicle.infrastructure.kafka;
 
+import com.apten.common.kafka.EventEnvelope;
+import com.apten.common.kafka.EventType;
+import com.apten.common.kafka.payload.ParkingSpotChangedEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
+import com.apten.parkingvehicle.application.model.event.ParkingSpotChangedEvent;
 import com.apten.parkingvehicle.domain.entity.Vehicle;
 import com.apten.parkingvehicle.infrastructure.kafka.payload.VehicleFeeCalculatedEventPayload;
 import com.apten.parkingvehicle.infrastructure.kafka.payload.VehicleStatusChangedEventPayload;
 import com.apten.parkingvehicle.infrastructure.kafka.payload.VisitorFeeCalculatedEventPayload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 주차 차량 서비스 전용 outbox 적재를 담당하는 서비스이다.
+// parking-vehicle-service의 outbox 적재를 담당하는 서비스이다.
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -28,6 +35,9 @@ public class ParkingVehicleOutboxService {
 
     // 방문차량 비용 산정 토픽이다.
     private static final String VISITOR_FEE_CALCULATED_TOPIC = "visitor.fee.calculated";
+
+    // 자리 점유 변경 토픽이다.
+    private static final String PARKING_SPOT_CHANGED_TOPIC = "parking.spot.changed";
 
     // outbox 저장소이다.
     private final OutboxRepository outboxRepository;
@@ -61,6 +71,31 @@ public class ParkingVehicleOutboxService {
     public void saveVisitorFeeCalculatedEvent(Long aggregateId, VisitorFeeCalculatedEventPayload payload) {
         //TODO 월 방문차량 비용 산정 완료 시점에 호출하도록 서비스 로직과 연결
         saveOutboxEvent(VISITOR_FEE_CALCULATED_TOPIC, "VISITOR_FEE_CALCULATED", aggregateId, payload);
+    }
+
+    // 자리 점유 변경 이벤트를 envelope로 감싸 outbox에 적재한다.
+    public void saveParkingSpotChangedEvent(ParkingSpotChangedEvent event) {
+        ParkingSpotChangedEventPayload payload = ParkingSpotChangedEventPayload.builder()
+                .complexId(event.getComplexId())
+                .sensorCode(event.getSensorCode())
+                .spotNumber(event.getSpotNumber())
+                .zoneId(event.getZoneId())
+                .status(event.getStatus().name())
+                .zoneOccupied(event.getZoneOccupied())
+                .zoneTotalSlots(event.getZoneTotalSlots())
+                .changedAt(event.getChangedAt().atZone(ZoneId.systemDefault()).toInstant())
+                .build();
+
+        EventEnvelope<ParkingSpotChangedEventPayload> envelope = EventEnvelope.<ParkingSpotChangedEventPayload>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(EventType.PARKING_SPOT_CHANGED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("parking-vehicle-service")
+                .payload(payload)
+                .build();
+
+        saveOutboxEvent(PARKING_SPOT_CHANGED_TOPIC, EventType.PARKING_SPOT_CHANGED.name(), event.getZoneId(), envelope);
     }
 
     // payload를 JSON으로 저장하고 outbox row를 생성한다.
