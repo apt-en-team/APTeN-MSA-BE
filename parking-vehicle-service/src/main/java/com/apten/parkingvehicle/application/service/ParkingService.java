@@ -4,6 +4,7 @@ import com.apten.common.enums.FeatureCode;
 import com.apten.common.enums.ParkingType;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.parkingvehicle.application.model.event.ZoneCounterChangedEvent;
 import com.apten.parkingvehicle.application.model.request.*;
 import com.apten.parkingvehicle.application.model.response.*;
 import com.apten.parkingvehicle.domain.entity.*;
@@ -11,6 +12,7 @@ import com.apten.parkingvehicle.domain.enums.*;
 import com.apten.parkingvehicle.domain.repository.*;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import com.apten.parkingvehicle.infrastructure.redis.SensorStatusRepository;
+import com.apten.parkingvehicle.infrastructure.redis.ZoneCounterChangePublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -19,6 +21,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -63,6 +67,9 @@ public class ParkingService {
 
     // SENSOR 단지 zone 카운터 Redis 저장소
     private final SensorStatusRepository sensorStatusRepository;
+
+    // zone 카운터 변경 SSE 이벤트 발행기
+    private final ZoneCounterChangePublisher zoneCounterChangePublisher;
 
     // 입출차 기록을 조회한다.
     // 단지 컨텍스트로 범위를 제한하고, 기간/차량번호/입출차/차종 필터를 적용해서 페이지로 반환한다.
@@ -357,6 +364,11 @@ public class ParkingService {
                 .memo(request.getMemo())
                 .build();
         ParkingLog saved = parkingLogRepository.save(log);
+
+        // 변경 후 zone 점유 수와 면수를 트랜잭션 안에서 미리 계산 (커밋 후 발행에 사용)
+        long zoneOccupied = parkingLogRepository.countCurrentParkedInZone(targetComplexId, zone.getId());
+        int zoneTotalSlots = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
+        registerZoneCounterPublish(targetComplexId, zone.getId(), (int) zoneOccupied, zoneTotalSlots);
 
         return ParkingLogCreateRes.builder()
                 .parkingLogId(saved.getId())
@@ -1049,5 +1061,21 @@ public class ParkingService {
         }
 
         throw new BusinessException(CommonErrorCode.FORBIDDEN);
+    }
+
+    // DB 커밋 후 zone 카운터 변경 SSE 발행 등록 (롤백 시 SSE 미발행)
+    private void registerZoneCounterPublish(Long complexId, Long zoneId, int zoneOccupied, int zoneTotalSlots) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                zoneCounterChangePublisher.publish(ZoneCounterChangedEvent.builder()
+                        .complexId(complexId)
+                        .zoneId(zoneId)
+                        .zoneOccupied(zoneOccupied)
+                        .zoneTotalSlots(zoneTotalSlots)
+                        .changedAt(LocalDateTime.now())
+                        .build());
+            }
+        });
     }
 }
