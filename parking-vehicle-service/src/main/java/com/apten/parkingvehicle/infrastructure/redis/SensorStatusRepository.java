@@ -47,11 +47,16 @@ public class SensorStatusRepository {
     // 문자열 키/값 전용 RedisTemplate
     private final RedisTemplate<String, String> redisTemplate;
 
-    // 센서 초기 상태 등록
+    // 센서 초기 상태 등록 (멱등 보장 — 같은 sensorCode 재호출 시 카운터와 Hash 최종 상태가 1회 호출과 동일)
     public void initSensor(String sensorCode, Long zoneId, Long complexId, String spotNumber, Integer zoneTotalSlots, SensorStatus initialStatus) {
         String sensorKey = buildSensorKey(sensorCode);
         String zoneKey = buildZoneOccupiedKey(zoneId);
         String now = LocalDateTime.now().toString();
+
+        // MULTI 시작 전 현재 Hash의 status 필드 조회로 차분 적용 방향 결정
+        Map<String, String> currentHash = getSensorHash(sensorCode);
+        String currentStatusRaw = currentHash.get(FIELD_STATUS);
+        SensorStatus currentStatus = currentStatusRaw == null ? null : SensorStatus.valueOf(currentStatusRaw);
 
         redisTemplate.execute(new SessionCallback<Object>() {
             @Override
@@ -65,9 +70,13 @@ public class SensorStatusRepository {
                 operations.opsForHash().put(sensorKey, FIELD_SPOT_NUMBER, spotNumber);
                 operations.opsForHash().put(sensorKey, FIELD_ZONE_TOTAL_SLOTS, String.valueOf(zoneTotalSlots));
                 operations.opsForSet().add(REGISTERED_SET_KEY, sensorCode);
-                // 초기 상태가 점유면 zone 카운터 1 증가
-                if (initialStatus == SensorStatus.OCCUPIED) {
+                // 현재 상태와 요청 상태 조합으로 zone 카운터 차분 적용
+                if (currentStatus == null && initialStatus == SensorStatus.OCCUPIED) {
                     operations.opsForValue().increment(zoneKey);
+                } else if (currentStatus == SensorStatus.VACANT && initialStatus == SensorStatus.OCCUPIED) {
+                    operations.opsForValue().increment(zoneKey);
+                } else if (currentStatus == SensorStatus.OCCUPIED && initialStatus == SensorStatus.VACANT) {
+                    operations.opsForValue().decrement(zoneKey);
                 }
                 return operations.exec();
             }
@@ -99,7 +108,7 @@ public class SensorStatusRepository {
                 }
                 return null;
             }
-        });
+        }, redisTemplate.getHashValueSerializer());
 
         Map<String, SensorStatus> result = new LinkedHashMap<>(sensorCodes.size());
         for (int i = 0; i < sensorCodes.size(); i++) {

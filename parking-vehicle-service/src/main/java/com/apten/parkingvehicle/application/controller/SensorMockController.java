@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.application.controller;
 
 import com.apten.common.response.ResultResponse;
+import com.apten.parkingvehicle.application.model.request.SensorMockBulkPostReq;
 import com.apten.parkingvehicle.application.model.request.SensorMockPostReq;
 import com.apten.parkingvehicle.application.service.SensorMockService;
 import com.apten.parkingvehicle.domain.enums.SensorStatus;
@@ -24,6 +25,13 @@ public class SensorMockController {
     public ResultResponse<Void> initSensor(@RequestBody SensorMockPostReq request) {
         sensorMockService.initSensor(request);
         return ResultResponse.success("센서 등록 성공", null);
+    }
+
+    // Mock 센서 초기 상태 일괄 등록
+    @PostMapping("/api/admin/parking/sensors/mock/bulk-init")
+    public ResultResponse<Void> initSensorBulk(@RequestBody SensorMockBulkPostReq request) {
+        sensorMockService.initSensorBulk(request);
+        return ResultResponse.success("센서 일괄 등록 성공", null);
     }
 
     // Mock 센서 상태를 토글한다.
