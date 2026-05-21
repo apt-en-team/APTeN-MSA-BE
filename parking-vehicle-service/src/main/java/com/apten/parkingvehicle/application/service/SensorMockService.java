@@ -158,16 +158,26 @@ public class SensorMockService {
         if (hash.isEmpty()) {
             return null;
         }
+        Long complexId = Long.valueOf(hash.get(SensorStatusRepository.FIELD_COMPLEX_ID));
         Long zoneId = Long.valueOf(hash.get(SensorStatusRepository.FIELD_ZONE_ID));
         return ParkingSpotChangedEvent.builder()
-                .complexId(Long.valueOf(hash.get(SensorStatusRepository.FIELD_COMPLEX_ID)))
+                .complexId(complexId)
                 .sensorCode(sensorCode)
                 .spotNumber(hash.get(SensorStatusRepository.FIELD_SPOT_NUMBER))
                 .zoneId(zoneId)
                 .status(SensorStatus.valueOf(hash.get(SensorStatusRepository.FIELD_STATUS)))
+                .isActive(resolveSensorActive(complexId, sensorCode))
                 .zoneOccupied(sensorStatusRepository.getZoneOccupied(zoneId).intValue())
                 .zoneTotalSlots(Integer.parseInt(hash.get(SensorStatusRepository.FIELD_ZONE_TOTAL_SLOTS)))
                 .changedAt(LocalDateTime.parse(hash.get(SensorStatusRepository.FIELD_CHANGED_AT)))
                 .build();
+    }
+
+    // 자리 활성 여부 조회 — parking_sensor.is_active 가 유일한 원본
+    private Boolean resolveSensorActive(Long complexId, String sensorCode) {
+        return parkingSensorRepository
+                .findByComplexIdAndSensorCodeAndIsDeletedFalse(complexId, sensorCode)
+                .map(ParkingSensor::getIsActive)
+                .orElse(null);
     }
 }
