@@ -421,9 +421,10 @@ public class ParkingService {
             totalParked += ((Number) row[1]).intValue();
         }
 
-        // 활성 구역의 전체 주차 면수 합산
+        // 활성 구역의 사용 가능 자리 수 합산 (SENSOR는 활성 센서 수, BASIC은 zone 면수)
+        ParkingType parkingType = setting.getParkingType();
         int totalSlots = activeZones.stream()
-                .mapToInt(z -> z.getTotalSlots() != null ? z.getTotalSlots() : 0)
+                .mapToInt(z -> resolveZoneTotalSlots(parkingType, z))
                 .sum();
 
         // 잔여 면수가 음수가 되지 않도록 0으로 하한 처리
@@ -982,7 +983,7 @@ public class ParkingService {
         int totalParked = 0;
         List<ResidentParkingStatusRes.ZoneStatus> zoneStatuses = new ArrayList<>();
         for (ParkingZone zone : activeZones) {
-            int zoneTotal = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
+            int zoneTotal = resolveZoneTotalSlots(parkingType, zone);
             // Redis 카운터(Long) → int 변환, 분산 카운터 일관성 깨질 때 음수 방어
             Long zoneOccupiedLong = occupiedMap.getOrDefault(zone.getId(), 0L);
             int zoneParked = Math.max(zoneOccupiedLong.intValue(), 0);
@@ -1019,6 +1020,14 @@ public class ParkingService {
                 .zones(zoneStatuses)
                 .updatedAt(LocalDateTime.now())
                 .build();
+    }
+
+    // 단지 운영 타입에 따라 zone 의 사용 가능 자리 수 산출 (SENSOR는 활성 센서 수, BASIC은 zone 면수 입력값)
+    private int resolveZoneTotalSlots(ParkingType parkingType, ParkingZone zone) {
+        if (parkingType == ParkingType.SENSOR) {
+            return (int) parkingSensorRepository.countByZoneIdAndIsActiveTrueAndIsDeletedFalse(zone.getId());
+        }
+        return zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
     }
 
     // 입주민 주차 API의 단지 컨텍스트를 헤더 기준으로 해석한다.

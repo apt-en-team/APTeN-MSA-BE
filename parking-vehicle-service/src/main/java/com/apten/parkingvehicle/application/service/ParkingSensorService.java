@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -282,7 +283,9 @@ public class ParkingSensorService {
             sensor.updateDescription(request.getDescription());
         }
         if (request.getIsActive() != null) {
+            Boolean previousIsActive = sensor.getIsActive();
             sensor.changeActive(request.getIsActive());
+            adjustZoneCounterOnActiveChange(sensor, previousIsActive, request.getIsActive());
             sensorChangePublisher.publish(buildSensorChangedEvent(sensor, zone));
         }
 
@@ -406,6 +409,22 @@ public class ParkingSensorService {
                 .zoneTotalSlots(zone.getTotalSlots() != null ? zone.getTotalSlots() : 0)
                 .changedAt(LocalDateTime.now())
                 .build();
+    }
+
+    // 활성 여부 변경 시 그 자리 status에 맞춰 zone 점유 카운터 보정 (OCCUPIED 자리만 영향)
+    private void adjustZoneCounterOnActiveChange(ParkingSensor sensor, Boolean previousIsActive, Boolean newIsActive) {
+        if (Objects.equals(previousIsActive, newIsActive)) {
+            return;
+        }
+        SensorStatus currentStatus = sensorStatusRepository.getStatus(sensor.getSensorCode());
+        if (currentStatus != SensorStatus.OCCUPIED) {
+            return;
+        }
+        if (Boolean.TRUE.equals(previousIsActive) && Boolean.FALSE.equals(newIsActive)) {
+            sensorStatusRepository.decrementZoneOccupied(sensor.getZoneId());
+        } else if (Boolean.FALSE.equals(previousIsActive) && Boolean.TRUE.equals(newIsActive)) {
+            sensorStatusRepository.incrementZoneOccupied(sensor.getZoneId());
+        }
     }
 
     // DB 커밋 후 Redis Hash 초기화 등록 (롤백 시 Redis 미반영)

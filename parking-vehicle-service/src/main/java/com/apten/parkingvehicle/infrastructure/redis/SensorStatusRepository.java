@@ -133,7 +133,7 @@ public class SensorStatusRepository {
     }
 
     // 센서 상태 갱신
-    public void updateStatus(String sensorCode, SensorStatus newStatus) {
+    public void updateStatus(String sensorCode, SensorStatus newStatus, boolean affectCounter) {
         String sensorKey = buildSensorKey(sensorCode);
         Map<String, String> hash = getSensorHash(sensorCode);
         if (hash.isEmpty()) {
@@ -164,11 +164,13 @@ public class SensorStatusRepository {
                 operations.multi();
                 operations.opsForHash().put(sensorKey, FIELD_STATUS, newStatus.name());
                 operations.opsForHash().put(sensorKey, FIELD_CHANGED_AT, now);
-                // 전환 방향에 따라 zone 카운터 증감
-                if (newStatus == SensorStatus.OCCUPIED) {
-                    operations.opsForValue().increment(zoneKey);
-                } else {
-                    operations.opsForValue().decrement(zoneKey);
+                // 활성 자리에 한해 전환 방향에 따라 zone 카운터 증감 (사용불가 자리는 카운터에서 제외)
+                if (affectCounter) {
+                    if (newStatus == SensorStatus.OCCUPIED) {
+                        operations.opsForValue().increment(zoneKey);
+                    } else {
+                        operations.opsForValue().decrement(zoneKey);
+                    }
                 }
                 return operations.exec();
             }
@@ -182,6 +184,16 @@ public class SensorStatusRepository {
             return 0L;
         }
         return Long.valueOf(raw);
+    }
+
+    // zone 점유 카운터 +1 (자리 활성화 보정용)
+    public void incrementZoneOccupied(Long zoneId) {
+        redisTemplate.opsForValue().increment(buildZoneOccupiedKey(zoneId));
+    }
+
+    // zone 점유 카운터 -1 (자리 비활성화 보정용)
+    public void decrementZoneOccupied(Long zoneId) {
+        redisTemplate.opsForValue().decrement(buildZoneOccupiedKey(zoneId));
     }
 
     // zone 카운터 일괄 조회. 키 없는 zone은 0L로 채워 반환

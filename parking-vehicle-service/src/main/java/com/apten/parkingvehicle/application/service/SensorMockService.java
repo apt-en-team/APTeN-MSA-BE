@@ -133,7 +133,12 @@ public class SensorMockService {
         }
         SensorStatus current = sensorStatusRepository.getStatus(sensorCode);
         SensorStatus next = (current == SensorStatus.OCCUPIED) ? SensorStatus.VACANT : SensorStatus.OCCUPIED;
-        sensorStatusRepository.updateStatus(sensorCode, next);
+
+        // 사용불가 자리는 카운터에 영향을 주지 않도록 활성 여부를 먼저 조회한다
+        Long complexId = Long.valueOf(sensorStatusRepository.getSensorHash(sensorCode)
+                .get(SensorStatusRepository.FIELD_COMPLEX_ID));
+        boolean affectCounter = Boolean.TRUE.equals(resolveSensorActive(complexId, sensorCode));
+        sensorStatusRepository.updateStatus(sensorCode, next, affectCounter);
 
         // 토글 후 최신 Hash와 zone 카운터로 페이로드를 구성해 발행한다.
         ParkingSpotChangedEvent event = buildSpotChangedEvent(sensorCode);
