@@ -730,7 +730,7 @@ public class ReservationService {
         return AdminReservationCancelRes.builder()
                 .reservationId(reservation.getId())
                 .status(reservation.getStatus())
-                .cancelReason(req.getReason())
+                .cancelReason(req != null ? req.getReason() : null)
                 .cancelledAt(reservation.getCancelledAt())
                 .build();
     }

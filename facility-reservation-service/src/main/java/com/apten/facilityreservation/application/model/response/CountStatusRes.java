@@ -31,11 +31,14 @@ public class CountStatusRes {
     @Getter
     @Builder
     public static class UserItem {
-        private Long reservationId;
+        // TSID 정밀도 보호를 위해 문자열로 내려간다.
+        private String reservationId;
         private String residentName;
         // HouseholdCache 기반. 캐시 미동기 시 null 가능
         private String dong;
         private String ho;
         private String unit;
+        // 예약 상태 코드이다. 예: CONFIRMED, COMPLETED
+        private String status;
     }
 }

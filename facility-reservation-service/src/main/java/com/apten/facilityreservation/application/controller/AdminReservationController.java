@@ -94,7 +94,7 @@ public class AdminReservationController {
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
             @PathVariable Long reservationId,
-            @RequestBody AdminReservationCancelReq req
+            @RequestBody(required = false) AdminReservationCancelReq req
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("관리자 예약 강제 취소 성공", reservationService.cancelReservationByAdmin(context.getComplexId(), reservationId, req));

@@ -173,10 +173,12 @@ public class FacilityService {
     }
 
     // 차단과 예약은 같은 시간 구간을 해석해야 하므로 공통 겹침 규칙을 재사용한다.
+    // slotEnd 또는 candidateEnd가 자정(00:00)처럼 시작 이하인 경우 익일 마감으로 간주해 MAX로 처리한다.
     private boolean isTimeOverlap(LocalTime slotStart, LocalTime slotEnd, LocalTime candidateStart, LocalTime candidateEnd) {
         LocalTime effectiveStart = candidateStart != null ? candidateStart : LocalTime.MIN;
-        LocalTime effectiveEnd = candidateEnd != null ? candidateEnd : LocalTime.MAX;
-        return slotStart.isBefore(effectiveEnd) && slotEnd.isAfter(effectiveStart);
+        LocalTime effectiveEnd = (candidateEnd != null && candidateEnd.isAfter(effectiveStart)) ? candidateEnd : LocalTime.MAX;
+        LocalTime effectiveSlotEnd = slotEnd.isAfter(slotStart) ? slotEnd : LocalTime.MAX;
+        return slotStart.isBefore(effectiveEnd) && effectiveSlotEnd.isAfter(effectiveStart);
     }
 
     // 시설 차단 시간 요청 검증
@@ -980,7 +982,8 @@ public class FacilityService {
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, req.getTargetDate());
         List<Reservation> confirmedReservations = reservationRepository
-                .findByFacilityIdAndReservationDateAndStatus(facilityId, req.getTargetDate(), ReservationStatus.CONFIRMED);
+                .findByFacilityIdAndReservationDateAndStatusIn(facilityId, req.getTargetDate(),
+                        List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED));
         List<ReservationTempHold> activeHolds = reservationTempHoldRepository
                 .findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
                         facilityId,
@@ -999,6 +1002,14 @@ public class FacilityService {
         Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of() :
                 userCacheRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
+
+        Set<Long> seatHouseholdIds = confirmedReservations.stream()
+                .map(Reservation::getHouseholdId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, HouseholdCache> seatHouseholdMap = seatHouseholdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(seatHouseholdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
 
         // 시설 전체 차단이 겹치면 모든 좌석을 BLOCKED로 본다.
         boolean facilityBlocked = blockTimes.stream()
@@ -1035,12 +1046,21 @@ public class FacilityService {
                             .orElse(null);
                     if (reservedReservation != null) {
                         UserCache user = userMap.get(reservedReservation.getUserId());
+                        HouseholdCache household = seatHouseholdMap.get(reservedReservation.getHouseholdId());
+                        String buildingNo = household != null ? household.getBuildingNo() : null;
+                        String unitNo = household != null ? household.getUnitNo() : null;
+                        String unit = (buildingNo != null && unitNo != null)
+                                ? buildingNo + "동 " + unitNo + "호" : null;
                         return SeatStatusRes.builder()
                                 .seatId(seat.getId())
+                                .reservationId(String.valueOf(reservedReservation.getId()))
                                 .seatNo(seat.getSeatNo())
                                 .seatName(seat.getSeatName())
                                 .status("RESERVED")
                                 .residentName(user != null ? user.getName() : null)
+                                .dong(buildingNo)
+                                .ho(unitNo)
+                                .unit(unit)
                                 .holdExpiresAt(null)
                                 .build();
                     }
@@ -1099,7 +1119,8 @@ public class FacilityService {
         }
 
         List<Reservation> confirmedReservations = reservationRepository
-                .findByFacilityIdAndReservationDateAndStatus(facilityId, req.getTargetDate(), ReservationStatus.CONFIRMED)
+                .findByFacilityIdAndReservationDateAndStatusIn(facilityId, req.getTargetDate(),
+                        List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED))
                 .stream()
                 .filter(reservation -> req.getStartTime().equals(reservation.getStartTime())
                         && req.getEndTime().equals(reservation.getEndTime()))
@@ -1142,11 +1163,12 @@ public class FacilityService {
                             String unit = (buildingNo != null && unitNo != null)
                                     ? buildingNo + "동 " + unitNo + "호" : null;
                             return CountStatusRes.UserItem.builder()
-                                    .reservationId(reservation.getId())
+                                    .reservationId(String.valueOf(reservation.getId()))
                                     .residentName(user != null ? user.getName() : null)
                                     .dong(buildingNo)
                                     .ho(unitNo)
                                     .unit(unit)
+                                    .status(reservation.getStatus().name())
                                     .build();
                         })
                         .toList())

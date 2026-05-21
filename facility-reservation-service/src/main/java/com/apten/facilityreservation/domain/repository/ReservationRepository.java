@@ -57,6 +57,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     // 시설과 날짜, 상태 기준 예약 목록을 조회한다.
     List<Reservation> findByFacilityIdAndReservationDateAndStatus(Long facilityId, LocalDate reservationDate, ReservationStatus status);
 
+    // 시설과 날짜, 복수 상태 기준 예약 목록을 조회한다. 과거/오늘 날짜의 COMPLETED 포함 조회에 사용한다.
+    List<Reservation> findByFacilityIdAndReservationDateAndStatusIn(Long facilityId, LocalDate reservationDate, List<ReservationStatus> statuses);
+
     // 상태별 현황 집계는 DB count를 직접 사용해 불필요한 목록 적재를 줄인다.
     long countByFacilityIdAndReservationDateAndStatus(Long facilityId, LocalDate reservationDate, ReservationStatus status);
 
