@@ -140,6 +140,7 @@ public class GxProgramService {
                         .programId(p.getId())
                         .facilityId(p.getFacilityId())
                         .name(p.getName())
+                        .description(p.getDescription())
                         .startDate(p.getStartDate())
                         .endDate(p.getEndDate())
                         .startTime(p.getStartTime())

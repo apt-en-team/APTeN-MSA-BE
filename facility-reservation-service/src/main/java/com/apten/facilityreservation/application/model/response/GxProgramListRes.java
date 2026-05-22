@@ -21,6 +21,9 @@ public class GxProgramListRes {
     // 프로그램명이다.
     private String name;
 
+    // 설명이다.
+    private String description;
+
     // 시작일이다.
     private LocalDate startDate;
 
