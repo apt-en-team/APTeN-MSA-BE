@@ -317,6 +317,10 @@ public class FacilityService {
                                 row -> ((Long) row[1]).intValue()
                         ));
 
+        // 오늘 차단 시간 존재 여부 배치 조회 (점검중 표시용, N+1 방지)
+        Set<Long> blockedFacilityIds = facilityIds.isEmpty() ? Set.of() :
+                new java.util.HashSet<>(facilityBlockTimeRepository.findBlockedFacilityIds(facilityIds, today));
+
         // 목록 응답 변환
         List<FacilityListRes> items = facilities.stream()
                 .map(facility -> {
@@ -337,6 +341,7 @@ public class FacilityService {
                                     ? policy.getUsageUnitType().getLabel() : null)
                             .reservationUnitLabel(buildReservationUnitLabel(policy))
                             .todayReservedCount(todayCountMap.getOrDefault(facility.getId(), 0))
+                            .isTodayBlocked(blockedFacilityIds.contains(facility.getId()))
                             .build();
                 })
                 .toList();

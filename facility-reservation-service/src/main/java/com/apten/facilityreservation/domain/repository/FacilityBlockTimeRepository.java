@@ -39,4 +39,18 @@ public interface FacilityBlockTimeRepository extends JpaRepository<FacilityBlock
     @Query("UPDATE FacilityBlockTime b SET b.isActive = false WHERE b.batchId = :batchId AND b.facilityId = :facilityId")
     int deactivateByBatchIdAndFacilityId(@Param("batchId") Long batchId, @Param("facilityId") Long facilityId);
 
+    // 시설별 특정 날짜 활성 차단 존재 여부를 배치 조회한다. (N+1 방지용, 점검중 표시에 사용)
+    @Query("""
+        SELECT b.facilityId
+        FROM FacilityBlockTime b
+        WHERE b.facilityId IN :facilityIds
+          AND b.blockDate = :date
+          AND b.isActive = true
+        GROUP BY b.facilityId
+        """)
+    List<Long> findBlockedFacilityIds(
+            @Param("facilityIds") List<Long> facilityIds,
+            @Param("date") LocalDate date
+    );
+
 }

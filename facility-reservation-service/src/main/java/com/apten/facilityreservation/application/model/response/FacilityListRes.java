@@ -53,4 +53,7 @@ public class FacilityListRes {
 
     // 오늘 날짜 기준 CONFIRMED + COMPLETED 예약 건수이다.
     private Integer todayReservedCount;
+
+    // 오늘 날짜에 활성 차단 시간이 존재하는지 여부이다. 점검중 표시에 사용한다.
+    private Boolean isTodayBlocked;
 }
