@@ -50,4 +50,7 @@ public class FacilityListRes {
 
     // 예약 단위 표시용 라벨이다. 정책 미등록 시 null. 예: "60분", "하루"
     private String reservationUnitLabel;
+
+    // 오늘 날짜 기준 CONFIRMED + COMPLETED 예약 건수이다.
+    private Integer todayReservedCount;
 }

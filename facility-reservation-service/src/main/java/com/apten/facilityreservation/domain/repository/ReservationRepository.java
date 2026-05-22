@@ -239,4 +239,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("facilityId") Long facilityId,
             @Param("reservationDate") LocalDate reservationDate
     );
+
+    // 시설별 특정 날짜/상태 예약 건수를 배치 집계한다. (N+1 방지용)
+    @Query("""
+        SELECT r.facilityId, COUNT(r)
+        FROM Reservation r
+        WHERE r.facilityId IN :facilityIds
+          AND r.reservationDate = :date
+          AND r.status IN :statuses
+        GROUP BY r.facilityId
+        """)
+    List<Object[]> countGroupByFacilityId(
+            @Param("facilityIds") List<Long> facilityIds,
+            @Param("date") LocalDate date,
+            @Param("statuses") List<ReservationStatus> statuses
+    );
 }

@@ -306,6 +306,17 @@ public class FacilityService {
                         .stream()
                         .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
+        // 오늘 예약 수 배치 조회 (CONFIRMED + COMPLETED 기준, N+1 방지)
+        LocalDate today = LocalDate.now();
+        List<ReservationStatus> activeStatuses = List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED);
+        Map<Long, Integer> todayCountMap = facilityIds.isEmpty() ? Map.of() :
+                reservationRepository.countGroupByFacilityId(facilityIds, today, activeStatuses)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> ((Long) row[1]).intValue()
+                        ));
+
         // 목록 응답 변환
         List<FacilityListRes> items = facilities.stream()
                 .map(facility -> {
@@ -325,6 +336,7 @@ public class FacilityService {
                             .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
                                     ? policy.getUsageUnitType().getLabel() : null)
                             .reservationUnitLabel(buildReservationUnitLabel(policy))
+                            .todayReservedCount(todayCountMap.getOrDefault(facility.getId(), 0))
                             .build();
                 })
                 .toList();
