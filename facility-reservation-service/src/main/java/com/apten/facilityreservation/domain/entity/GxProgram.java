@@ -142,7 +142,12 @@ public class GxProgram extends BaseEntity {
         this.status = GxProgramStatus.CANCELLED;
     }
 
-    // GX 프로그램을 모집 마감 상태로 변경한다.
+    // GX 프로그램 모집을 마감한다. 프로그램은 계속 진행된다.
+    public void closeWaiting() {
+        this.status = GxProgramStatus.WAITING_CLOSED;
+    }
+
+    // GX 프로그램을 종료 상태로 변경한다.
     public void close() {
         this.status = GxProgramStatus.CLOSED;
     }

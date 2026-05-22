@@ -56,4 +56,7 @@ public class GxProgramListRes {
 
     // 대기 인원이다.
     private Integer waitingCount;
+
+    // 취소 인원이다.
+    private Integer cancelledCount;
 }

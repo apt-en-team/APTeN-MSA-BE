@@ -128,6 +128,12 @@ public class GxProgramService {
         Map<Long, Long> waitingMap = programIds.isEmpty() ? Map.of() :
                 gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.WAITING)
                         .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Map<Long, Long> cancelledMap = programIds.isEmpty() ? Map.of() :
+                gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.CANCELLED)
+                        .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Map<Long, Long> rejectedMap = programIds.isEmpty() ? Map.of() :
+                gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.REJECTED)
+                        .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
 
         List<GxProgramListRes> items = programs.stream()
                 .map(p -> GxProgramListRes.builder()
@@ -146,6 +152,9 @@ public class GxProgramService {
                         .status(p.getStatus())
                         .confirmedCount(confirmedMap.getOrDefault(p.getId(), 0L).intValue())
                         .waitingCount(waitingMap.getOrDefault(p.getId(), 0L).intValue())
+                        .cancelledCount(
+                                cancelledMap.getOrDefault(p.getId(), 0L).intValue() +
+                                rejectedMap.getOrDefault(p.getId(), 0L).intValue())
                         .build())
                 .toList();
 
@@ -438,7 +447,7 @@ public class GxProgramService {
                 .build();
     }
 
-    // GX 프로그램 모집을 마감한다. 잔여 WAITING 신청자를 일괄 거절하고 프로그램을 CLOSED 상태로 변경한다.
+    // GX 프로그램 모집을 마감한다. 잔여 WAITING 신청자를 일괄 거절하고 프로그램을 WAITING_CLOSED 상태로 변경한다.
     @Transactional
     public GxCloseWaitingRes closeWaiting(Long complexId, Long programId, GxCloseWaitingReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -448,7 +457,7 @@ public class GxProgramService {
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
             throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
         }
-        if (program.getStatus() == GxProgramStatus.CLOSED) {
+        if (program.getStatus() == GxProgramStatus.CLOSED || program.getStatus() == GxProgramStatus.WAITING_CLOSED) {
             throw new BusinessException(FacilityReservationErrorCode.GX_RECRUITING_CLOSED);
         }
 
@@ -462,7 +471,7 @@ public class GxProgramService {
         waitingList.forEach(r -> r.reject(rejectReason));
         // TODO: 일괄 거절 알림 발행 (가은 담당)
 
-        program.close();
+        program.closeWaiting();
 
         return GxCloseWaitingRes.builder()
                 .programId(program.getId())
