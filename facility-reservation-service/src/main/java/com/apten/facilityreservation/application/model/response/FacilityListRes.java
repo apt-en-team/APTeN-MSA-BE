@@ -18,6 +18,9 @@ public class FacilityListRes {
     // 시설 타입 ID이다.
     private Long typeId;
 
+    // 시설 타입명이다.
+    private String typeName;
+
     // 시설명이다.
     private String name;
 

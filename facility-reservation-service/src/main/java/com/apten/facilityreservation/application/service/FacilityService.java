@@ -304,6 +304,13 @@ public class FacilityService {
         List<Facility> facilities = facilityPage.getContent();
         List<Long> facilityIds = facilities.stream().map(Facility::getId).toList();
 
+        // 시설 타입명 배치 조회 (N+1 방지)
+        List<Long> typeIds = facilities.stream().map(Facility::getTypeId).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> typeNameMap = typeIds.isEmpty() ? Map.of() :
+                facilityTypeRepository.findAllById(typeIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilityType::getId, FacilityType::getTypeName));
+
         // 정책 배치 조회 (N+1 방지)
         Map<Long, FacilityPolicy> policyMap = facilityIds.isEmpty() ? Map.of() :
                 facilityPolicyRepository.findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
@@ -340,6 +347,7 @@ public class FacilityService {
                     return FacilityListRes.builder()
                             .facilityId(facility.getId())
                             .typeId(facility.getTypeId())
+                            .typeName(typeNameMap.get(facility.getTypeId()))
                             .name(facility.getName())
                             .reservationType(facility.getReservationType())
                             .openTime(facility.getOpenTime())
