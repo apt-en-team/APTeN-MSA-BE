@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 // 관리자 주차 조회와 입출차 등록 API 진입점
 @RestController
 @RequiredArgsConstructor
@@ -166,6 +168,19 @@ public class ParkingController {
         return ResultResponse.success(
                 "주차 현황 조회 성공",
                 parkingService.getResidentParkingStatus(userRole, complexId)
+        );
+    }
+
+    //입주민 자리 맵 화면용 zone 자리 목록 조회
+    @GetMapping("/api/parking/zones/{zoneId}/spots")
+    public ResultResponse<List<ResidentParkingSpotRes>> getResidentParkingSpots(
+            @PathVariable Long zoneId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId
+    ) {
+        return ResultResponse.success(
+                "자리 목록 조회 성공",
+                parkingService.getResidentParkingSpots(userRole, complexId, zoneId)
         );
     }
 }

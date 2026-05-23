@@ -3,6 +3,7 @@ package com.apten.parkingvehicle.application.service;
 import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.parkingvehicle.application.model.event.ParkingSpotChangedEvent;
 import com.apten.parkingvehicle.application.model.request.ParkingSensorBulkPostReq;
 import com.apten.parkingvehicle.application.model.request.ParkingSensorPatchReq;
 import com.apten.parkingvehicle.application.model.request.ParkingSensorPostReq;
@@ -10,18 +11,24 @@ import com.apten.parkingvehicle.application.model.response.ParkingSensorBulkPost
 import com.apten.parkingvehicle.application.model.response.ParkingSensorRes;
 import com.apten.parkingvehicle.domain.entity.ParkingSensor;
 import com.apten.parkingvehicle.domain.entity.ParkingZone;
+import com.apten.parkingvehicle.domain.enums.SensorStatus;
 import com.apten.parkingvehicle.domain.repository.ParkingSensorRepository;
 import com.apten.parkingvehicle.domain.repository.ParkingZoneRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
+import com.apten.parkingvehicle.infrastructure.redis.SensorChangePublisher;
+import com.apten.parkingvehicle.infrastructure.redis.SensorStatusRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 // 단지별 주차 센서 CRUD와 일괄 등록을 담당하는 응용 서비스
 @Service
@@ -54,6 +61,12 @@ public class ParkingSensorService {
 
     // 단지별 기능 활성 검증 서비스
     private final FeatureAccessService featureAccessService;
+
+    // 자리 변경 SSE 이벤트 발행기
+    private final SensorChangePublisher sensorChangePublisher;
+
+    // 자리 점유 상태 Redis 저장소 (status, zoneOccupied 조회)
+    private final SensorStatusRepository sensorStatusRepository;
 
     // 주차 센서 단건 등록
     @Transactional
@@ -104,6 +117,8 @@ public class ParkingSensorService {
                         .description(request.getDescription())
                         .build()
         );
+
+        registerSensorRedisInit(List.of(saved), zone);
 
         return toResponse(saved, zone);
     }
@@ -183,6 +198,8 @@ public class ParkingSensorService {
         }
         List<ParkingSensor> savedAll = parkingSensorRepository.saveAll(sensors);
 
+        registerSensorRedisInit(savedAll, zone);
+
         List<Long> createdIds = savedAll.stream()
                 .map(ParkingSensor::getId)
                 .toList();
@@ -259,15 +276,18 @@ public class ParkingSensorService {
 
         ParkingSensor sensor = findSensorOwnedByComplex(sensorId, targetComplexId);
 
+        ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(sensor.getZoneId(), targetComplexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
+
         if (request.getDescription() != null) {
             sensor.updateDescription(request.getDescription());
         }
         if (request.getIsActive() != null) {
+            Boolean previousIsActive = sensor.getIsActive();
             sensor.changeActive(request.getIsActive());
+            adjustZoneCounterOnActiveChange(sensor, previousIsActive, request.getIsActive());
+            sensorChangePublisher.publish(buildSensorChangedEvent(sensor, zone));
         }
-
-        ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(sensor.getZoneId(), targetComplexId)
-                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
 
         return toResponse(sensor, zone);
     }
@@ -374,5 +394,56 @@ public class ParkingSensorService {
                 .createdAt(sensor.getCreatedAt())
                 .updatedAt(sensor.getUpdatedAt())
                 .build();
+    }
+
+    // 자리 비활성 변경 SSE 페이로드 빌드
+    private ParkingSpotChangedEvent buildSensorChangedEvent(ParkingSensor sensor, ParkingZone zone) {
+        return ParkingSpotChangedEvent.builder()
+                .complexId(sensor.getComplexId())
+                .sensorCode(sensor.getSensorCode())
+                .spotNumber(sensor.getSpotNumber())
+                .zoneId(sensor.getZoneId())
+                .status(sensorStatusRepository.getStatus(sensor.getSensorCode()))
+                .isActive(sensor.getIsActive())
+                .zoneOccupied(sensorStatusRepository.getZoneOccupied(sensor.getZoneId()).intValue())
+                .zoneTotalSlots(zone.getTotalSlots() != null ? zone.getTotalSlots() : 0)
+                .changedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 활성 여부 변경 시 그 자리 status에 맞춰 zone 점유 카운터 보정 (OCCUPIED 자리만 영향)
+    private void adjustZoneCounterOnActiveChange(ParkingSensor sensor, Boolean previousIsActive, Boolean newIsActive) {
+        if (Objects.equals(previousIsActive, newIsActive)) {
+            return;
+        }
+        SensorStatus currentStatus = sensorStatusRepository.getStatus(sensor.getSensorCode());
+        if (currentStatus != SensorStatus.OCCUPIED) {
+            return;
+        }
+        if (Boolean.TRUE.equals(previousIsActive) && Boolean.FALSE.equals(newIsActive)) {
+            sensorStatusRepository.decrementZoneOccupied(sensor.getZoneId());
+        } else if (Boolean.FALSE.equals(previousIsActive) && Boolean.TRUE.equals(newIsActive)) {
+            sensorStatusRepository.incrementZoneOccupied(sensor.getZoneId());
+        }
+    }
+
+    // DB 커밋 후 Redis Hash 초기화 등록 (롤백 시 Redis 미반영)
+    private void registerSensorRedisInit(List<ParkingSensor> sensors, ParkingZone zone) {
+        Integer zoneTotalSlots = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (ParkingSensor sensor : sensors) {
+                    sensorStatusRepository.initSensor(
+                            sensor.getSensorCode(),
+                            sensor.getZoneId(),
+                            sensor.getComplexId(),
+                            sensor.getSpotNumber(),
+                            zoneTotalSlots,
+                            SensorStatus.VACANT
+                    );
+                }
+            }
+        });
     }
 }
