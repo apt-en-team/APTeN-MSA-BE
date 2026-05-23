@@ -2,10 +2,13 @@ package com.apten.household.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.household.domain.enums.HouseholdMatchProcessType;
+import com.apten.household.domain.enums.HouseholdMatchRejectReason;
 import com.apten.household.domain.enums.HouseholdMatchStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -71,6 +74,10 @@ public class HouseholdMatchRequest extends BaseEntity {
     @Column(name = "matched_household_id")
     private Long matchedHouseholdId;
 
+    // 자동매칭에 사용된 관리자 명부 ID이다.
+    @Column(name = "matched_expected_resident_id")
+    private Long matchedExpectedResidentId;
+
     // 처리 방식
     @Builder.Default
     @Column(name = "process_type", nullable = false, length = 20)
@@ -85,6 +92,11 @@ public class HouseholdMatchRequest extends BaseEntity {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    // 정해진 거절 사유 코드이다.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reject_reason", length = 50)
+    private HouseholdMatchRejectReason rejectReason;
+
     // 매칭 결과를 반영한다
     public void apply(Long matchedHouseholdId, HouseholdMatchProcessType processType, HouseholdMatchStatus matchStatus) {
         this.matchedHouseholdId = matchedHouseholdId;
@@ -92,8 +104,28 @@ public class HouseholdMatchRequest extends BaseEntity {
         this.matchStatus = matchStatus;
     }
 
+    // 명부 기반 매칭 결과를 반영한다.
+    public void apply(
+            Long matchedHouseholdId,
+            Long matchedExpectedResidentId,
+            HouseholdMatchProcessType processType,
+            HouseholdMatchStatus matchStatus
+    ) {
+        this.matchedHouseholdId = matchedHouseholdId;
+        this.matchedExpectedResidentId = matchedExpectedResidentId;
+        this.processType = processType;
+        this.matchStatus = matchStatus;
+    }
+
     // 처리 완료 시각을 갱신한다
     public void updateProcessedAt(LocalDateTime processedAt) {
         this.processedAt = processedAt;
+    }
+
+    // 정해진 거절 사유 코드로 매칭 요청을 거절 처리한다.
+    public void reject(HouseholdMatchRejectReason rejectReason) {
+        this.rejectReason = rejectReason;
+        this.matchStatus = HouseholdMatchStatus.REJECTED;
+        this.processedAt = LocalDateTime.now();
     }
 }
