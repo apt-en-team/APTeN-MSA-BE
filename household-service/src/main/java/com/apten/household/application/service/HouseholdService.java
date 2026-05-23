@@ -53,6 +53,9 @@ public class HouseholdService {
     // Outbox 적재 전용 서비스이다.
     private final com.apten.household.infrastructure.kafka.HouseholdOutboxService householdOutboxService;
 
+    // 동/호 라인 기준 평형을 해석하는 서비스이다.
+    private final HouseholdTypeService householdTypeService;
+
     // 세대 마스터 등록 서비스이다.
     public HouseholdCreateRes createHousehold(Long complexId, HouseholdCreateReq request) {
         // TODO Gateway Header에서 해석한 complexId를 기준으로 권한과 단지 범위를 최종 검증한다.
@@ -66,7 +69,7 @@ public class HouseholdService {
                 .complexId(complexId)
                 .building(request.getBuilding())
                 .unit(request.getUnit())
-                .typeId(request.getTypeId())
+                .typeId(resolveCreateTypeId(complexId, request))
                 .status(HouseholdStatus.VACANT)
                 .headUserId(null)
                 .build());
@@ -347,5 +350,13 @@ public class HouseholdService {
         if (roleChanged || deactivated) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_HEAD_REQUIRED);
         }
+    }
+
+    // 요청에 평형이 없으면 동/호 라인 설정으로 평형을 해석한다.
+    private Long resolveCreateTypeId(Long complexId, HouseholdCreateReq request) {
+        if (request.getTypeId() != null) {
+            return request.getTypeId();
+        }
+        return householdTypeService.resolveTypeIdOrNull(complexId, request.getBuilding(), request.getUnit());
     }
 }
