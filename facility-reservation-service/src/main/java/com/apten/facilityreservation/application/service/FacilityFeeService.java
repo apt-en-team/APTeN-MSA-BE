@@ -10,6 +10,7 @@ import com.apten.facilityreservation.domain.entity.FacilityUsageMonthly;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.entity.Reservation;
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
@@ -18,18 +19,15 @@ import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
+import com.apten.facilityreservation.infrastructure.kafka.FacilityReservationOutboxService;
+import com.apten.facilityreservation.infrastructure.kafka.payload.FacilityFeeCalculatedEventPayload;
 import java.math.BigDecimal;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,6 +43,8 @@ public class FacilityFeeService {
     private final GxReservationRepository gxReservationRepository;
     private final GxProgramRepository gxProgramRepository;
     private final FacilityUsageMonthlyRepository facilityUsageMonthlyRepository;
+    // outbox는 property 활성화 시에만 bean이 존재한다.
+    private final Optional<FacilityReservationOutboxService> outboxService;
 
     // 시설 이용 비용을 산정한다.
     @Transactional
@@ -68,28 +68,29 @@ public class FacilityFeeService {
                 .collect(Collectors.groupingBy(Reservation::getComplexId));
 
         reservationsByComplex.forEach((complexId, reservations) -> {
-            Set<HouseholdFacilityKey> uniqueFacilityKeys = reservations.stream()
-                    .map(reservation -> new HouseholdFacilityKey(reservation.getHouseholdId(), reservation.getFacilityId()))
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-            if (uniqueFacilityKeys.isEmpty()) {
+            // (세대ID, 시설ID) 기준으로 예약 목록을 그룹화한다.
+            Map<HouseholdFacilityKey, List<Reservation>> byKey = reservations.stream()
+                    .collect(Collectors.groupingBy(r -> new HouseholdFacilityKey(r.getHouseholdId(), r.getFacilityId())));
+            if (byKey.isEmpty()) {
                 return;
             }
 
-            List<Long> facilityIds = uniqueFacilityKeys.stream()
-                    .map(HouseholdFacilityKey::facilityId)
-                    .distinct()
-                    .toList();
+            List<Long> facilityIds = byKey.keySet().stream().map(HouseholdFacilityKey::facilityId).distinct().toList();
             Map<Long, FacilityPolicy> policyByFacilityId = facilityPolicyRepository
                     .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                     .stream()
                     .collect(Collectors.toMap(FacilityPolicy::getFacilityId, policy -> policy));
 
-            for (HouseholdFacilityKey key : uniqueFacilityKeys) {
+            for (Map.Entry<HouseholdFacilityKey, List<Reservation>> entry : byKey.entrySet()) {
+                HouseholdFacilityKey key = entry.getKey();
+                List<Reservation> group = entry.getValue();
                 FacilityPolicy policy = policyByFacilityId.get(key.facilityId());
                 if (policy == null) {
                     throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
                 }
-                addFee(aggregateMap, complexId, key.householdId(), nullSafe(policy.getBaseFee()));
+                // feeType별 청구 금액을 산출한다.
+                BigDecimal fee = calcFee(policy, group);
+                addFee(aggregateMap, complexId, key.householdId(), fee);
             }
         });
 
@@ -190,7 +191,31 @@ public class FacilityFeeService {
         // 이미 발행된 row를 다시 잡으면 Household Service 기준 데이터가 중복 처리될 수 있다.
         publishTargets.forEach(FacilityUsageMonthly::markPublished);
 
-        // TODO: Household Service 비용 반영 이벤트 발행과 outbox 적재는 2단계에서 구현한다.
+        // 단지별로 그룹화 후 outbox 이벤트를 저장한다.
+        if (!publishTargets.isEmpty()) {
+            Map<Long, List<FacilityUsageMonthly>> byComplex = publishTargets.stream()
+                    .collect(Collectors.groupingBy(FacilityUsageMonthly::getComplexId));
+
+            LocalDateTime occurredAt = LocalDateTime.now();
+            byComplex.forEach((complexId, usages) -> {
+                List<FacilityFeeCalculatedEventPayload.Item> items = usages.stream()
+                        .map(u -> FacilityFeeCalculatedEventPayload.Item.builder()
+                                .householdId(u.getHouseholdId())
+                                .facilityFee(u.getFacilityFee())
+                                .build())
+                        .toList();
+                FacilityFeeCalculatedEventPayload payload = FacilityFeeCalculatedEventPayload.builder()
+                        .complexId(complexId)
+                        .usageYear(yearMonth.getYear())
+                        .usageMonth(yearMonth.getMonthValue())
+                        .items(items)
+                        .occurredAt(occurredAt)
+                        .build();
+                // outbox bean이 활성화된 경우에만 이벤트를 저장한다.
+                outboxService.ifPresent(service -> service.saveFacilityFeeCalculatedEvent(payload));
+            });
+        }
+
         return FacilityFeePublishRes.builder()
                 .usageYear(req.getUsageYear())
                 .usageMonth(req.getUsageMonth())
@@ -227,6 +252,28 @@ public class FacilityFeeService {
             }
             return new HouseholdFeeAggregate(existing.complexId(), existing.facilityFee().add(fee));
         });
+    }
+
+    // feeType에 따라 세대-시설 단위 청구 금액을 계산한다.
+    private BigDecimal calcFee(FacilityPolicy policy, List<Reservation> group) {
+        BigDecimal baseFee = nullSafe(policy.getBaseFee());
+        FacilityFeeType type = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+
+        if (type == FacilityFeeType.PER_USE) {
+            // 예약 완료 건수 × baseFee
+            return baseFee.multiply(BigDecimal.valueOf(group.size()));
+        }
+        if (type == FacilityFeeType.PER_PERSON) {
+            // 이용 인원 수 × baseFee
+            long persons = group.stream().map(Reservation::getUserId).filter(Objects::nonNull).distinct().count();
+            return baseFee.multiply(BigDecimal.valueOf(persons));
+        }
+        // FLAT: baseFee 기본 월 1회 + 초과 인원 요금 옵션
+        long distinctPersons = group.stream().map(Reservation::getUserId).filter(Objects::nonNull).distinct().count();
+        int included = policy.getIncludedPersonCount() != null ? policy.getIncludedPersonCount() : Integer.MAX_VALUE;
+        long extraPersons = Math.max(0, distinctPersons - included);
+        BigDecimal extraFee = nullSafe(policy.getExtraPersonFee()).multiply(BigDecimal.valueOf(extraPersons));
+        return baseFee.add(extraFee);
     }
 
     private BigDecimal nullSafe(BigDecimal fee) {
