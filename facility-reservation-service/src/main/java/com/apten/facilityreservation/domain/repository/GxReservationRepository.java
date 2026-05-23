@@ -36,7 +36,13 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // 사용자의 단지 내 전체 GX 예약 목록을 조회한다.
     List<GxReservation> findByUserIdAndComplexId(Long userId, Long complexId);
 
-    // GX는 승인 시점이 실제 과금 확정 시점에 가장 가깝기 때문에 approvedAt 기준으로 조회한다.
+    // GX 비용 산정: 프로그램 시작일 기준으로 확정된 예약을 조회한다.
+    List<GxReservation> findByStatusAndProgramIdIn(
+            GxReservationStatus status,
+            List<Long> programIds
+    );
+
+    // 이전 방식 — approvedAt 기준 조회 (레거시, 현재 미사용)
     List<GxReservation> findByStatusAndApprovedAtBetween(
             GxReservationStatus status,
             LocalDateTime fromDateTime,

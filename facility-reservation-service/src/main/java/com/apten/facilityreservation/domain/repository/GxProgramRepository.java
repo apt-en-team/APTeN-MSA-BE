@@ -30,6 +30,9 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
     // 월 비용 산정은 프로그램별 요금을 한 번에 읽어 N+1을 피한다.
     List<GxProgram> findByIdIn(List<Long> ids);
 
+    // GX 비용 산정: 프로그램 시작일 기준으로 당월 대상 프로그램을 조회한다.
+    List<GxProgram> findByStartDateBetween(LocalDate fromDate, LocalDate toDate);
+
     // 관리자 GX 프로그램 목록 조회 - status 필터 없음
     @Query("""
         SELECT g FROM GxProgram g

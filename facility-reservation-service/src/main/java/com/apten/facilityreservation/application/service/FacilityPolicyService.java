@@ -172,6 +172,7 @@ public class FacilityPolicyService {
                     .feeType(req.getFeeType() != null ? req.getFeeType() : FacilityFeeType.FLAT)
                     .includedPersonCount(req.getIncludedPersonCount())
                     .extraPersonFee(req.getExtraPersonFee())
+                    .billingCutoffDay(req.getBillingCutoffDay())
                     .isActive(true)
                     .build());
         }
@@ -189,6 +190,7 @@ public class FacilityPolicyService {
                 .feeType(policy.getFeeType())
                 .includedPersonCount(policy.getIncludedPersonCount())
                 .extraPersonFee(policy.getExtraPersonFee())
+                .billingCutoffDay(policy.getBillingCutoffDay())
                 .isActive(policy.getIsActive())
                 .updatedAt(policy.getUpdatedAt())
                 .build();
@@ -223,6 +225,7 @@ public class FacilityPolicyService {
                         .feeType(policy.getFeeType())
                         .includedPersonCount(policy.getIncludedPersonCount())
                         .extraPersonFee(policy.getExtraPersonFee())
+                        .billingCutoffDay(policy.getBillingCutoffDay())
                         .isActive(policy.getIsActive())
                         .updatedAt(policy.getUpdatedAt())
                         .build())

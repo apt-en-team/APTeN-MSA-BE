@@ -6,6 +6,7 @@ import com.apten.facilityreservation.application.model.request.FacilityFeePublis
 import com.apten.facilityreservation.application.model.response.FacilityFeeCalculateRes;
 import com.apten.facilityreservation.application.model.response.FacilityFeePublishRes;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
+import com.apten.facilityreservation.domain.entity.FacilitySubscription;
 import com.apten.facilityreservation.domain.entity.FacilityUsageMonthly;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
@@ -14,6 +15,7 @@ import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
+import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.FacilityUsageMonthlyRepository;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
@@ -25,7 +27,6 @@ import java.math.BigDecimal;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,6 +41,7 @@ public class FacilityFeeService {
 
     private final ReservationRepository reservationRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final FacilitySubscriptionRepository facilitySubscriptionRepository;
     private final GxReservationRepository gxReservationRepository;
     private final GxProgramRepository gxProgramRepository;
     private final FacilityUsageMonthlyRepository facilityUsageMonthlyRepository;
@@ -52,84 +54,119 @@ public class FacilityFeeService {
         YearMonth yearMonth = resolveYearMonth(req);
         LocalDate fromDate = yearMonth.atDay(1);
         LocalDate toDate = yearMonth.atEndOfMonth();
-        LocalDateTime gxFromDateTime = fromDate.atStartOfDay();
-        LocalDateTime gxToDateTime = toDate.atTime(LocalTime.MAX);
 
         Map<Long, HouseholdFeeAggregate> aggregateMap = new LinkedHashMap<>();
 
-        // 일반 시설은 예약 건별 과금이 아니라 월 이용료 성격이라 세대-시설 기준으로 한 번만 반영한다.
+        // FLAT/PER_PERSON: 구독 기반 월 청구 — 구독 레코드가 청구 기준이며 billingCutoffDay 규칙을 적용한다.
+        // PER_USE: 완료 예약 건수 기반 청구 — 예약 건별로 baseFee를 곱한다.
         List<Reservation> completedReservations = reservationRepository.findByStatusAndReservationDateBetween(
                 ReservationStatus.COMPLETED,
                 fromDate,
                 toDate
         );
-        Map<Long, List<Reservation>> reservationsByComplex = completedReservations.stream()
-                .filter(reservation -> reservation.getHouseholdId() != null)
-                .collect(Collectors.groupingBy(Reservation::getComplexId));
 
-        reservationsByComplex.forEach((complexId, reservations) -> {
-            // (세대ID, 시설ID) 기준으로 예약 목록을 그룹화한다.
-            Map<HouseholdFacilityKey, List<Reservation>> byKey = reservations.stream()
-                    .collect(Collectors.groupingBy(r -> new HouseholdFacilityKey(r.getHouseholdId(), r.getFacilityId())));
-            if (byKey.isEmpty()) {
-                return;
-            }
+        // PER_USE 전용: (complexId, facilityId) 기준 완료 예약 그룹
+        Map<Long, Map<Long, List<Reservation>>> perUseByComplexAndFacility = completedReservations.stream()
+                .filter(r -> r.getHouseholdId() != null)
+                .collect(Collectors.groupingBy(Reservation::getComplexId,
+                        Collectors.groupingBy(Reservation::getFacilityId)));
 
-            List<Long> facilityIds = byKey.keySet().stream().map(HouseholdFacilityKey::facilityId).distinct().toList();
+        perUseByComplexAndFacility.forEach((complexId, byFacility) -> {
+            List<Long> facilityIds = new ArrayList<>(byFacility.keySet());
             Map<Long, FacilityPolicy> policyByFacilityId = facilityPolicyRepository
                     .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                     .stream()
-                    .collect(Collectors.toMap(FacilityPolicy::getFacilityId, policy -> policy));
+                    .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
-            for (Map.Entry<HouseholdFacilityKey, List<Reservation>> entry : byKey.entrySet()) {
-                HouseholdFacilityKey key = entry.getKey();
-                List<Reservation> group = entry.getValue();
-                FacilityPolicy policy = policyByFacilityId.get(key.facilityId());
+            byFacility.forEach((facilityId, reservations) -> {
+                FacilityPolicy policy = policyByFacilityId.get(facilityId);
                 if (policy == null) {
-                    throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
+                    return;
                 }
-                // feeType별 청구 금액을 산출한다.
-                BigDecimal fee = calcFee(policy, group);
-                addFee(aggregateMap, complexId, key.householdId(), fee);
-            }
+                FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+                if (feeType != FacilityFeeType.PER_USE) {
+                    return;
+                }
+                // PER_USE: 세대별로 완료 예약 건수 × baseFee를 청구한다.
+                reservations.stream()
+                        .collect(Collectors.groupingBy(Reservation::getHouseholdId))
+                        .forEach((householdId, group) -> {
+                            BigDecimal fee = nullSafe(policy.getBaseFee())
+                                    .multiply(BigDecimal.valueOf(group.size()));
+                            addFee(aggregateMap, complexId, householdId, fee);
+                        });
+            });
         });
 
-        // GX는 승인된 프로그램 신청 1건을 월 1회 비용으로 본다.
-        List<GxReservation> confirmedGxReservations = gxReservationRepository.findByStatusAndApprovedAtBetween(
-                GxReservationStatus.CONFIRMED,
-                gxFromDateTime,
-                gxToDateTime
-        );
-        Map<Long, List<GxReservation>> gxReservationsByComplex = confirmedGxReservations.stream()
-                .filter(reservation -> reservation.getHouseholdId() != null)
-                .collect(Collectors.groupingBy(GxReservation::getComplexId));
+        // FLAT/PER_PERSON: 단지별 구독 레코드에서 당월 청구 대상을 조회한다.
+        // 모든 단지 ID를 PER_USE 처리 결과 + 구독에서 수집한다.
+        Set<Long> allComplexIds = completedReservations.stream()
+                .map(Reservation::getComplexId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        gxReservationsByComplex.forEach((complexId, reservations) -> {
-            Set<HouseholdProgramKey> uniqueProgramKeys = reservations.stream()
-                    .filter(reservation -> reservation.getApprovedAt() != null)
-                    .map(reservation -> new HouseholdProgramKey(reservation.getHouseholdId(), reservation.getProgramId()))
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-            if (uniqueProgramKeys.isEmpty()) {
-                return;
+        for (Long complexId : allComplexIds) {
+            List<FacilitySubscription> billableSubscriptions = facilitySubscriptionRepository
+                    .findBillableForMonth(complexId, fromDate, toDate);
+            if (billableSubscriptions.isEmpty()) {
+                continue;
             }
 
-            List<Long> programIds = uniqueProgramKeys.stream()
-                    .map(HouseholdProgramKey::programId)
+            List<Long> facilityIds = billableSubscriptions.stream()
+                    .map(FacilitySubscription::getFacilityId)
                     .distinct()
                     .toList();
-            Map<Long, GxProgram> programById = gxProgramRepository.findByIdIn(programIds)
+            Map<Long, FacilityPolicy> policyByFacilityId = facilityPolicyRepository
+                    .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                     .stream()
-                    .filter(program -> Objects.equals(program.getComplexId(), complexId))
-                    .collect(Collectors.toMap(GxProgram::getId, program -> program));
+                    .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
-            for (HouseholdProgramKey key : uniqueProgramKeys) {
-                GxProgram program = programById.get(key.programId());
-                if (program == null) {
-                    throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND);
+            for (FacilitySubscription subscription : billableSubscriptions) {
+                FacilityPolicy policy = policyByFacilityId.get(subscription.getFacilityId());
+                if (policy == null) {
+                    continue;
                 }
-                addFee(aggregateMap, complexId, key.householdId(), nullSafe(program.getBaseFee()));
+                FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+                if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
+                    continue;
+                }
+                // billingCutoffDay 규칙: 기준일 이후 신청/해지는 당월 미반영
+                if (!isBillableInMonth(subscription, yearMonth, policy.getBillingCutoffDay())) {
+                    continue;
+                }
+                BigDecimal fee = calcSubscriptionFee(policy, feeType);
+                addFee(aggregateMap, complexId, subscription.getHouseholdId(), fee);
             }
-        });
+        }
+
+        // GX는 프로그램 시작일 기준으로 당월 시작 프로그램의 확정 신청 1건을 월 1회 비용으로 본다.
+        List<GxProgram> monthlyGxPrograms = gxProgramRepository.findByStartDateBetween(fromDate, toDate);
+        if (!monthlyGxPrograms.isEmpty()) {
+            List<Long> gxProgramIds = monthlyGxPrograms.stream().map(GxProgram::getId).toList();
+            Map<Long, GxProgram> programById = monthlyGxPrograms.stream()
+                    .collect(Collectors.toMap(GxProgram::getId, p -> p));
+
+            List<GxReservation> confirmedGxReservations = gxReservationRepository
+                    .findByStatusAndProgramIdIn(GxReservationStatus.CONFIRMED, gxProgramIds);
+
+            Map<Long, List<GxReservation>> gxReservationsByComplex = confirmedGxReservations.stream()
+                    .filter(r -> r.getHouseholdId() != null)
+                    .collect(Collectors.groupingBy(GxReservation::getComplexId));
+
+            gxReservationsByComplex.forEach((complexId, reservations) -> {
+                // (세대ID, 프로그램ID) 기준으로 중복 없이 청구한다.
+                Set<HouseholdProgramKey> uniqueProgramKeys = reservations.stream()
+                        .map(r -> new HouseholdProgramKey(r.getHouseholdId(), r.getProgramId()))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+
+                for (HouseholdProgramKey key : uniqueProgramKeys) {
+                    GxProgram program = programById.get(key.programId());
+                    if (program == null || !Objects.equals(program.getComplexId(), complexId)) {
+                        continue;
+                    }
+                    addFee(aggregateMap, complexId, key.householdId(), nullSafe(program.getBaseFee()));
+                }
+            });
+        }
 
         if (aggregateMap.isEmpty()) {
             return FacilityFeeCalculateRes.builder()
@@ -254,21 +291,64 @@ public class FacilityFeeService {
         });
     }
 
-    // feeType에 따라 세대-시설 단위 청구 금액을 계산한다.
+    // 구독 기반 FLAT/PER_PERSON 월 청구 금액을 계산한다.
+    // PER_PERSON은 구독 1건당 1인으로 계산한다 (구독 레코드 자체가 1세대 1시설 단위).
+    private BigDecimal calcSubscriptionFee(FacilityPolicy policy, FacilityFeeType feeType) {
+        BigDecimal baseFee = nullSafe(policy.getBaseFee());
+        if (feeType == FacilityFeeType.PER_PERSON) {
+            return baseFee;
+        }
+        // FLAT: baseFee + 초과 인원 요금 옵션 (includedPersonCount=1로 가정)
+        return baseFee;
+    }
+
+    // billingCutoffDay 규칙에 따라 구독이 당월 청구 대상인지 판별한다.
+    // cutoffDay가 null이면 항상 청구한다.
+    // 신청: subscribedAt의 일자가 cutoffDay 초과이면 당월 제외 (익월부터 청구)
+    // 해지: cancelledAt의 일자가 cutoffDay 초과이면 당월 포함 (익월부터 미청구)
+    private boolean isBillableInMonth(FacilitySubscription subscription, YearMonth yearMonth, Integer cutoffDay) {
+        if (cutoffDay == null) {
+            return true;
+        }
+        int maxDay = Math.min(cutoffDay, yearMonth.lengthOfMonth());
+
+        // 신청일이 이 달인 경우: cutoffDay 초과 신청은 당월 제외
+        LocalDate subscribeMonth = YearMonth.from(subscription.getSubscribedAt()).atDay(1);
+        if (subscribeMonth.equals(yearMonth.atDay(1))) {
+            if (subscription.getSubscribedAt().getDayOfMonth() > maxDay) {
+                return false;
+            }
+        }
+
+        // 해지일이 이 달 이전인 경우: cutoffDay 이전 해지는 당월 제외
+        if (subscription.getCancelledAt() != null) {
+            LocalDate cancelMonth = YearMonth.from(subscription.getCancelledAt()).atDay(1);
+            if (cancelMonth.isBefore(yearMonth.atDay(1))) {
+                return false;
+            }
+            // 해지일이 이 달인 경우: cutoffDay 이전 해지는 당월 제외
+            if (cancelMonth.equals(yearMonth.atDay(1))) {
+                if (subscription.getCancelledAt().getDayOfMonth() <= maxDay) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    // feeType에 따라 세대-시설 단위 청구 금액을 계산한다. (PER_USE 전용으로 유지)
     private BigDecimal calcFee(FacilityPolicy policy, List<Reservation> group) {
         BigDecimal baseFee = nullSafe(policy.getBaseFee());
         FacilityFeeType type = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
 
         if (type == FacilityFeeType.PER_USE) {
-            // 예약 완료 건수 × baseFee
             return baseFee.multiply(BigDecimal.valueOf(group.size()));
         }
         if (type == FacilityFeeType.PER_PERSON) {
-            // 이용 인원 수 × baseFee
             long persons = group.stream().map(Reservation::getUserId).filter(Objects::nonNull).distinct().count();
             return baseFee.multiply(BigDecimal.valueOf(persons));
         }
-        // FLAT: baseFee 기본 월 1회 + 초과 인원 요금 옵션
         long distinctPersons = group.stream().map(Reservation::getUserId).filter(Objects::nonNull).distinct().count();
         int included = policy.getIncludedPersonCount() != null ? policy.getIncludedPersonCount() : Integer.MAX_VALUE;
         long extraPersons = Math.max(0, distinctPersons - included);

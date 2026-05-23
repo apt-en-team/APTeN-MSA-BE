@@ -25,9 +25,12 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
+import com.apten.facilityreservation.domain.entity.FacilitySubscription;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.entity.ReservationTempHold;
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
+import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
 import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
@@ -36,6 +39,7 @@ import com.apten.facilityreservation.domain.enums.ReservationType;
 import com.apten.facilityreservation.domain.repository.FacilityBlockTimeRepository;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
+import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
@@ -73,6 +77,7 @@ public class ReservationService {
     private final FacilityRepository facilityRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final FacilitySubscriptionRepository facilitySubscriptionRepository;
     private final FacilitySeatRepository facilitySeatRepository;
     private final HouseholdCacheRepository householdCacheRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
@@ -413,6 +418,9 @@ public class ReservationService {
             // 승인형 예약은 대기 상태 enum 정리 후 구현한다.
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
+
+        // FLAT/PER_PERSON 시설은 첫 예약 시 구독 레코드를 자동 생성한다.
+        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
 
         // TODO: 예약 생성 알림 / 이벤트 발행은 가은 담당과 연동 후 추가한다.
 
@@ -809,6 +817,33 @@ public class ReservationService {
                 throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
             }
         }
+    }
+
+    // FLAT/PER_PERSON 시설에 활성 구독이 없으면 첫 예약일 기준으로 구독을 생성한다.
+    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long householdId, java.time.LocalDate subscribedAt) {
+        if (householdId == null) {
+            return;
+        }
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facilityId)
+                .orElse(null);
+        if (policy == null) {
+            return;
+        }
+        FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+        if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
+            return;
+        }
+        if (facilitySubscriptionRepository.existsByHouseholdIdAndFacilityIdAndStatus(
+                householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
+            return;
+        }
+        facilitySubscriptionRepository.save(FacilitySubscription.builder()
+                .complexId(complexId)
+                .householdId(householdId)
+                .facilityId(facilityId)
+                .subscribedAt(subscribedAt)
+                .build());
     }
 
     // 익일 마감 운영 범위 검증 — open 이후이거나 close 이전이면 유효한 시간대
