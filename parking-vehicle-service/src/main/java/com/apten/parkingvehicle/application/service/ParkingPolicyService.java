@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.exception.BusinessException;
+import com.apten.common.exception.CommonErrorCode;
 import com.apten.parkingvehicle.application.model.request.VehiclePolicyPutReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRegistrationPolicyPutReq;
 import com.apten.parkingvehicle.application.model.request.VisitorPolicyPutReq;
@@ -47,7 +48,12 @@ public class ParkingPolicyService {
 
     // 단지 차량 대수별 요금 정책 전체 교체 — 검증 통과 후 기존 row 삭제 + 새 목록 저장
     @Transactional
-    public VehiclePolicyPutRes updateVehiclePolicy(Long complexId, VehiclePolicyPutReq req) {
+    public VehiclePolicyPutRes updateVehiclePolicy(
+            VehiclePolicyPutReq req, String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
         // 요청 null / 빈 목록 검증 (빈 PUT으로 정책 전체 삭제는 차단)
         if (req == null || req.getPolicies() == null || req.getPolicies().isEmpty()) {
             throw new BusinessException(ParkingVehicleErrorCode.INVALID_PARAMETER);
@@ -70,7 +76,7 @@ public class ParkingPolicyService {
         }
 
         // 기존 row 전체 삭제
-        vehiclePolicyRepository.deleteByComplexId(complexId);
+        vehiclePolicyRepository.deleteByComplexId(targetComplexId);
 
         // DELETE를 DB에 즉시 반영 — 후속 INSERT의 (complex_id, car_count) 유니크 제약 충돌 방지
         entityManager.flush();
@@ -78,7 +84,7 @@ public class ParkingPolicyService {
         // 새 row 목록 builder로 매핑 (isLimitRule, isActive는 엔티티 @Builder.Default 적용)
         List<VehiclePolicy> newEntities = req.getPolicies().stream()
                 .map(item -> VehiclePolicy.builder()
-                        .complexId(complexId)
+                        .complexId(targetComplexId)
                         .carCount(item.getCarCount())
                         .monthlyFee(item.getMonthlyFee())
                         .build())
@@ -97,7 +103,7 @@ public class ParkingPolicyService {
                 .toList();
 
         return VehiclePolicyPutRes.builder()
-                .complexId(complexId)
+                .complexId(targetComplexId)
                 .policies(items)
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -105,9 +111,12 @@ public class ParkingPolicyService {
 
     // 단지 차량 대수별 요금 정책 목록 조회 — carCount 오름차순 정렬, 빈 단지는 빈 목록 응답
     @Transactional(readOnly = true)
-    public VehiclePolicyListRes getVehiclePolicies(Long complexId) {
+    public VehiclePolicyListRes getVehiclePolicies(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
         // 단지 차량 정책 목록 조회 (활성·비활성 전부 — 관리자 화면이 정책 상태까지 노출)
-        List<VehiclePolicy> entities = vehiclePolicyRepository.findByComplexId(complexId);
+        List<VehiclePolicy> entities = vehiclePolicyRepository.findByComplexId(targetComplexId);
 
         // 응답 항목 빌드 — carCount 오름차순 정렬로 PUT 응답과 일관
         List<VehiclePolicyListRes.Item> items = entities.stream()
@@ -127,7 +136,7 @@ public class ParkingPolicyService {
                 .orElse(null);
 
         return VehiclePolicyListRes.builder()
-                .complexId(complexId)
+                .complexId(targetComplexId)
                 .policies(items)
                 .updatedAt(updatedAt)
                 .build();
@@ -135,7 +144,12 @@ public class ParkingPolicyService {
 
     // 단지 방문차량 정책 upsert — 기존 row면 부분 갱신, 없으면 핵심 필드 검증 후 신규 생성
     @Transactional
-    public VisitorPolicyPutRes updateVisitorPolicy(Long complexId, VisitorPolicyPutReq req) {
+    public VisitorPolicyPutRes updateVisitorPolicy(
+            VisitorPolicyPutReq req, String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
         // 요청 null 검증
         if (req == null) {
             throw new BusinessException(ParkingVehicleErrorCode.INVALID_PARAMETER);
@@ -148,7 +162,7 @@ public class ParkingPolicyService {
         }
 
         // 단지 정책 row 조회
-        Optional<VisitorPolicy> existing = visitorPolicyRepository.findByComplexId(complexId);
+        Optional<VisitorPolicy> existing = visitorPolicyRepository.findByComplexId(targetComplexId);
 
         VisitorPolicy entity;
         if (existing.isPresent()) {
@@ -162,7 +176,7 @@ public class ParkingPolicyService {
             }
             // isActive는 null이면 디폴트 true로 생성
             entity = VisitorPolicy.builder()
-                    .complexId(complexId)
+                    .complexId(targetComplexId)
                     .hourFee(req.getHourFee())
                     .monthlyLimitHours(req.getMonthlyLimitHours())
                     .isActive(req.getIsActive() != null ? req.getIsActive() : true)
@@ -184,14 +198,17 @@ public class ParkingPolicyService {
 
     // 단지 방문차량 정책 조회 — row 없으면 complexId만 채운 빈 응답
     @Transactional(readOnly = true)
-    public VisitorPolicyGetRes getVisitorPolicy(Long complexId) {
+    public VisitorPolicyGetRes getVisitorPolicy(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
         // 단지 정책 row 조회
-        Optional<VisitorPolicy> existing = visitorPolicyRepository.findByComplexId(complexId);
+        Optional<VisitorPolicy> existing = visitorPolicyRepository.findByComplexId(targetComplexId);
 
         // row 없으면 complexId만 채워 빈 응답 (미설정 단지)
         if (existing.isEmpty()) {
             return VisitorPolicyGetRes.builder()
-                    .complexId(complexId)
+                    .complexId(targetComplexId)
                     .build();
         }
 
@@ -209,7 +226,11 @@ public class ParkingPolicyService {
     // 단지 차량 등록 한도 정책 upsert — 기존 row면 부분 갱신, 없으면 maxCarCount 검증 후 신규 생성
     @Transactional
     public VehicleRegistrationPolicyPutRes updateVehicleRegistrationPolicy(
-            Long complexId, VehicleRegistrationPolicyPutReq req) {
+            VehicleRegistrationPolicyPutReq req, String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
         // 요청 null 검증
         if (req == null) {
             throw new BusinessException(ParkingVehicleErrorCode.INVALID_PARAMETER);
@@ -222,7 +243,7 @@ public class ParkingPolicyService {
 
         // 단지 정책 row 조회
         Optional<VehicleRegistrationPolicy> existing =
-                vehicleRegistrationPolicyRepository.findByComplexId(complexId);
+                vehicleRegistrationPolicyRepository.findByComplexId(targetComplexId);
 
         VehicleRegistrationPolicy entity;
         if (existing.isPresent()) {
@@ -236,7 +257,7 @@ public class ParkingPolicyService {
             }
             // isActive는 null이면 디폴트 true로 생성
             entity = VehicleRegistrationPolicy.builder()
-                    .complexId(complexId)
+                    .complexId(targetComplexId)
                     .maxCarCount(req.getMaxCarCount())
                     .isActive(req.getIsActive() != null ? req.getIsActive() : true)
                     .build();
@@ -256,15 +277,20 @@ public class ParkingPolicyService {
 
     // 단지 차량 등록 한도 정책 조회 — row 없으면 complexId만 채운 빈 응답
     @Transactional(readOnly = true)
-    public VehicleRegistrationPolicyGetRes getVehicleRegistrationPolicy(Long complexId) {
+    public VehicleRegistrationPolicyGetRes getVehicleRegistrationPolicy(
+            String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
         // 단지 정책 row 조회
         Optional<VehicleRegistrationPolicy> existing =
-                vehicleRegistrationPolicyRepository.findByComplexId(complexId);
+                vehicleRegistrationPolicyRepository.findByComplexId(targetComplexId);
 
         // row 없으면 complexId만 채워 빈 응답 (미설정 단지)
         if (existing.isEmpty()) {
             return VehicleRegistrationPolicyGetRes.builder()
-                    .complexId(complexId)
+                    .complexId(targetComplexId)
                     .build();
         }
 
@@ -276,5 +302,29 @@ public class ParkingPolicyService {
                 .isActive(entity.getIsActive())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    // 관리자 주차 API의 단지 컨텍스트를 역할별 헤더 기준으로 해석한다.
+    // MASTER는 선택 단지, 일반 관리자는 토큰 단지 기준으로 처리한다.
+    private Long resolveAdminContextComplexId(String userRole, Long complexId, Long selectedComplexId) {
+        if (userRole == null || userRole.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if ("MASTER".equals(userRole)) {
+            if (selectedComplexId == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            return selectedComplexId;
+        }
+
+        if ("MANAGER".equals(userRole) || "ADMIN".equals(userRole)) {
+            if (complexId == null) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+            return complexId;
+        }
+
+        throw new BusinessException(CommonErrorCode.FORBIDDEN);
     }
 }
