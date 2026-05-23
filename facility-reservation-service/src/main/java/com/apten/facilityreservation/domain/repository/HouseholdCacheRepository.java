@@ -1,6 +1,7 @@
 package com.apten.facilityreservation.domain.repository;
 
 import com.apten.facilityreservation.domain.entity.HouseholdCache;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -15,4 +16,7 @@ public interface HouseholdCacheRepository extends JpaRepository<HouseholdCache, 
 
     // 세대 ID와 단지 ID 일치 여부를 검증한다.
     boolean existsByHouseholdIdAndApartmentComplexId(Long householdId, Long apartmentComplexId);
+
+    // 단지 내 전체 세대 목록을 조회한다.
+    List<HouseholdCache> findByApartmentComplexId(Long apartmentComplexId);
 }

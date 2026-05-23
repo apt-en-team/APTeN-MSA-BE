@@ -47,6 +47,7 @@ public enum FacilityReservationErrorCode implements ErrorCode {
     GX_WAITING_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_10", "GX 대기 정보를 찾을 수 없습니다."),
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_11", "구독 정보를 찾을 수 없습니다."),
     SUBSCRIPTION_ALREADY_CANCELLED(HttpStatus.BAD_REQUEST, "FRS_400_12", "이미 해지된 구독입니다."),
+    HOUSEHOLD_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_12", "세대 정보를 찾을 수 없습니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FRS_500_01", "이벤트 발행에 실패했습니다."),
     INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "FRS_500_02", "내부 처리 중 오류가 발생했습니다.");
 
