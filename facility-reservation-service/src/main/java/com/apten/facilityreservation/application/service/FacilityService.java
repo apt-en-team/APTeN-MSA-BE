@@ -981,6 +981,7 @@ public class FacilityService {
                 .slotMin(policy == null ? null : policy.getSlotMin())
                 .baseFee(policy == null ? null : policy.getBaseFee())
                 .cancelDeadlineHours(policy == null ? null : policy.getCancelDeadlineHours())
+                .feeType(policy == null ? null : policy.getFeeType())
                 .build();
     }
 
