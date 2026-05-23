@@ -1,24 +1,20 @@
 package com.apten.parkingvehicle.application.model.response;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
-// 방문차량 정책 설정 응답 DTO이다.
-// 저장된 방문차량 정책 결과를 내려줄 때 사용한다.
+// 입주민 차량 등록 한도 정책 설정 응답 DTO이다.
+// 저장된 등록 한도 정책 결과를 내려줄 때 사용한다.
 @Getter
 @Builder
-public class VisitorPolicyPutRes {
+public class VehicleRegistrationPolicyPutRes {
 
     // 단지 ID이다.
     private final Long complexId;
 
-    // 월 기본 제공 시간 초과 시 시간당 요금이다.
-    private final BigDecimal hourFee;
-
-    // 월 기본 제공 시간이다.
-    private final Integer monthlyLimitHours;
+    // 세대당 등록 가능 최대 차량 대수이다.
+    private final Integer maxCarCount;
 
     // 정책 활성 여부이다.
     private final Boolean isActive;
