@@ -4,14 +4,21 @@ import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
 import com.apten.facilityreservation.application.model.response.AdminFacilitySubscriptionListRes;
 import com.apten.facilityreservation.application.model.response.FacilitySubscriptionCancelRes;
+import com.apten.facilityreservation.application.model.response.ResidentFacilitySubscriptionListRes;
+import com.apten.facilityreservation.domain.entity.Facility;
+import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySubscription;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
+import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
+import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +30,8 @@ public class FacilitySubscriptionService {
 
     private final FacilitySubscriptionRepository facilitySubscriptionRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+    private final FacilityRepository facilityRepository;
+    private final FacilityPolicyRepository facilityPolicyRepository;
     private final FeatureAccessService featureAccessService;
 
     // 입주민이 시설 구독을 해지한다.
@@ -87,6 +96,47 @@ public class FacilitySubscriptionService {
                         .cancelledAt(s.getCancelledAt())
                         .status(s.getStatus())
                         .build())
+                .toList();
+    }
+
+    // API-652 입주민 본인의 구독 목록을 조회한다.
+    @Transactional(readOnly = true)
+    public List<ResidentFacilitySubscriptionListRes> getMySubscriptions(Long userId, Long complexId) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        HouseholdMemberCache memberCache = householdMemberCacheRepository.findByUserIdAndStatus(userId, "ACTIVE")
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.USER_NOT_FOUND));
+
+        List<FacilitySubscription> subscriptions = facilitySubscriptionRepository
+                .findByHouseholdIdAndComplexIdOrderBySubscribedAtDesc(memberCache.getHouseholdId(), complexId);
+
+        if (subscriptions.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> facilityIds = subscriptions.stream().map(FacilitySubscription::getFacilityId).toList();
+
+        // 시설 이름과 요금 방식을 배치 조회한다.
+        Map<Long, Facility> facilityMap = facilityRepository.findAllById(facilityIds)
+                .stream().collect(Collectors.toMap(Facility::getId, f -> f));
+        Map<Long, FacilityPolicy> policyMap = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
+                .stream().collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
+
+        return subscriptions.stream()
+                .map(s -> {
+                    Facility facility = facilityMap.get(s.getFacilityId());
+                    FacilityPolicy policy = policyMap.get(s.getFacilityId());
+                    return ResidentFacilitySubscriptionListRes.builder()
+                            .subscriptionId(s.getId())
+                            .facilityId(s.getFacilityId())
+                            .facilityName(facility != null ? facility.getName() : "")
+                            .feeType(policy != null ? policy.getFeeType() : null)
+                            .subscribedAt(s.getSubscribedAt())
+                            .cancelledAt(s.getCancelledAt())
+                            .status(s.getStatus())
+                            .build();
+                })
                 .toList();
     }
 }
