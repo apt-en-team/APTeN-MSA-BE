@@ -1,6 +1,6 @@
 package com.apten.parkingvehicle.application.model.response;
 
-import com.apten.parkingvehicle.domain.enums.ParkingType;
+import com.apten.common.enums.ParkingType;
 import lombok.Builder;
 import lombok.Getter;
 

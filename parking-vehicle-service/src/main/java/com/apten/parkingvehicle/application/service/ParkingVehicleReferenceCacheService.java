@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.enums.FeatureCode;
+import com.apten.common.enums.ParkingType;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
@@ -35,6 +36,9 @@ public class ParkingVehicleReferenceCacheService {
 
     // parking setting 저장소
     private final ParkingSettingRepository parkingSettingRepository;
+
+    // 단지 생성 직후 기본 주차 구역을 함께 보장하기 위한 zone 저장소
+    private final ParkingZoneRepository parkingZoneRepository;
 
     // 동일 PK가 있으면 갱신하고 없으면 생성한다
     public void upsertUserCache(UserEventPayload payload) {
@@ -93,24 +97,39 @@ public class ParkingVehicleReferenceCacheService {
         }
     }
 
-    // 단지의 주차 설정 row를 보장한다.
-    // row가 없으면 NONE 기본값으로 생성하고 이미 있으면 parking_type을 보존한다.
-    // parking_type은 관리자가 PATCH로 변경하는 값이므로 이벤트로 덮어쓰지 않는다.
+    // 단지 이벤트 기반 parking_setting 동기화 + 기본 zone 보장
     public void ensureParkingSetting(ApartmentComplexEventPayload payload) {
         if (payload == null || payload.getApartmentComplexId() == null) {
             return;
         }
 
         Long complexId = payload.getApartmentComplexId();
+        ParkingType parkingType = payload.getParkingType();
 
-        if (parkingSettingRepository.existsByComplexId(complexId)) {
-            return;
+        // parking_setting row 동기화 — 신규는 이벤트 값으로 생성, 기존은 parking_type만 갱신
+        ParkingSetting parkingSetting = parkingSettingRepository.findByComplexId(complexId).orElse(null);
+        if (parkingSetting == null) {
+            ParkingSetting.ParkingSettingBuilder builder = ParkingSetting.builder().complexId(complexId);
+            if (parkingType != null) {
+                builder.parkingType(parkingType);
+            }
+            parkingSettingRepository.save(builder.build());
+        } else if (parkingType != null) {
+            parkingSetting.changeType(parkingType);
+            parkingSettingRepository.save(parkingSetting);
         }
 
-        ParkingSetting parkingSetting = ParkingSetting.builder()
-                .complexId(complexId)
-                .build();
-        parkingSettingRepository.save(parkingSetting);
+        // 기본 zone 1개 보장 (이미 zone이 있으면 skip해 멱등성 유지)
+        if (!parkingZoneRepository.existsByComplexId(complexId)) {
+            ParkingZone defaultZone = ParkingZone.builder()
+                    .complexId(complexId)
+                    .areaName("기본 주차장")
+                    .zoneName(null)
+                    .totalSlots(0)
+                    .isActive(true)
+                    .build();
+            parkingZoneRepository.save(defaultZone);
+        }
     }
 
     // 세대원 이벤트를 받아 세대 캐시의 세대주 식별자를 동기화한다.

@@ -7,7 +7,7 @@ import com.apten.parkingvehicle.application.model.request.ParkingSettingPatchReq
 import com.apten.parkingvehicle.application.model.response.ParkingSettingGetRes;
 import com.apten.parkingvehicle.application.model.response.ParkingSettingPatchRes;
 import com.apten.parkingvehicle.domain.entity.ParkingSetting;
-import com.apten.parkingvehicle.domain.enums.ParkingType;
+import com.apten.common.enums.ParkingType;
 import com.apten.parkingvehicle.domain.repository.ParkingSettingRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +39,32 @@ public class ParkingSettingService {
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
 
         return ParkingSettingGetRes.of(setting.getComplexId(), setting.getParkingType());
+    }
+
+    // 단지가 센서 운영 타입인지 검증한다.
+    @Transactional(readOnly = true)
+    public void validateSensorType(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        ParkingSetting setting = parkingSettingRepository.findByComplexId(complexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
+        if (setting.getParkingType() != ParkingType.SENSOR) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NOT_SENSOR);
+        }
+    }
+
+    // 단지가 주차 운영 활성 타입인지 검증한다 (BASIC 또는 SENSOR 허용, NONE 차단).
+    @Transactional(readOnly = true)
+    public void validateParkingEnabled(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        ParkingSetting setting = parkingSettingRepository.findByComplexId(complexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
+        if (setting.getParkingType() == ParkingType.NONE) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NONE);
+        }
     }
 
     // 단지의 주차 운영 타입을 변경한다.

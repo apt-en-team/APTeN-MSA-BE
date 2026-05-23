@@ -1,4 +1,4 @@
-package com.apten.parkingvehicle.domain.enums;
+package com.apten.common.enums;
 
 import com.apten.common.enumcode.AbstractEnumCodeConverter;
 import com.apten.common.enumcode.EnumMapperType;

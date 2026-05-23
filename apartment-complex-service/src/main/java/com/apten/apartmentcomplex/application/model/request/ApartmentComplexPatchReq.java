@@ -1,5 +1,6 @@
 package com.apten.apartmentcomplex.application.model.request;
 
+import com.apten.common.enums.ParkingType;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,4 +18,5 @@ public class ApartmentComplexPatchReq {
     private String name;
     private String description;
     private Map<String, Boolean> features;
+    private ParkingType parkingType;
 }

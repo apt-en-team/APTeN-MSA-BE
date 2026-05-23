@@ -1,5 +1,6 @@
 package com.apten.common.kafka.payload;
 
+import com.apten.common.enums.ParkingType;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,4 +28,7 @@ public class ApartmentComplexEventPayload {
 
     // 단지별 기능 사용 여부
     private Map<String, Boolean> features;
+
+    // 단지 주차 운영 타입
+    private ParkingType parkingType;
 }
