@@ -68,7 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReservationService {
 
-    private static final Duration SEAT_HOLD_TTL = Duration.ofMinutes(15);
+    private static final Duration SEAT_HOLD_TTL = Duration.ofMinutes(10);
 
     @Value("${apten.scheduler.reservation-complete.batch-size:100}")
     private int reservationCompleteBatchSize;
