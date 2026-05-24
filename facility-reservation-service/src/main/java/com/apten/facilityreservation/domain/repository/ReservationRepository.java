@@ -184,19 +184,29 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 완료 처리는 비용/현황 집계의 기준이 되므로 종료 시각이 지난 CONFIRMED만 조회한다.
+    // 완료 처리 대상 조회 — 당일 예약과 자정 초과(야간) 예약을 구분해 완료 기준일을 적용한다.
+    // endTime >= startTime : 당일 완료 (reservationDate 기준)
+    // endTime < startTime  : 자정을 넘기는 예약 — 다음날(reservationDate + 1) 기준으로 완료 처리
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.status = :status
           AND (
-            r.reservationDate < :currentDate
-            OR (r.reservationDate = :currentDate AND r.endTime < :currentTime)
+            (r.endTime >= r.startTime AND (
+              r.reservationDate < :currentDate
+              OR (r.reservationDate = :currentDate AND r.endTime <= :currentTime)
+            ))
+            OR
+            (r.endTime < r.startTime AND (
+              r.reservationDate < :yesterday
+              OR (r.reservationDate = :yesterday AND r.endTime <= :currentTime)
+            ))
           )
         ORDER BY r.reservationDate ASC, r.endTime ASC
         """)
     List<Reservation> findCompletableReservations(
             @Param("status") ReservationStatus status,
             @Param("currentDate") LocalDate currentDate,
+            @Param("yesterday") LocalDate yesterday,
             @Param("currentTime") LocalTime currentTime,
             Pageable pageable
     );

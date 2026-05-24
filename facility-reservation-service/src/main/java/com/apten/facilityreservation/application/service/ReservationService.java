@@ -749,9 +749,11 @@ public class ReservationService {
         LocalDateTime now = LocalDateTime.now();
 
         // 스케줄러는 반복 실행되므로 한 번에 처리하는 수를 제한해 락 점유를 줄인다.
+        // 야간 예약(endTime < startTime)은 다음날 기준으로 완료 처리하므로 yesterday를 함께 전달한다.
         List<Reservation> completableReservations = reservationRepository.findCompletableReservations(
                 ReservationStatus.CONFIRMED,
                 now.toLocalDate(),
+                now.toLocalDate().minusDays(1),
                 now.toLocalTime(),
                 PageRequest.of(0, Math.max(reservationCompleteBatchSize, 1))
         );
