@@ -28,6 +28,7 @@ import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRegistrationPolicyRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
+import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,9 @@ public class VehicleService {
 
     // 차량 등록 한도 정책 저장소
     private final VehicleRegistrationPolicyRepository vehicleRegistrationPolicyRepository;
+
+    // 차량 상태 변경 outbox 적재 서비스
+    private final ParkingVehicleOutboxService parkingVehicleOutboxService;
 
     // 차량 등록 신청을 처리한다.
     @Transactional
@@ -183,14 +187,32 @@ public class VehicleService {
     }
 
     // 차량을 소프트 삭제한다.
+    @Transactional
     public VehicleDeleteRes deleteVehicle(Long vehicleId, Long userId, String userRole, Long complexId) {
-        //TODO 차량 존재 여부 확인
-        //TODO 차량 소유자 검증
-        //TODO DELETED 상태 및 isDeleted 처리
-        //TODO 승인 차량 삭제 시 차량 상태 변경 이벤트 outbox 적재
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 차량 단건 + 소유자 동시 검증, 미존재 시 404
+        Vehicle vehicle = vehicleRepository.findByIdAndUserIdAndIsDeletedFalse(vehicleId, userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND));
+
+        // 차량 단지가 요청 단지와 다르면 권한 차단
+        if (!vehicle.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+        }
+
+        // 소프트 삭제 — isDeleted/deletedAt/status를 markDeleted가 한 번에 처리
+        vehicle.markDeleted(LocalDateTime.now());
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        Vehicle saved = vehicleRepository.save(vehicle);
+
+        // 차량 상태 변경 이벤트 outbox 적재 — 모든 상태 삭제에 적재
+        parkingVehicleOutboxService.saveVehicleStatusChangedEvent(saved);
+
         return VehicleDeleteRes.builder()
                 .message("차량 삭제 완료")
-                .deletedAt(LocalDateTime.now())
+                .deletedAt(saved.getDeletedAt())
                 .build();
     }
 
@@ -283,31 +305,97 @@ public class VehicleService {
     }
 
     // 차량을 승인한다.
+    @Transactional
     public VehicleApproveRes approveVehicle(Long vehicleId, String userRole, Long complexId, Long selectedComplexId) {
-        //TODO 차량 존재 여부 확인
-        //TODO 차량 상태가 PENDING인지 확인
-        //TODO 현재 승인 차량 수 조회
-        //TODO vehicle_policy 기준 승인 가능 여부 확인
-        //TODO APPROVED 상태 변경 및 approvedAt 저장
-        //TODO 차량 상태 변경 이벤트 outbox 적재
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 차량 단건 존재 확인
+        Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND));
+
+        // 차량 단지가 관리자 컨텍스트 단지와 다르면 권한 차단
+        if (!vehicle.getComplexId().equals(targetComplexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+        }
+
+        // 승인 가능 상태 검증 — PENDING만 허용
+        if (vehicle.getStatus() != VehicleStatus.PENDING) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_STATUS_INVALID);
+        }
+
+        // 등록 한도 재검사 — 활성 정책이 있을 때 APPROVED 카운트만으로 검사 (관리자 한도 축소 케이스 방어)
+        vehicleRegistrationPolicyRepository.findByComplexIdAndIsActiveTrue(targetComplexId)
+                .ifPresent(policy -> {
+                    long approved = vehicleRepository.countByHouseholdIdAndStatusAndIsDeletedFalse(
+                            vehicle.getHouseholdId(), VehicleStatus.APPROVED);
+                    if (approved >= policy.getMaxCarCount()) {
+                        throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_LIMIT_EXCEEDED);
+                    }
+                });
+
+        // 승인 상태 반영, rejectReason 초기화
+        LocalDateTime now = LocalDateTime.now();
+        vehicle.changeStatus(VehicleStatus.APPROVED, now, null);
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        Vehicle saved = vehicleRepository.save(vehicle);
+
+        // 차량 상태 변경 이벤트 outbox 적재
+        parkingVehicleOutboxService.saveVehicleStatusChangedEvent(saved);
+
         return VehicleApproveRes.builder()
-                .vehicleId(vehicleId)
-                .status(VehicleStatus.APPROVED)
-                .approvedAt(LocalDateTime.now())
+                .vehicleId(saved.getId())
+                .status(saved.getStatus())
+                .approvedAt(saved.getApprovedAt())
                 .build();
     }
 
     // 차량을 거절한다.
+    @Transactional
     public VehicleRejectRes rejectVehicle(Long vehicleId, VehicleRejectReq request, String userRole, Long complexId, Long selectedComplexId) {
-        //TODO 차량 존재 여부 확인
-        //TODO 차량 상태가 PENDING인지 확인
-        //TODO REJECTED 상태 변경 및 거절 사유 저장
-        //TODO 차량 상태 변경 이벤트 outbox 적재
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 요청 본문 null 검증
+        if (request == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 거절 사유 필수값 검증
+        String rejectReason = request.getRejectReason();
+        if (rejectReason == null || rejectReason.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 차량 단건 존재 확인
+        Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND));
+
+        // 차량 단지가 관리자 컨텍스트 단지와 다르면 권한 차단
+        if (!vehicle.getComplexId().equals(targetComplexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+        }
+
+        // 거절 가능 상태 검증 — PENDING만 허용
+        if (vehicle.getStatus() != VehicleStatus.PENDING) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_STATUS_INVALID);
+        }
+
+        // 거절 상태 반영, approvedAt은 명시적으로 null
+        vehicle.changeStatus(VehicleStatus.REJECTED, null, rejectReason);
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        Vehicle saved = vehicleRepository.save(vehicle);
+
+        // 차량 상태 변경 이벤트 outbox 적재
+        parkingVehicleOutboxService.saveVehicleStatusChangedEvent(saved);
+
         return VehicleRejectRes.builder()
-                .vehicleId(vehicleId)
-                .status(VehicleStatus.REJECTED)
-                .rejectReason(request.getRejectReason())
-                .updatedAt(LocalDateTime.now())
+                .vehicleId(saved.getId())
+                .status(saved.getStatus())
+                .rejectReason(saved.getRejectReason())
+                .updatedAt(saved.getUpdatedAt())
                 .build();
     }
 
