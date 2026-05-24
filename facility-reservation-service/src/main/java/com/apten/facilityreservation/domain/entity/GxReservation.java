@@ -85,16 +85,18 @@ public class GxReservation extends BaseEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
-    // 예약을 승인 상태로 변경한다.
+    // 예약을 승인 상태로 변경한다. 전원 대기형 정책에서 승인된 예약은 순번을 갖지 않는다.
     public void approve() {
         this.status = GxReservationStatus.CONFIRMED;
         this.approvedAt = LocalDateTime.now();
+        this.waitNo = null;
     }
 
     // 예약을 거절 상태로 변경한다.
     public void reject(String rejectReason) {
         this.status = GxReservationStatus.REJECTED;
         this.rejectReason = rejectReason;
+        this.waitNo = null;
     }
 
     // 예약을 취소 상태로 변경한다.
@@ -102,5 +104,11 @@ public class GxReservation extends BaseEntity {
         this.status = GxReservationStatus.CANCELLED;
         this.cancelReason = cancelReason;
         this.cancelledAt = LocalDateTime.now();
+        this.waitNo = null;
+    }
+
+    // 대기 순번을 재배정한다.
+    public void assignWaitNo(int no) {
+        this.waitNo = no;
     }
 }

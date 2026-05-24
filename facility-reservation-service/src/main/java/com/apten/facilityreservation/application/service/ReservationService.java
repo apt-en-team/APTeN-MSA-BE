@@ -25,9 +25,12 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
+import com.apten.facilityreservation.domain.entity.FacilitySubscription;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.entity.ReservationTempHold;
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
+import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
 import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
@@ -36,7 +39,9 @@ import com.apten.facilityreservation.domain.enums.ReservationType;
 import com.apten.facilityreservation.domain.repository.FacilityBlockTimeRepository;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
+import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.domain.repository.ReservationTempHoldRepository;
@@ -72,7 +77,9 @@ public class ReservationService {
     private final FacilityRepository facilityRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final FacilitySubscriptionRepository facilitySubscriptionRepository;
     private final FacilitySeatRepository facilitySeatRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
     private final ReservationRepository reservationRepository;
     private final ReservationTempHoldRepository reservationTempHoldRepository;
@@ -108,6 +115,10 @@ public class ReservationService {
 
         long openSec = facility.getOpenTime().toSecondOfDay();
         long closeSec = facility.getCloseTime().toSecondOfDay();
+        // 자정을 넘기는 운영 시간(예: 22:00~02:00)은 마감 초에 하루치를 더해 슬롯 범위를 연장한다
+        if (closeSec <= openSec) {
+            closeSec += 86400;
+        }
         long slotSec = (long) slotMin * 60;
 
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
@@ -130,7 +141,7 @@ public class ReservationService {
 
         List<AvailableTimeListRes> result = new ArrayList<>();
 
-        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다
+        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다. % 86400으로 LocalTime 범위를 유지한다.
         long slotStart = openSec;
         if (slotSec >= 86400) {
             // 슬롯이 하루 이상이면 운영 전체를 단일 슬롯으로 처리한다
@@ -138,8 +149,8 @@ public class ReservationService {
                     facility.getOpenTime(), facility.getCloseTime()));
         } else {
             while (slotStart + slotSec <= closeSec) {
-                LocalTime start = LocalTime.ofSecondOfDay(slotStart);
-                LocalTime end = LocalTime.ofSecondOfDay(slotStart + slotSec);
+                LocalTime start = LocalTime.ofSecondOfDay(slotStart % 86400);
+                LocalTime end = LocalTime.ofSecondOfDay((slotStart + slotSec) % 86400);
                 result.add(buildSlot(facility, blockTimes, confirmedReservations, activeHolds, maxReservationCount, seatTotalCount, start, end));
                 slotStart += slotSec;
             }
@@ -408,6 +419,9 @@ public class ReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
 
+        // FLAT/PER_PERSON 시설은 첫 예약 시 구독 레코드를 자동 생성한다.
+        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
+
         // TODO: 예약 생성 알림 / 이벤트 발행은 가은 담당과 연동 후 추가한다.
 
         return ReservationPostRes.builder()
@@ -663,21 +677,42 @@ public class ReservationService {
                 ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
                 : null;
 
+        com.apten.facilityreservation.domain.entity.HouseholdCache household =
+                (reservation.getHouseholdId() != null)
+                        ? householdCacheRepository.findByHouseholdId(reservation.getHouseholdId()).orElse(null)
+                        : null;
+
+        String unit = null;
+        if (household != null && household.getBuildingNo() != null && household.getUnitNo() != null) {
+            unit = household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
+        }
+
+        long currentCount = (reservation.getFacilityId() != null && reservation.getReservationDate() != null)
+                ? reservationRepository.countByFacilityIdAndReservationDateAndStatus(
+                        reservation.getFacilityId(), reservation.getReservationDate(), ReservationStatus.CONFIRMED)
+                : 0L;
+
         return AdminReservationDetailRes.builder()
                 .reservationId(reservation.getId())
                 .userId(reservation.getUserId())
                 .residentName(user != null ? user.getName() : null)
+                .dong(household != null ? household.getBuildingNo() : null)
+                .ho(household != null ? household.getUnitNo() : null)
+                .unit(unit)
                 .facilityId(reservation.getFacilityId())
                 .facilityName(facility != null ? facility.getName() : null)
                 .reservationDate(reservation.getReservationDate())
                 .startTime(reservation.getStartTime())
                 .endTime(reservation.getEndTime())
                 .seatNo(seat != null ? seat.getSeatNo() : null)
-                .status(reservation.getStatus())
+                .status(reservation.getStatus().name())
+                .statusName(reservation.getStatus().getValue())
                 .cancelReason(reservation.getCancelReason())
                 .cancelledAt(reservation.getCancelledAt())
                 .completedAt(reservation.getCompletedAt())
                 .createdAt(reservation.getCreatedAt())
+                .currentCount(currentCount)
+                .maxCount(facility != null ? facility.getMaxCount() : null)
                 .build();
     }
 
@@ -703,7 +738,7 @@ public class ReservationService {
         return AdminReservationCancelRes.builder()
                 .reservationId(reservation.getId())
                 .status(reservation.getStatus())
-                .cancelReason(req.getReason())
+                .cancelReason(req != null ? req.getReason() : null)
                 .cancelledAt(reservation.getCancelledAt())
                 .build();
     }
@@ -738,7 +773,7 @@ public class ReservationService {
                 || req.getReservationDate() == null
                 || req.getStartTime() == null
                 || req.getEndTime() == null
-                || !req.getStartTime().isBefore(req.getEndTime())) {
+                || req.getStartTime().equals(req.getEndTime())) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
     }
@@ -763,16 +798,57 @@ public class ReservationService {
                 || req.getReservationDate() == null
                 || req.getStartTime() == null
                 || req.getEndTime() == null
-                || !req.getStartTime().isBefore(req.getEndTime())) {
+                || req.getStartTime().equals(req.getEndTime())) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
     }
 
     private void validateReservationTimeWindow(Facility facility, LocalTime startTime, LocalTime endTime) {
-        if (startTime.isBefore(facility.getOpenTime())
-                || endTime.isAfter(facility.getCloseTime())) {
-            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        LocalTime open = facility.getOpenTime();
+        LocalTime close = facility.getCloseTime();
+        // closeTime <= openTime이면 익일 마감(예: 22:00~02:00)으로 판단한다
+        boolean isOvernight = !close.isAfter(open);
+        if (isOvernight) {
+            if (!isWithinOvernightRange(startTime, open, close) || !isWithinOvernightRange(endTime, open, close)) {
+                throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+            }
+        } else {
+            if (startTime.isBefore(open) || endTime.isAfter(close)) {
+                throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+            }
         }
+    }
+
+    // FLAT/PER_PERSON 시설에 활성 구독이 없으면 첫 예약일 기준으로 구독을 생성한다.
+    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long householdId, java.time.LocalDate subscribedAt) {
+        if (householdId == null) {
+            return;
+        }
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facilityId)
+                .orElse(null);
+        if (policy == null) {
+            return;
+        }
+        FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+        if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
+            return;
+        }
+        if (facilitySubscriptionRepository.existsByHouseholdIdAndFacilityIdAndStatus(
+                householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
+            return;
+        }
+        facilitySubscriptionRepository.save(FacilitySubscription.builder()
+                .complexId(complexId)
+                .householdId(householdId)
+                .facilityId(facilityId)
+                .subscribedAt(subscribedAt)
+                .build());
+    }
+
+    // 익일 마감 운영 범위 검증 — open 이후이거나 close 이전이면 유효한 시간대
+    private boolean isWithinOvernightRange(LocalTime time, LocalTime open, LocalTime close) {
+        return !time.isBefore(open) || !time.isAfter(close);
     }
 
     private void validateReservationBlockTime(

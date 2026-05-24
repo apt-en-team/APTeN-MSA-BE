@@ -36,7 +36,13 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // 사용자의 단지 내 전체 GX 예약 목록을 조회한다.
     List<GxReservation> findByUserIdAndComplexId(Long userId, Long complexId);
 
-    // GX는 승인 시점이 실제 과금 확정 시점에 가장 가깝기 때문에 approvedAt 기준으로 조회한다.
+    // GX 비용 산정: 프로그램 시작일 기준으로 확정된 예약을 조회한다.
+    List<GxReservation> findByStatusAndProgramIdIn(
+            GxReservationStatus status,
+            List<Long> programIds
+    );
+
+    // 이전 방식 — approvedAt 기준 조회 (레거시, 현재 미사용)
     List<GxReservation> findByStatusAndApprovedAtBetween(
             GxReservationStatus status,
             LocalDateTime fromDateTime,
@@ -46,4 +52,46 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // 복수 프로그램의 상태별 예약 수를 집계한다. (N+1 방지)
     @Query("SELECT r.programId, COUNT(r) FROM GxReservation r WHERE r.programId IN :programIds AND r.status = :status GROUP BY r.programId")
     List<Object[]> countByProgramIdInAndStatus(@Param("programIds") List<Long> programIds, @Param("status") GxReservationStatus status);
+
+    // 통계 — 단지 기준 상태별 GX 예약 수
+    long countByComplexIdAndStatus(Long complexId, GxReservationStatus status);
+
+    // 통계 — 단지 기준 기간별 GX 예약 생성 수
+    long countByComplexIdAndCreatedAtBetween(Long complexId, LocalDateTime from, LocalDateTime to);
+
+    // 관리자 GX 프로그램 신청자 전체 목록 조회 — 신청 시각 오름차순
+    List<GxReservation> findByProgramIdOrderByCreatedAtAsc(Long programId);
+
+    // 관리자 GX 프로그램 신청자 상태별 목록 조회 — 신청 시각 오름차순
+    List<GxReservation> findByProgramIdAndStatusOrderByCreatedAtAsc(Long programId, GxReservationStatus status);
+
+    // 관리자 GX 예약 통합 개요 조회 — status 필터 없음
+    @Query("""
+        SELECT r FROM GxReservation r
+        WHERE r.complexId = :complexId
+          AND (:facilityId IS NULL OR r.programId IN (
+                SELECT p.id FROM GxProgram p WHERE p.facilityId = :facilityId
+              ))
+        ORDER BY r.createdAt DESC
+        """)
+    List<GxReservation> findAdminGxReservationsForOverview(
+            @Param("complexId") Long complexId,
+            @Param("facilityId") Long facilityId
+    );
+
+    // 관리자 GX 예약 통합 개요 조회 — status 필터 포함 (enum null 비교 회피)
+    @Query("""
+        SELECT r FROM GxReservation r
+        WHERE r.complexId = :complexId
+          AND r.status = :status
+          AND (:facilityId IS NULL OR r.programId IN (
+                SELECT p.id FROM GxProgram p WHERE p.facilityId = :facilityId
+              ))
+        ORDER BY r.createdAt DESC
+        """)
+    List<GxReservation> findAdminGxReservationsForOverviewByStatus(
+            @Param("complexId") Long complexId,
+            @Param("status") GxReservationStatus status,
+            @Param("facilityId") Long facilityId
+    );
 }

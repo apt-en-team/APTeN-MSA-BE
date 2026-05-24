@@ -21,6 +21,9 @@ public class GxProgramListRes {
     // 프로그램명이다.
     private String name;
 
+    // 설명이다.
+    private String description;
+
     // 시작일이다.
     private LocalDate startDate;
 
@@ -32,6 +35,15 @@ public class GxProgramListRes {
 
     // 종료 시각이다.
     private LocalTime endTime;
+
+    // 운영 요일이다.
+    private String daysOfWeek;
+
+    // 최소 정원이다.
+    private Integer minCount;
+
+    // 최대 정원이다.
+    private Integer maxCount;
 
     // 프로그램별 개별 요금이다.
     private BigDecimal baseFee;
@@ -47,4 +59,7 @@ public class GxProgramListRes {
 
     // 대기 인원이다.
     private Integer waitingCount;
+
+    // 취소 인원이다.
+    private Integer cancelledCount;
 }

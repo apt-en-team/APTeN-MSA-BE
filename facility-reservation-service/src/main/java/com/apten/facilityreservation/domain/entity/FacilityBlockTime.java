@@ -62,8 +62,22 @@ public class FacilityBlockTime extends BaseEntity {
     @Column(name = "reason", length = 255)
     private String reason;
 
+    // 반복 차단 그룹 ID이다. null이면 단건 차단, 값 있으면 배치 생성 그룹
+    @Column(name = "batch_id")
+    private Long batchId;
+
     // 활성 여부이다.
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    public void deactivate() {
+        this.isActive = false;
+    }
+
+    public void updateSchedule(LocalDate blockDate, LocalTime startTime, LocalTime endTime) {
+        this.blockDate = blockDate;
+        this.startTime = startTime;
+        this.endTime = endTime;
+    }
 }

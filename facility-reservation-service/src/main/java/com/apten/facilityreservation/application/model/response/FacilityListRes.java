@@ -1,6 +1,8 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import com.apten.facilityreservation.domain.enums.ReservationType;
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,6 +18,9 @@ public class FacilityListRes {
     // 시설 타입 ID이다.
     private Long typeId;
 
+    // 시설 타입명이다.
+    private String typeName;
+
     // 시설명이다.
     private String name;
 
@@ -30,4 +35,28 @@ public class FacilityListRes {
 
     // 활성 여부이다.
     private Boolean isActive;
+
+    // 기본 요금이다. 정책 미등록 시 null.
+    private BigDecimal baseFee;
+
+    // 예약 슬롯 단위(분)이다. 정책 미등록 시 null.
+    private Integer slotMin;
+
+    // 예약 단위 타입이다. 정책 미등록 시 null.
+    private FacilityUsageUnitType usageUnitType;
+
+    // 예약 단위 타입 표시명이다. 정책 미등록 시 null.
+    private String usageUnitTypeName;
+
+    // 시설 최대 동시 이용 인원이다. 미설정 시 null.
+    private Integer maxCount;
+
+    // 예약 단위 표시용 라벨이다. 정책 미등록 시 null. 예: "60분", "하루"
+    private String reservationUnitLabel;
+
+    // 오늘 날짜 기준 CONFIRMED + COMPLETED 예약 건수이다.
+    private Integer todayReservedCount;
+
+    // 오늘 날짜에 활성 차단 시간이 존재하는지 여부이다. 점검중 표시에 사용한다.
+    private Boolean isTodayBlocked;
 }

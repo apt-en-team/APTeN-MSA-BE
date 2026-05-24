@@ -9,10 +9,10 @@ import lombok.Getter;
 public enum GxReservationStatus implements EnumMapperType {
 
     // 대기 상태이다.
-    WAITING("01", "대기중"),
+    WAITING("01", "대기"),
 
     // 승인 완료 상태이다.
-    CONFIRMED("02", "승인완료"),
+    CONFIRMED("02", "확정"),
 
     // 거절 상태이다.
     REJECTED("03", "거절"),

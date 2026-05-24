@@ -16,6 +16,7 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import com.apten.facilityreservation.domain.enums.ReservationType;
@@ -154,7 +155,9 @@ public class FacilityPolicyService {
                     .slotMin(resolvedSlotMin)
                     .cancelDeadlineHours(req.getCancelDeadlineHours())
                     .maxReservationCount(req.getMaxReservationCount())
-                    .isActive(req.getIsActive())
+                    .feeType(req.getFeeType())
+                    .includedPersonCount(req.getIncludedPersonCount())
+                    .extraPersonFee(req.getExtraPersonFee())
                     .build());
         } else {
             // 신규 정책 저장
@@ -166,7 +169,11 @@ public class FacilityPolicyService {
                     .slotMin(resolvedSlotMin)
                     .cancelDeadlineHours(req.getCancelDeadlineHours())
                     .maxReservationCount(req.getMaxReservationCount())
-                    .isActive(req.getIsActive() == null || req.getIsActive())
+                    .feeType(req.getFeeType() != null ? req.getFeeType() : FacilityFeeType.FLAT)
+                    .includedPersonCount(req.getIncludedPersonCount())
+                    .extraPersonFee(req.getExtraPersonFee())
+                    .billingCutoffDay(req.getBillingCutoffDay())
+                    .isActive(true)
                     .build());
         }
 
@@ -180,6 +187,10 @@ public class FacilityPolicyService {
                 .slotMin(policy.getSlotMin())
                 .cancelDeadlineHours(policy.getCancelDeadlineHours())
                 .maxReservationCount(policy.getMaxReservationCount())
+                .feeType(policy.getFeeType())
+                .includedPersonCount(policy.getIncludedPersonCount())
+                .extraPersonFee(policy.getExtraPersonFee())
+                .billingCutoffDay(policy.getBillingCutoffDay())
                 .isActive(policy.getIsActive())
                 .updatedAt(policy.getUpdatedAt())
                 .build();
@@ -211,6 +222,10 @@ public class FacilityPolicyService {
                         .slotMin(policy.getSlotMin())
                         .cancelDeadlineHours(policy.getCancelDeadlineHours())
                         .maxReservationCount(policy.getMaxReservationCount())
+                        .feeType(policy.getFeeType())
+                        .includedPersonCount(policy.getIncludedPersonCount())
+                        .extraPersonFee(policy.getExtraPersonFee())
+                        .billingCutoffDay(policy.getBillingCutoffDay())
                         .isActive(policy.getIsActive())
                         .updatedAt(policy.getUpdatedAt())
                         .build())

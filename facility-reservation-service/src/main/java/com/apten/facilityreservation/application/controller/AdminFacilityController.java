@@ -5,7 +5,9 @@ import com.apten.common.constants.HeaderConstants;
 import com.apten.facilityreservation.application.model.dto.FacilityRequestContext;
 import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimeBatchPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityListReq;
 import com.apten.facilityreservation.application.model.request.FacilityPatchReq;
@@ -20,7 +22,11 @@ import com.apten.facilityreservation.application.model.request.FacilityUsageStat
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
 import com.apten.facilityreservation.application.model.response.CountStatusRes;
 import com.apten.facilityreservation.application.model.response.FacilityActivePatchRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchDeactivateRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeBatchPostRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimeDeactivateRes;
 import com.apten.facilityreservation.application.model.response.FacilityBlockTimeListRes;
+import com.apten.facilityreservation.application.model.response.FacilityBlockTimePatchRes;
 import com.apten.facilityreservation.application.model.response.FacilityBlockTimePostRes;
 import com.apten.facilityreservation.application.model.response.FacilityDeleteRes;
 import com.apten.facilityreservation.application.model.response.FacilityDetailRes;
@@ -210,6 +216,121 @@ public class AdminFacilityController {
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("시설 차단 시간 조회 성공", facilityService.getFacilityBlockTimeList(context.getComplexId(), facilityId, req));
+    }
+
+    // 반복 차단 배치 등록 — 요일 선택 + 기간으로 여러 날짜에 걸친 차단을 한 번에 생성한다
+    @PostMapping("/api/admin/facilities/{facilityId}/block-times/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<FacilityBlockTimeBatchPostRes> createFacilityBlockTimeBatch(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @RequestBody FacilityBlockTimeBatchPostReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("반복 차단 시간 배치 등록 성공", facilityService.createFacilityBlockTimeBatch(context.getComplexId(), facilityId, req));
+    }
+
+    // 반복 차단 그룹 비활성화 — batchId 기준 is_active=false 일괄 처리
+    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/batch/{batchId}/deactivate")
+    public ResultResponse<FacilityBlockTimeBatchDeactivateRes> deactivateFacilityBlockTimeBatch(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @PathVariable Long batchId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("반복 차단 그룹 비활성화 성공", facilityService.deactivateFacilityBlockTimeBatch(context.getComplexId(), facilityId, batchId));
+    }
+
+    // 시설 차단 시간 단건 비활성화
+    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/{blockTimeId}/deactivate")
+    public ResultResponse<FacilityBlockTimeDeactivateRes> deactivateFacilityBlockTime(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @PathVariable Long blockTimeId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 차단 시간 비활성화 성공", facilityService.deactivateFacilityBlockTime(context.getComplexId(), facilityId, blockTimeId));
+    }
+
+    // 시설 차단 시간 단건 수정 — blockDate·시작·종료 시각만 변경한다
+    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/{blockTimeId}")
+    public ResultResponse<FacilityBlockTimePatchRes> updateFacilityBlockTime(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @PathVariable Long blockTimeId,
+            @RequestBody FacilityBlockTimePatchReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("시설 차단 시간 수정 성공", facilityService.updateFacilityBlockTime(context.getComplexId(), facilityId, blockTimeId, req));
+    }
+
+    // 정기 휴무 규칙 등록
+    @PostMapping("/api/admin/facilities/{facilityId}/closure-rules")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<com.apten.facilityreservation.application.model.response.FacilityClosureRulePostRes> createClosureRule(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @RequestBody com.apten.facilityreservation.application.model.request.FacilityClosureRulePostReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("정기 휴무 규칙 등록 성공", facilityService.createClosureRule(context.getComplexId(), facilityId, req));
+    }
+
+    // 정기 휴무 규칙 목록 조회
+    @GetMapping("/api/admin/facilities/{facilityId}/closure-rules")
+    public ResultResponse<List<com.apten.facilityreservation.application.model.response.FacilityClosureRuleListRes>> getClosureRuleList(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("정기 휴무 규칙 목록 조회 성공", facilityService.getClosureRuleList(context.getComplexId(), facilityId));
+    }
+
+    // 정기 휴무 규칙 수정
+    @PatchMapping("/api/admin/facilities/{facilityId}/closure-rules/{ruleId}")
+    public ResultResponse<com.apten.facilityreservation.application.model.response.FacilityClosureRuleListRes> updateClosureRule(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @PathVariable Long ruleId,
+            @RequestBody com.apten.facilityreservation.application.model.request.FacilityClosureRulePatchReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("정기 휴무 규칙 수정 성공", facilityService.updateClosureRule(context.getComplexId(), facilityId, ruleId, req));
+    }
+
+    // 정기 휴무 규칙 비활성화
+    @PatchMapping("/api/admin/facilities/{facilityId}/closure-rules/{ruleId}/deactivate")
+    public ResultResponse<com.apten.facilityreservation.application.model.response.FacilityClosureRuleDeactivateRes> deactivateClosureRule(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long facilityId,
+            @PathVariable Long ruleId
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("정기 휴무 규칙 비활성화 성공", facilityService.deactivateClosureRule(context.getComplexId(), facilityId, ruleId));
     }
 
     // API-614 시설 좌석 등록

@@ -2,6 +2,7 @@ package com.apten.facilityreservation.domain.entity;
 
 import com.apten.common.entity.BaseEntity;
 import com.apten.facilityreservation.application.model.request.FacilityPolicyPutReq;
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
@@ -78,7 +79,25 @@ public class FacilityPolicy extends BaseEntity {
     @Column(name = "max_reservation_count")
     private Integer maxReservationCount = null;
 
-    // 정책 활성 여부이다.
+    // 요금 청구 방식이다.
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fee_type", nullable = false, length = 20, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'FLAT'")
+    private FacilityFeeType feeType = FacilityFeeType.FLAT;
+
+    // BASE_PLUS_EXTRA 전용 — 기본 포함 인원 수이다.
+    @Column(name = "included_person_count")
+    private Integer includedPersonCount;
+
+    // BASE_PLUS_EXTRA 전용 — 초과 인원당 추가 요금이다.
+    @Column(name = "extra_person_fee", precision = 12, scale = 2)
+    private BigDecimal extraPersonFee;
+
+    // 구독 청구 기준일이다. 이 일자 이전 신청/해지는 당월 반영, 이후는 익월부터 반영한다. null이면 정책 미설정이다.
+    @Column(name = "billing_cutoff_day")
+    private Integer billingCutoffDay;
+
+    // 정책 활성 여부이다. 항상 true로 고정된다.
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
@@ -106,8 +125,15 @@ public class FacilityPolicy extends BaseEntity {
         if (req.getMaxReservationCount() != null) {
             this.maxReservationCount = req.getMaxReservationCount();
         }
-        if (req.getIsActive() != null) {
-            this.isActive = req.getIsActive();
+        if (req.getFeeType() != null) {
+            this.feeType = req.getFeeType();
         }
+        // BASE_PLUS_EXTRA 전용 필드는 null 포함 항상 덮어쓴다.
+        this.includedPersonCount = req.getIncludedPersonCount();
+        this.extraPersonFee = req.getExtraPersonFee();
+        // billingCutoffDay는 null 포함 항상 덮어쓴다.
+        this.billingCutoffDay = req.getBillingCutoffDay();
+        // isActive는 항상 true로 고정한다.
+        this.isActive = true;
     }
 }

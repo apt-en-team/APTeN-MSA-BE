@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import com.apten.facilityreservation.domain.enums.ReservationType;
 import java.math.BigDecimal;
@@ -53,4 +54,7 @@ public class ResidentFacilityDetailRes {
 
     // 취소 마감 시간이다.
     private Integer cancelDeadlineHours;
+
+    // 요금 청구 방식이다. FLAT/PER_PERSON=구독형, PER_USE=건당
+    private FacilityFeeType feeType;
 }

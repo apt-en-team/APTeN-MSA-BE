@@ -3,6 +3,7 @@ package com.apten.facilityreservation.domain.repository;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -55,6 +56,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     // 시설과 날짜, 상태 기준 예약 목록을 조회한다.
     List<Reservation> findByFacilityIdAndReservationDateAndStatus(Long facilityId, LocalDate reservationDate, ReservationStatus status);
+
+    // 시설과 날짜, 복수 상태 기준 예약 목록을 조회한다. 과거/오늘 날짜의 COMPLETED 포함 조회에 사용한다.
+    List<Reservation> findByFacilityIdAndReservationDateAndStatusIn(Long facilityId, LocalDate reservationDate, List<ReservationStatus> statuses);
 
     // 상태별 현황 집계는 DB count를 직접 사용해 불필요한 목록 적재를 줄인다.
     long countByFacilityIdAndReservationDateAndStatus(Long facilityId, LocalDate reservationDate, ReservationStatus status);
@@ -195,5 +199,59 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("currentDate") LocalDate currentDate,
             @Param("currentTime") LocalTime currentTime,
             Pageable pageable
+    );
+
+    // 통계 — 단지 기준 오늘 예약 수
+    long countByComplexIdAndReservationDate(Long complexId, LocalDate reservationDate);
+
+    // 통계 — 단지 기준 상태별 예약 수
+    long countByComplexIdAndStatus(Long complexId, ReservationStatus status);
+
+    // 통계 — 단지 기준 기간별 예약 생성 수
+    long countByComplexIdAndCreatedAtBetween(Long complexId, LocalDateTime from, LocalDateTime to);
+
+    // 관리자 예약 통합 개요 조회 — status 필터 없음
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.complexId = :complexId
+          AND (:facilityId IS NULL OR r.facilityId = :facilityId)
+          AND (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
+        ORDER BY r.createdAt DESC
+        """)
+    List<Reservation> findAdminReservationsForOverview(
+            @Param("complexId") Long complexId,
+            @Param("facilityId") Long facilityId,
+            @Param("reservationDate") LocalDate reservationDate
+    );
+
+    // 관리자 예약 통합 개요 조회 — status 필터 포함 (enum null 비교 회피)
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.complexId = :complexId
+          AND r.status = :status
+          AND (:facilityId IS NULL OR r.facilityId = :facilityId)
+          AND (:reservationDate IS NULL OR r.reservationDate = :reservationDate)
+        ORDER BY r.createdAt DESC
+        """)
+    List<Reservation> findAdminReservationsForOverviewByStatus(
+            @Param("complexId") Long complexId,
+            @Param("status") ReservationStatus status,
+            @Param("facilityId") Long facilityId,
+            @Param("reservationDate") LocalDate reservationDate
+    );
+
+    // 시설별 특정 날짜/상태 예약 건수를 배치 집계한다. (N+1 방지용)
+    @Query("""
+        SELECT r.facilityId, COUNT(r)
+        FROM Reservation r
+        WHERE r.facilityId IN :facilityIds
+          AND r.reservationDate = :date
+          AND r.status IN :statuses
+        GROUP BY r.facilityId
+        """)
+    List<Object[]> countGroupByFacilityId(
+            @Param("facilityIds") List<Long> facilityIds,
+            @Param("date") LocalDate date,
+            @Param("statuses") List<ReservationStatus> statuses
     );
 }

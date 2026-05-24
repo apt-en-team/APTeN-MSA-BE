@@ -3,12 +3,16 @@ package com.apten.facilityreservation.application.controller;
 import com.apten.common.response.ResultResponse;
 import com.apten.common.constants.HeaderConstants;
 import com.apten.facilityreservation.application.model.dto.FacilityRequestContext;
+import com.apten.facilityreservation.application.model.request.AdminGxReservationListReq;
 import com.apten.facilityreservation.application.model.request.GxBulkApproveReq;
+import com.apten.facilityreservation.application.model.request.GxCloseWaitingReq;
 import com.apten.facilityreservation.application.model.request.GxProgramCancelReq;
 import com.apten.facilityreservation.application.model.request.GxProgramListReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPatchReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPostReq;
+import com.apten.facilityreservation.application.model.response.AdminGxReservationListRes;
 import com.apten.facilityreservation.application.model.response.GxBulkApproveRes;
+import com.apten.facilityreservation.application.model.response.GxCloseWaitingRes;
 import com.apten.facilityreservation.application.model.response.GxMinimumCheckRes;
 import com.apten.facilityreservation.application.model.response.GxProgramCancelRes;
 import com.apten.facilityreservation.application.model.response.GxProgramDetailRes;
@@ -105,6 +109,34 @@ public class AdminGxProgramController {
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("GX 프로그램 취소 성공", gxProgramService.cancelGxProgram(context.getComplexId(), programId, req));
+    }
+
+    // API-648 GX 모집 마감
+    @PatchMapping("/api/admin/gx-programs/{programId}/close-waiting")
+    public ResultResponse<GxCloseWaitingRes> closeWaiting(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long programId,
+            @RequestBody(required = false) GxCloseWaitingReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("GX 모집 마감 처리 성공", gxProgramService.closeWaiting(context.getComplexId(), programId, req));
+    }
+
+    // GX 프로그램 신청자 목록 조회
+    @GetMapping("/api/admin/gx-programs/{programId}/reservations")
+    public ResultResponse<PageResponse<AdminGxReservationListRes>> getAdminGxReservationList(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long programId,
+            @ModelAttribute AdminGxReservationListReq req
+    ) {
+        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("GX 프로그램 신청자 목록 조회 성공", gxProgramService.getAdminGxReservationList(context.getComplexId(), programId, req));
     }
 
     // API-642 GX 일괄 승인 처리

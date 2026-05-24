@@ -39,11 +39,15 @@ public enum FacilityReservationErrorCode implements ErrorCode {
     INVALID_FACILITY_TYPE(HttpStatus.BAD_REQUEST, "FRS_400_09", "GX 시설만 GX 프로그램을 등록할 수 있습니다."),
     GX_PROGRAM_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_08", "GX 프로그램을 찾을 수 없습니다."),
     GX_PROGRAM_CANCELLED(HttpStatus.BAD_REQUEST, "FRS_400_08", "취소된 GX 프로그램입니다."),
+    GX_RECRUITING_CLOSED(HttpStatus.BAD_REQUEST, "FRS_400_11", "모집이 마감된 GX 프로그램입니다."),
     FEATURE_DISABLED(HttpStatus.FORBIDDEN, "FRS_403_02", "현재 단지에서 시설/예약 기능을 사용할 수 없습니다."),
     GX_ALREADY_APPLIED(HttpStatus.CONFLICT, "FRS_409_08", "이미 신청한 GX 프로그램입니다."),
     GX_RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_09", "GX 예약을 찾을 수 없습니다."),
     GX_CAPACITY_FULL(HttpStatus.CONFLICT, "FRS_409_09", "GX 정원이 가득 찼습니다."),
     GX_WAITING_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_10", "GX 대기 정보를 찾을 수 없습니다."),
+    SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_11", "구독 정보를 찾을 수 없습니다."),
+    SUBSCRIPTION_ALREADY_CANCELLED(HttpStatus.BAD_REQUEST, "FRS_400_12", "이미 해지된 구독입니다."),
+    HOUSEHOLD_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_12", "세대 정보를 찾을 수 없습니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FRS_500_01", "이벤트 발행에 실패했습니다."),
     INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "FRS_500_02", "내부 처리 중 오류가 발생했습니다.");
 

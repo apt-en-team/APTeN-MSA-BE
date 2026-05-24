@@ -2,13 +2,17 @@ package com.apten.facilityreservation.application.service;
 
 import com.apten.common.enums.FeatureCode;
 import com.apten.common.exception.BusinessException;
+import com.apten.facilityreservation.application.model.request.AdminGxReservationListReq;
 import com.apten.facilityreservation.application.model.request.GxBulkApproveReq;
+import com.apten.facilityreservation.application.model.request.GxCloseWaitingReq;
 import com.apten.facilityreservation.application.model.request.GxProgramCancelReq;
 import com.apten.facilityreservation.application.model.request.GxProgramListReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPatchReq;
 import com.apten.facilityreservation.application.model.request.GxProgramPostReq;
 import com.apten.facilityreservation.application.model.request.ResidentGxProgramListReq;
+import com.apten.facilityreservation.application.model.response.AdminGxReservationListRes;
 import com.apten.facilityreservation.application.model.response.GxBulkApproveRes;
+import com.apten.facilityreservation.application.model.response.GxCloseWaitingRes;
 import com.apten.facilityreservation.application.model.response.GxMinimumCheckRes;
 import com.apten.facilityreservation.application.model.response.GxProgramCancelRes;
 import com.apten.facilityreservation.application.model.response.GxProgramDetailRes;
@@ -23,18 +27,24 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
+import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.FacilityTypeCode;
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
+import com.apten.facilityreservation.domain.enums.GxReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilityTypeRepository;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
+import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -52,6 +62,8 @@ public class GxProgramService {
     private final FacilityTypeRepository facilityTypeRepository;
     private final GxProgramRepository gxProgramRepository;
     private final GxReservationRepository gxReservationRepository;
+    private final UserCacheRepository userCacheRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
 
     // GX 프로그램을 등록한다.
     @Transactional
@@ -116,21 +128,34 @@ public class GxProgramService {
         Map<Long, Long> waitingMap = programIds.isEmpty() ? Map.of() :
                 gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.WAITING)
                         .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Map<Long, Long> cancelledMap = programIds.isEmpty() ? Map.of() :
+                gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.CANCELLED)
+                        .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Map<Long, Long> rejectedMap = programIds.isEmpty() ? Map.of() :
+                gxReservationRepository.countByProgramIdInAndStatus(programIds, GxReservationStatus.REJECTED)
+                        .stream().collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
 
         List<GxProgramListRes> items = programs.stream()
                 .map(p -> GxProgramListRes.builder()
                         .programId(p.getId())
                         .facilityId(p.getFacilityId())
                         .name(p.getName())
+                        .description(p.getDescription())
                         .startDate(p.getStartDate())
                         .endDate(p.getEndDate())
                         .startTime(p.getStartTime())
                         .endTime(p.getEndTime())
+                        .daysOfWeek(p.getDaysOfWeek())
+                        .minCount(p.getMinCount())
+                        .maxCount(p.getMaxCount())
                         .baseFee(p.getBaseFee())
                         .waitingEnabled(p.getWaitingEnabled())
                         .status(p.getStatus())
                         .confirmedCount(confirmedMap.getOrDefault(p.getId(), 0L).intValue())
                         .waitingCount(waitingMap.getOrDefault(p.getId(), 0L).intValue())
+                        .cancelledCount(
+                                cancelledMap.getOrDefault(p.getId(), 0L).intValue() +
+                                rejectedMap.getOrDefault(p.getId(), 0L).intValue())
                         .build())
                 .toList();
 
@@ -212,7 +237,12 @@ public class GxProgramService {
 
         program.cancel();
 
-        // TODO: 관련 GxReservation 일괄 취소 처리 및 알림 발행은 2단계에서 구현
+        // 관련 WAITING/CONFIRMED 예약을 일괄 취소한다. 이미 CANCELLED/REJECTED인 예약은 제외된다.
+        gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.WAITING)
+                .forEach(r -> r.cancel(GxReservationCancelReason.ADMIN));
+        gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED)
+                .forEach(r -> r.cancel(GxReservationCancelReason.ADMIN));
+        // TODO: 일괄 취소 알림 발행 (가은 담당)
 
         return GxProgramCancelRes.builder()
                 .programId(program.getId())
@@ -373,6 +403,11 @@ public class GxProgramService {
 
         // TODO: 일괄 승인 알림 발행 (가은 담당)
 
+        // 일괄 승인 후 남은 WAITING 순번을 재정렬한다.
+        if (approved > 0) {
+            resequenceWaitingNos(programId);
+        }
+
         return GxBulkApproveRes.builder()
                 .programId(programId)
                 .approvedCount(approved)
@@ -413,10 +448,130 @@ public class GxProgramService {
                 .build();
     }
 
+    // GX 프로그램 모집을 마감한다. 잔여 WAITING 신청자를 일괄 거절하고 프로그램을 WAITING_CLOSED 상태로 변경한다.
+    @Transactional
+    public GxCloseWaitingRes closeWaiting(Long complexId, Long programId, GxCloseWaitingReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        GxProgram program = getGxProgram(complexId, programId);
+
+        if (program.getStatus() == GxProgramStatus.CANCELLED) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
+        }
+        if (program.getStatus() == GxProgramStatus.CLOSED || program.getStatus() == GxProgramStatus.WAITING_CLOSED) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_RECRUITING_CLOSED);
+        }
+
+        String rejectReason = (req != null && req.getRejectReason() != null && !req.getRejectReason().isBlank())
+                ? req.getRejectReason()
+                : "모집 마감으로 인한 거절";
+
+        // 잔여 WAITING 신청자를 일괄 거절한다.
+        List<GxReservation> waitingList = gxReservationRepository
+                .findByProgramIdAndStatus(programId, GxReservationStatus.WAITING);
+        waitingList.forEach(r -> r.reject(rejectReason));
+        // TODO: 일괄 거절 알림 발행 (가은 담당)
+
+        program.closeWaiting();
+
+        return GxCloseWaitingRes.builder()
+                .programId(program.getId())
+                .status(program.getStatus())
+                .rejectedCount(waitingList.size())
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 관리자 GX 프로그램 신청자 목록을 조회한다.
+    @Transactional(readOnly = true)
+    public PageResponse<AdminGxReservationListRes> getAdminGxReservationList(Long complexId, Long programId, AdminGxReservationListReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        getGxProgram(complexId, programId);
+
+        List<GxReservation> reservations = req.getStatus() != null
+                ? gxReservationRepository.findByProgramIdAndStatusOrderByCreatedAtAsc(programId, req.getStatus())
+                : gxReservationRepository.findByProgramIdOrderByCreatedAtAsc(programId);
+
+        if (reservations.isEmpty()) {
+            return PageResponse.empty(req.getPage(), req.getSize());
+        }
+
+        List<Long> userIds = reservations.stream()
+                .map(GxReservation::getUserId).filter(id -> id != null).distinct().toList();
+        List<Long> householdIds = reservations.stream()
+                .map(GxReservation::getHouseholdId).filter(id -> id != null).distinct().toList();
+
+        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of()
+                : userCacheRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of()
+                : householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
+
+        List<AdminGxReservationListRes> items = reservations.stream().map(r -> {
+            UserCache user = userMap.get(r.getUserId());
+            HouseholdCache household = householdMap.get(r.getHouseholdId());
+            return AdminGxReservationListRes.builder()
+                    .gxReservationId(r.getId())
+                    .userId(r.getUserId())
+                    .householdId(r.getHouseholdId())
+                    .residentName(user != null ? user.getName() : null)
+                    .dong(household != null ? household.getBuildingNo() : null)
+                    .ho(household != null ? household.getUnitNo() : null)
+                    .unit(buildUnit(household))
+                    .status(r.getStatus())
+                    .statusName(r.getStatus() != null ? r.getStatus().getValue() : null)
+                    .waitNo(r.getWaitNo())
+                    .approvedAt(r.getApprovedAt())
+                    .rejectReason(r.getRejectReason())
+                    .cancelReason(r.getCancelReason())
+                    .cancelledAt(r.getCancelledAt())
+                    .createdAt(r.getCreatedAt())
+                    .build();
+        }).toList();
+
+        int page = Math.max(req.getPage(), 0);
+        int size = req.getSize() > 0 ? req.getSize() : 20;
+        long total = items.size();
+        int totalPages = (int) Math.ceil((double) total / size);
+        int fromIndex = page * size;
+        int toIndex = (int) Math.min((long) fromIndex + size, total);
+        List<AdminGxReservationListRes> content = fromIndex >= total ? List.of() : items.subList(fromIndex, toIndex);
+
+        return PageResponse.<AdminGxReservationListRes>builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(total)
+                .totalPages(totalPages)
+                .hasNext(toIndex < total)
+                .build();
+    }
+
+    // 승인/취소 후 남은 WAITING 순번을 1부터 재정렬한다.
+    private void resequenceWaitingNos(Long programId) {
+        List<GxReservation> waitingList = gxReservationRepository
+                .findByProgramIdAndStatusOrderByWaitNoAsc(programId, GxReservationStatus.WAITING);
+        for (int i = 0; i < waitingList.size(); i++) {
+            waitingList.get(i).assignWaitNo(i + 1);
+        }
+    }
+
     // complexId 소속 GX 프로그램을 단건 조회한다.
     private GxProgram getGxProgram(Long complexId, Long programId) {
         return gxProgramRepository.findByIdAndComplexId(programId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
+    }
+
+    // household 캐시가 null이거나 동/호 정보가 없으면 null을 반환한다
+    private String buildUnit(HouseholdCache household) {
+        if (household == null
+                || household.getBuildingNo() == null
+                || household.getUnitNo() == null) {
+            return null;
+        }
+        return household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
     }
 
     // 시설 존재, complexId 소속, GX 타입, 활성 여부를 검증한다.
