@@ -25,6 +25,7 @@ import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import com.apten.parkingvehicle.domain.enums.VehicleType;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
 import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
+import com.apten.parkingvehicle.domain.repository.VehicleRegistrationPolicyRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -52,38 +54,131 @@ public class VehicleService {
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
 
+    // 차량 등록 한도 정책 저장소
+    private final VehicleRegistrationPolicyRepository vehicleRegistrationPolicyRepository;
+
     // 차량 등록 신청을 처리한다.
+    @Transactional
     public VehicleCreateRes createVehicle(VehicleCreateReq request, Long userId, String userRole, Long complexId) {
-        //TODO user_cache에서 로그인 사용자 확인
-        //TODO household_cache에서 사용자 소속 세대 확인
-        //TODO 차량번호 중복 여부 확인
-        //TODO 차량 정책 기준 등록 제한 검증
-        //TODO PENDING 상태 차량 저장
-        //TODO 필요 시 알림/이벤트 outbox 적재
-        return VehicleCreateRes.builder()
-                .vehicleId(null)
-                .licensePlate(request.getLicensePlate())
-                .modelName(request.getModelName())
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 요청 본문 null 검증
+        if (request == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 필수 입력값 검증
+        String licensePlate = request.getLicensePlate();
+        String modelName = request.getModelName();
+        if (licensePlate == null || licensePlate.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        if (modelName == null || modelName.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 세대주 기준 세대 조회 — 세대원이면 여기서 차단
+        HouseholdCache household = householdCacheRepository.findByHeadUserId(userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
+
+        // 헤더 단지와 세대 단지 일치 검증, 불일치는 세대 미존재와 동일하게 처리
+        if (!household.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND);
+        }
+
+        // 등록 한도 검사 — 활성 정책이 있을 때만 수행 (정책 미설정 단지는 무제한)
+        vehicleRegistrationPolicyRepository.findByComplexIdAndIsActiveTrue(complexId)
+                .ifPresent(policy -> {
+                    long current = vehicleRepository.countByHouseholdIdAndStatusInAndIsDeletedFalse(
+                            household.getId(),
+                            List.of(VehicleStatus.PENDING, VehicleStatus.APPROVED));
+                    if (current >= policy.getMaxCarCount()) {
+                        throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_LIMIT_EXCEEDED);
+                    }
+                });
+
+        // 단지 기준 차량번호 중복 사전 검사 — 소프트 삭제 이력 포함 (재등록 차단)
+        if (vehicleRepository.existsByComplexIdAndLicensePlate(complexId, licensePlate)) {
+            throw new BusinessException(ParkingVehicleErrorCode.DUPLICATE_LICENSE_PLATE);
+        }
+
+        // 신규 차량 엔티티 — status/isDeleted는 빌더 디폴트, approvedAt/rejectReason/deletedAt은 null
+        Vehicle entity = Vehicle.builder()
+                .userId(userId)
+                .householdId(household.getId())
+                .complexId(complexId)
+                .licensePlate(licensePlate)
+                .modelName(modelName)
                 .vehicleType(request.getVehicleType() != null ? request.getVehicleType() : VehicleType.CAR)
-                .status(VehicleStatus.PENDING)
-                .isPrimary(request.getIsPrimary())
-                .createdAt(LocalDateTime.now())
+                .isPrimary(request.getIsPrimary() != null ? request.getIsPrimary() : false)
                 .build();
+
+        // 동시 신청으로 사전 검사를 둘 다 통과한 경우 유니크 제약 위반 안전망
+        try {
+            Vehicle saved = vehicleRepository.save(entity);
+            return VehicleCreateRes.builder()
+                    .vehicleId(saved.getId())
+                    .licensePlate(saved.getLicensePlate())
+                    .modelName(saved.getModelName())
+                    .vehicleType(saved.getVehicleType())
+                    .status(saved.getStatus())
+                    .isPrimary(saved.getIsPrimary())
+                    .createdAt(saved.getCreatedAt())
+                    .build();
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ParkingVehicleErrorCode.DUPLICATE_LICENSE_PLATE);
+        }
     }
 
     // 차량 정보를 수정한다.
+    @Transactional
     public VehiclePatchRes updateVehicle(Long vehicleId, VehiclePatchReq request, Long userId, String userRole, Long complexId) {
-        //TODO 로그인 사용자 확인
-        //TODO 차량 존재 여부 확인
-        //TODO 차량 소유자 검증
-        //TODO 수정 가능한 상태인지 확인
-        //TODO 차량 기본 정보 수정
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 요청 본문 null 검증
+        if (request == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 차량 단건 + 소유자 동시 검증, 미존재 시 404
+        Vehicle vehicle = vehicleRepository.findByIdAndUserIdAndIsDeletedFalse(vehicleId, userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND));
+
+        // 차량 단지가 요청 단지와 다르면 권한 차단
+        if (!vehicle.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+        }
+
+        // 수정 가능 상태 검증 — PENDING/APPROVED만 허용 (REJECTED/DELETED 차량은 수정 불가)
+        VehicleStatus status = vehicle.getStatus();
+        if (status != VehicleStatus.PENDING && status != VehicleStatus.APPROVED) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_STATUS_INVALID);
+        }
+
+        // 모델명이 명시되면 빈 문자열은 차단 (null은 기존값 유지 의도라 통과)
+        if (request.getModelName() != null && request.getModelName().isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 부분 갱신값 계산 — null인 필드는 기존값 유지
+        String modelName = request.getModelName() != null ? request.getModelName() : vehicle.getModelName();
+        VehicleType vehicleType = request.getVehicleType() != null ? request.getVehicleType() : vehicle.getVehicleType();
+        Boolean isPrimary = request.getIsPrimary() != null ? request.getIsPrimary() : vehicle.getIsPrimary();
+
+        // 엔티티 부분 갱신 적용
+        vehicle.update(modelName, vehicleType, isPrimary);
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        Vehicle saved = vehicleRepository.save(vehicle);
+
         return VehiclePatchRes.builder()
-                .vehicleId(vehicleId)
-                .modelName(request.getModelName())
-                .vehicleType(request.getVehicleType())
-                .isPrimary(request.getIsPrimary())
-                .updatedAt(LocalDateTime.now())
+                .vehicleId(saved.getId())
+                .modelName(saved.getModelName())
+                .vehicleType(saved.getVehicleType())
+                .isPrimary(saved.getIsPrimary())
+                .updatedAt(saved.getUpdatedAt())
                 .build();
     }
 
@@ -169,11 +264,21 @@ public class VehicleService {
     }
 
     // 차량번호 중복 여부를 확인한다.
+    @Transactional(readOnly = true)
     public LicensePlateCheckRes checkDuplicateLicensePlate(String licensePlate, Long userId, String userRole, Long complexId) {
-        //TODO 로그인 사용자 또는 관리자 컨텍스트에서 complexId 확인
-        //TODO 단지 기준 차량번호 중복 여부 확인
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 차량번호 필수값 검증
+        if (licensePlate == null || licensePlate.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 단지 기준 차량번호 중복 여부 조회, 소프트 삭제 이력 포함
+        boolean isDuplicate = vehicleRepository.existsByComplexIdAndLicensePlate(complexId, licensePlate);
+
         return LicensePlateCheckRes.builder()
-                .isDuplicate(false)
+                .isDuplicate(isDuplicate)
                 .build();
     }
 
