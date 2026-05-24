@@ -15,8 +15,11 @@ import org.springframework.data.repository.query.Param;
 // GX 예약 저장소이다.
 public interface GxReservationRepository extends JpaRepository<GxReservation, Long> {
 
-    // 같은 사용자 중복 신청 여부를 확인한다.
+    // 같은 사용자 중복 신청 여부를 확인한다. (전체 상태 기준 — 레거시, 직접 호출 금지)
     boolean existsByProgramIdAndUserId(Long programId, Long userId);
+
+    // 활성 상태(WAITING/CONFIRMED)인 신청이 있는지 확인한다. 취소/거절 후 재신청 허용을 위해 사용한다.
+    boolean existsByProgramIdAndUserIdAndStatusIn(Long programId, Long userId, List<GxReservationStatus> statuses);
 
     // 상태 기준 예약 수를 센다.
     long countByProgramIdAndStatus(Long programId, GxReservationStatus status);

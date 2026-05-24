@@ -122,8 +122,9 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // 중복 신청 차단
-        if (gxReservationRepository.existsByProgramIdAndUserId(req.getProgramId(), userId)) {
+        // WAITING/CONFIRMED 상태인 신청이 있을 때만 중복으로 간주한다. 취소·거절·완료 후 재신청은 허용한다.
+        List<GxReservationStatus> activeStatuses = List.of(GxReservationStatus.WAITING, GxReservationStatus.CONFIRMED);
+        if (gxReservationRepository.existsByProgramIdAndUserIdAndStatusIn(req.getProgramId(), userId, activeStatuses)) {
             throw new BusinessException(FacilityReservationErrorCode.GX_ALREADY_APPLIED);
         }
 
@@ -136,14 +137,21 @@ public class GxReservationService {
         long currentWaiting = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.WAITING);
         int waitNo = (int) (currentWaiting + 1);
 
-        GxReservation reservation = gxReservationRepository.save(GxReservation.builder()
-                .complexId(complexId)
-                .programId(req.getProgramId())
-                .userId(userId)
-                .householdId(memberCache.getHouseholdId())
-                .status(GxReservationStatus.WAITING)
-                .waitNo(waitNo)
-                .build());
+        // DB 유니크 제약(program_id, user_id)으로 INSERT가 불가하므로, 기존 레코드가 있으면 재활성화한다.
+        GxReservation reservation = gxReservationRepository
+                .findByProgramIdAndUserId(req.getProgramId(), userId)
+                .map(existing -> {
+                    existing.reapply(waitNo);
+                    return existing;
+                })
+                .orElseGet(() -> gxReservationRepository.save(GxReservation.builder()
+                        .complexId(complexId)
+                        .programId(req.getProgramId())
+                        .userId(userId)
+                        .householdId(memberCache.getHouseholdId())
+                        .status(GxReservationStatus.WAITING)
+                        .waitNo(waitNo)
+                        .build()));
 
         return GxReservationPostRes.builder()
                 .gxReservationId(reservation.getId())
