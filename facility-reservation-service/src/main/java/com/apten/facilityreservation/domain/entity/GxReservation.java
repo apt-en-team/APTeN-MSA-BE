@@ -85,6 +85,10 @@ public class GxReservation extends BaseEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    // 이용완료 시각이다.
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
     // 예약을 승인 상태로 변경한다. 전원 대기형 정책에서 승인된 예약은 순번을 갖지 않는다.
     public void approve() {
         this.status = GxReservationStatus.CONFIRMED;
@@ -110,5 +114,12 @@ public class GxReservation extends BaseEntity {
     // 대기 순번을 재배정한다.
     public void assignWaitNo(int no) {
         this.waitNo = no;
+    }
+
+    // GX 프로그램이 종료되면 예약을 이용완료 상태로 전환한다.
+    public void complete() {
+        this.status = GxReservationStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+        this.waitNo = null;
     }
 }

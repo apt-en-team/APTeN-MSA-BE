@@ -18,7 +18,10 @@ public enum GxReservationStatus implements EnumMapperType {
     REJECTED("03", "거절"),
 
     // 취소 상태이다.
-    CANCELLED("04", "취소");
+    CANCELLED("04", "취소"),
+
+    // 이용완료 상태이다.
+    COMPLETED("05", "이용완료");
 
     // DB에 저장하는 코드값이다.
     private final String code;

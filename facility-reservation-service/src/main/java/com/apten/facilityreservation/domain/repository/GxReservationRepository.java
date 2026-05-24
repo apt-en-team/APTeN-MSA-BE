@@ -2,9 +2,12 @@ package com.apten.facilityreservation.domain.repository;
 
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -64,6 +67,24 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
 
     // 관리자 GX 프로그램 신청자 상태별 목록 조회 — 신청 시각 오름차순
     List<GxReservation> findByProgramIdAndStatusOrderByCreatedAtAsc(Long programId, GxReservationStatus status);
+
+    // 이용완료 처리 대상 조회 — GxProgram 종료 시각이 지난 WAITING/CONFIRMED 예약을 대상으로 한다.
+    @Query("""
+        SELECT r FROM GxReservation r
+        JOIN GxProgram p ON p.id = r.programId
+        WHERE r.status IN :statuses
+          AND (
+            p.endDate < :currentDate
+            OR (p.endDate = :currentDate AND p.endTime <= :currentTime)
+          )
+        ORDER BY p.endDate ASC, p.endTime ASC
+        """)
+    List<GxReservation> findCompletableGxReservations(
+            @Param("statuses") List<GxReservationStatus> statuses,
+            @Param("currentDate") LocalDate currentDate,
+            @Param("currentTime") LocalTime currentTime,
+            Pageable pageable
+    );
 
     // 관리자 GX 예약 통합 개요 조회 — status 필터 없음
     @Query("""

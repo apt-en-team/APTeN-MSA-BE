@@ -6,6 +6,7 @@ import com.apten.facilityreservation.application.model.request.GxReservationPost
 import com.apten.facilityreservation.application.model.request.GxReservationRejectReq;
 import com.apten.facilityreservation.application.model.response.AdminGxReservationDetailRes;
 import com.apten.facilityreservation.application.model.response.GxReservationApproveRes;
+import com.apten.facilityreservation.application.model.response.ReservationCompleteRes;
 import com.apten.facilityreservation.application.model.response.GxReservationCancelRes;
 import com.apten.facilityreservation.application.model.response.GxReservationPostRes;
 import com.apten.facilityreservation.application.model.response.GxReservationRejectRes;
@@ -28,11 +29,14 @@ import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepos
 import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +45,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class GxReservationService {
+
+    // 완료 처리 배치 크기이다.
+    @Value("${apten.scheduler.gx-complete.batch-size:100}")
+    private int gxCompleteBatchSize;
 
     private final FeatureAccessService featureAccessService;
     private final GxProgramRepository gxProgramRepository;
@@ -368,6 +376,29 @@ public class GxReservationService {
                 .status(reservation.getStatus())
                 .cancelReason(reservation.getCancelReason())
                 .cancelledAt(reservation.getCancelledAt())
+                .build();
+    }
+
+    // 종료된 GX 프로그램의 WAITING/CONFIRMED 예약을 COMPLETED로 일괄 전환한다.
+    @Transactional
+    public ReservationCompleteRes completeGxReservations() {
+        LocalDateTime now = LocalDateTime.now();
+        List<GxReservationStatus> targetStatuses = List.of(
+                GxReservationStatus.WAITING, GxReservationStatus.CONFIRMED
+        );
+
+        List<GxReservation> completable = gxReservationRepository.findCompletableGxReservations(
+                targetStatuses,
+                now.toLocalDate(),
+                now.toLocalTime(),
+                PageRequest.of(0, Math.max(gxCompleteBatchSize, 1))
+        );
+
+        completable.forEach(GxReservation::complete);
+
+        return ReservationCompleteRes.builder()
+                .completedCount(completable.size())
+                .processedAt(now)
                 .build();
     }
 
