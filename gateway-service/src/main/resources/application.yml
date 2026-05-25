@@ -65,7 +65,7 @@ spring:
         - id: board-service
           uri: http://localhost:${BOARD_SERVER_PORT}
           predicates:
-            - Path=/boards/**,/comments/**
+            - Path=/boards/**,/comments/**,/notices/**,/api/admin/notices/**,/api/admin/boards/**
 
         - id: notification-service
           uri: http://localhost:${NOTIFICATION_SERVER_PORT}

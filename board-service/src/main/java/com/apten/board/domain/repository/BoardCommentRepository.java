@@ -13,6 +13,8 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
     // 게시글 기준으로 삭제되지 않은 댓글을 생성일 순서로 조회한다.
     List<BoardComment> findByPostIdAndIsDeletedFalseOrderByCreatedAtAsc(Long postId);
 
+    long countByPostIdAndIsDeletedFalse(Long postId);
+
     // 댓글 ID 기준으로 삭제되지 않은 댓글을 조회한다.
     Optional<BoardComment> findByIdAndIsDeletedFalse(Long id);
 

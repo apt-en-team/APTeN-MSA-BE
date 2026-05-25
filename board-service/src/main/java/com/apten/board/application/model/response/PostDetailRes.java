@@ -19,6 +19,7 @@ public class PostDetailRes {
     private final String content;
     private final Integer viewCount;
     private final Integer likeCount;
+    private final Boolean liked;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
     private final List<FileItem> files;

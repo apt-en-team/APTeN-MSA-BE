@@ -28,13 +28,13 @@ import org.springframework.web.bind.annotation.RestController;
 // 댓글 API 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/boards")
+@RequestMapping("/boards")
 public class CommentController {
 
     // 댓글 서비스이다.
     private final CommentService commentService;
 
-    //댓글 작성 API-506
+    //댓글 작성
     @PostMapping("/posts/{postId}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<CommentCreateRes> createComment(
@@ -44,7 +44,7 @@ public class CommentController {
         return ResultResponse.success("댓글 작성 성공", commentService.createComment(postId, request));
     }
 
-    //댓글 수정 API-507
+    //댓글 수정
     @PatchMapping("/comments/{commentId}")
     public ResultResponse<CommentPatchRes> updateComment(
             @PathVariable Long commentId,
@@ -53,19 +53,19 @@ public class CommentController {
         return ResultResponse.success("댓글 수정 성공", commentService.updateComment(commentId, request));
     }
 
-    //댓글 삭제 API-508
+    //댓글 삭제
     @DeleteMapping("/comments/{commentId}")
     public ResultResponse<CommentDeleteRes> deleteComment(@PathVariable Long commentId) {
         return ResultResponse.success("댓글 삭제 성공", commentService.deleteComment(commentId));
     }
 
-    //내 댓글 조회 API-523
+    //내 댓글 조회
     @GetMapping("/my-comments")
     public ResultResponse<PageResponse<MyCommentListRes>> getMyCommentList(@ModelAttribute MyCommentListReq request) {
         return ResultResponse.success("내 댓글 조회 성공", commentService.getMyCommentList(request));
     }
 
-    //댓글 목록 조회 API-537
+    //댓글 목록 조회
     @GetMapping("/posts/{postId}/comments")
     public ResultResponse<PageResponse<CommentListRes>> getCommentList(
             @PathVariable Long postId,

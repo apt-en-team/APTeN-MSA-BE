@@ -13,7 +13,9 @@ public class PostListRes {
     private final String writerName;
     private final BoardCategory category;
     private final String title;
+    private final String preview;
     private final Integer viewCount;
     private final Integer likeCount;
+    private final Long commentCount;
     private final LocalDateTime createdAt;
 }

@@ -16,19 +16,19 @@ import org.springframework.web.bind.annotation.RestController;
 // 공지 조회 API 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/notices")
+@RequestMapping("/notices")
 public class NoticeController {
 
     // 공지 서비스이다.
     private final NoticeService noticeService;
 
-    //공지 목록 조회 API-511
+    //공지 목록 조회
     @GetMapping
     public ResultResponse<PageResponse<NoticeListRes>> getNoticeList(@ModelAttribute NoticeListReq request) {
         return ResultResponse.success("공지 목록 조회 성공", noticeService.getNoticeList(request));
     }
 
-    //공지 상세 조회 API-512
+    //공지 상세 조회
     @GetMapping("/{noticeId}")
     public ResultResponse<NoticeDetailRes> getNoticeDetail(@PathVariable Long noticeId) {
         return ResultResponse.success("공지 상세 조회 성공", noticeService.getNoticeDetail(noticeId));

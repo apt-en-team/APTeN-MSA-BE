@@ -65,7 +65,7 @@ public class FreeBoardService {
                 BoardPost.builder()
                         .complexId(resolveCurrentComplexId(writer))
                         .userId(writer.getId())
-                        .category(request.getCategory())  // ← 이 줄 추가
+                        .category(request.getCategory())
                         .title(request.getTitle())
                         .content(request.getContent())
                         .build()
@@ -99,7 +99,23 @@ public class FreeBoardService {
     @Transactional(readOnly = true)
     public PageResponse<PostListRes> getPostList(PostListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<BoardPost> page = boardPostRepository.findByComplexIdAndIsDeletedFalse(currentComplexId(), pageable);
+        Page<BoardPost> page;
+
+        boolean hasKeyword = request.getKeyword() != null && !request.getKeyword().isBlank();
+
+        if (hasKeyword && request.getCategory() != null) {
+            page = boardPostRepository.searchByKeywordAndCategory(
+                    currentComplexId(), request.getCategory(), request.getKeyword(), pageable);
+        } else if (hasKeyword) {
+            page = boardPostRepository.searchByKeyword(
+                    currentComplexId(), request.getKeyword(), pageable);
+        } else if (request.getCategory() != null) {
+            page = boardPostRepository.findByComplexIdAndCategoryAndIsDeletedFalseOrderByCreatedAtDesc(
+                    currentComplexId(), request.getCategory(), pageable);
+        } else {
+            page = boardPostRepository.findByComplexIdAndIsDeletedFalseOrderByCreatedAtDesc(
+                    currentComplexId(), pageable);
+        }
 
         return PageResponse.<PostListRes>builder()
                 .content(page.getContent().stream().map(this::toPostListRes).toList())
@@ -121,6 +137,8 @@ public class FreeBoardService {
                 .map(UserCache::getName)
                 .orElse("알 수 없음");
 
+        boolean liked = boardLikeRepository.existsByPostIdAndUserId(postId, currentUserId());
+
         return PostDetailRes.builder()
                 .postId(post.getId())
                 .complexId(post.getComplexId())
@@ -131,6 +149,7 @@ public class FreeBoardService {
                 .content(post.getContent())
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
+                .liked(liked)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .files(boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId()).stream()
@@ -206,16 +225,28 @@ public class FreeBoardService {
     @Transactional(readOnly = true)
     public PageResponse<MyPostListRes> getMyPostList(MyPostListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<BoardPost> page = boardPostRepository.findByUserIdAndIsDeletedFalse(currentUserId(), pageable);
+        Page<BoardPost> page = boardPostRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(currentUserId(), pageable);
+
+        String writerName = userCacheRepository.findById(currentUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
 
         return PageResponse.<MyPostListRes>builder()
-                .content(page.getContent().stream().map(post -> MyPostListRes.builder()
-                        .postId(post.getId())
-                        .title(post.getTitle())
-                        .viewCount(post.getViewCount())
-                        .likeCount(post.getLikeCount())
-                        .createdAt(post.getCreatedAt())
-                        .build()).toList())
+                .content(page.getContent().stream().map(post -> {
+                    String rawContent = post.getContent() != null ? post.getContent() : "";
+                    String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
+                    String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
+                    return MyPostListRes.builder()
+                            .postId(post.getId())
+                            .writerName(writerName)
+                            .title(post.getTitle())
+                            .preview(preview)
+                            .viewCount(post.getViewCount())
+                            .likeCount(post.getLikeCount())
+                            .createdAt(post.getCreatedAt())
+                            .build();
+                }).toList())
                 .page(page.getNumber())
                 .size(page.getSize())
                 .totalElements(page.getTotalElements())
@@ -264,6 +295,44 @@ public class FreeBoardService {
                 .commentCount(boardCommentRepository.countByIsDeletedFalse())
                 .noticeCount(noticeRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .voteCount(voteRepository.countByComplexId(complexId))
+                .build();
+    }
+
+    @Transactional
+    public PostDetailRes getAdminPostDetail(Long postId) {
+        BoardPost post = boardPostRepository.findByIdAndComplexId(postId, currentComplexId())
+                .orElseThrow(() -> new BusinessException(BoardErrorCode.POST_NOT_FOUND));
+
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
+        boolean liked = boardLikeRepository.existsByPostIdAndUserId(postId, currentUserId());
+
+        return PostDetailRes.builder()
+                .postId(post.getId())
+                .complexId(post.getComplexId())
+                .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
+                .title(post.getTitle())
+                .content(post.getContent())
+                .viewCount(post.getViewCount())
+                .likeCount(post.getLikeCount())
+                .liked(liked)
+                .createdAt(post.getCreatedAt())
+                .updatedAt(post.getUpdatedAt())
+                .files(boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId()).stream()
+                        .map(file -> PostDetailRes.FileItem.builder()
+                                .fileId(file.getId())
+                                .originName(file.getOriginName())
+                                .savedName(file.getSavedName())
+                                .filePath(file.getFilePath())
+                                .fileType(file.getFileType())
+                                .fileSize(file.getFileSize())
+                                .sortOrder(file.getSortOrder())
+                                .build())
+                        .toList())
                 .build();
     }
 
@@ -326,14 +395,21 @@ public class FreeBoardService {
                 .map(UserCache::getName)
                 .orElse("알 수 없음");
 
+        // HTML 태그 제거 후 50자 미리보기
+        String rawContent = post.getContent() != null ? post.getContent() : "";
+        String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
+        String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
         return PostListRes.builder()
                 .postId(post.getId())
                 .userId(post.getUserId())
                 .writerName(writerName)
                 .category(post.getCategory())
                 .title(post.getTitle())
+                .preview(preview)
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
+                .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
                 .createdAt(post.getCreatedAt())
                 .build();
     }
