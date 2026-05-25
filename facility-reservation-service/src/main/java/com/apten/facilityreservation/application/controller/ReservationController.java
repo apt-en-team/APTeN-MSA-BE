@@ -5,6 +5,8 @@ import com.apten.common.constants.HeaderConstants;
 import com.apten.facilityreservation.application.model.dto.FacilityRequestContext;
 import com.apten.facilityreservation.application.model.request.AvailableTimeListReq;
 import com.apten.facilityreservation.application.model.request.MyReservationListReq;
+import com.apten.facilityreservation.application.model.request.MyUnifiedReservationReq;
+import com.apten.facilityreservation.application.model.response.MyUnifiedReservationRes;
 import com.apten.facilityreservation.application.model.request.ReservationCancelReq;
 import com.apten.facilityreservation.application.model.request.ReservationPostReq;
 import com.apten.facilityreservation.application.model.request.SeatHoldPostReq;
@@ -76,16 +78,16 @@ public class ReservationController {
         return ResultResponse.success("예약 생성 성공", reservationService.createReservation(context.getUserId(), context.getComplexId(), req));
     }
 
-    // API-623 내 예약 목록 조회
+    // API-623 내 예약 통합 목록 조회 (일반 시설 + GX 통합, 페이지네이션)
     @GetMapping("/api/reservations/my")
-    public ResultResponse<PageResponse<MyReservationListRes>> getMyReservationList(
+    public ResultResponse<PageResponse<MyUnifiedReservationRes>> getMyUnifiedReservations(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId,
-            @ModelAttribute MyReservationListReq req
+            @ModelAttribute MyUnifiedReservationReq req
     ) {
         FacilityRequestContext context = facilityRequestContextResolver.resolveResidentContext(userId, userRole, complexId);
-        return ResultResponse.success("내 예약 목록 조회 성공", reservationService.getMyReservationList(context.getUserId(), context.getComplexId(), req));
+        return ResultResponse.success("내 예약 목록 조회 성공", reservationService.getMyUnifiedReservations(context.getUserId(), context.getComplexId(), req));
     }
 
     // API-624 내 예약 상세 조회

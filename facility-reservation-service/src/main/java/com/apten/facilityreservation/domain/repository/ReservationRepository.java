@@ -41,6 +41,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     // 사용자별 예약 목록을 조회한다.
     List<Reservation> findByUserId(Long userId);
 
+    // 사용자 + 단지 기준 전체 예약 목록을 조회한다. (통합 목록 API 용)
+    List<Reservation> findByUserIdAndComplexId(Long userId, Long complexId);
+
     // 시설별 예약 목록을 조회한다.
     List<Reservation> findByFacilityId(Long facilityId);
 
