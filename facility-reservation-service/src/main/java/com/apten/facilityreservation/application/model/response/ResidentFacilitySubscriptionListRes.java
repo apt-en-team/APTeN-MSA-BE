@@ -41,4 +41,7 @@ public class ResidentFacilitySubscriptionListRes {
 
     // 구독 해지 월정산 기준일이다. null이면 항상 당월 청구한다.
     private Integer cancelCutoffDay;
+
+    // 이번 달 완료된 예약 이용 이력 존재 여부이다. (단순변심 해지 시 요금 안내 분기용)
+    private boolean hasCompletedThisMonth;
 }

@@ -214,6 +214,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
+    // 사용자 + 시설 기준 특정 상태 예약 존재 여부 확인 (구독 해지 검증용)
+    boolean existsByUserIdAndFacilityIdAndStatus(Long userId, Long facilityId, ReservationStatus status);
+
+    // 사용자 + 시설 기준 기간 내 특정 상태 예약 존재 여부 확인 (이번달 이용 이력 검증용)
+    boolean existsByUserIdAndFacilityIdAndReservationDateBetweenAndStatus(
+            Long userId, Long facilityId, LocalDate from, LocalDate to, ReservationStatus status);
+
     // 통계 — 단지 기준 오늘 예약 수
     long countByComplexIdAndReservationDate(Long complexId, LocalDate reservationDate);
 

@@ -57,4 +57,10 @@ public class ResidentFacilityDetailRes {
 
     // 요금 청구 방식이다. FLAT/PER_PERSON=구독형, PER_USE=건당
     private FacilityFeeType feeType;
+
+    // 구독 신청 월정산 기준일이다. null이면 항상 당월 청구한다.
+    private Integer subscribeCutoffDay;
+
+    // 구독 해지 월정산 기준일이다. null이면 항상 당월 청구한다.
+    private Integer cancelCutoffDay;
 }

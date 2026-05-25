@@ -998,6 +998,8 @@ public class FacilityService {
                 .baseFee(policy == null ? null : policy.getBaseFee())
                 .cancelDeadlineHours(policy == null ? null : policy.getCancelDeadlineHours())
                 .feeType(policy == null ? null : policy.getFeeType())
+                .subscribeCutoffDay(policy == null ? null : policy.getSubscribeCutoffDay())
+                .cancelCutoffDay(policy == null ? null : policy.getCancelCutoffDay())
                 .build();
     }
 
