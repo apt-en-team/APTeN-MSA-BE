@@ -4,6 +4,8 @@ import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -31,4 +33,13 @@ public interface RegularVisitorVehicleRepository extends JpaRepository<RegularVi
             @Param("licensePlate") String licensePlate,
             @Param("date") LocalDate date
     );
+
+    // 고정 방문차량 단건 + 소유자 동시 조회, 미삭제 조건 포함
+    Optional<RegularVisitorVehicle> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
+
+    // 내 고정 방문차량 페이지 조회, 활성 필터 없음
+    Page<RegularVisitorVehicle> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
+
+    // 내 고정 방문차량 페이지 조회, 활성 필터 포함
+    Page<RegularVisitorVehicle> findByUserIdAndIsActiveAndIsDeletedFalse(Long userId, Boolean isActive, Pageable pageable);
 }
