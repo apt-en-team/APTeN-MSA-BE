@@ -30,6 +30,7 @@ import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
 import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
 import com.apten.parkingvehicle.domain.repository.VisitorVehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
+import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -56,6 +57,9 @@ public class VisitorVehicleService {
 
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
+
+    // 방문차량 알림 outbox 적재 서비스
+    private final ParkingVehicleOutboxService parkingVehicleOutboxService;
 
     // 방문차량을 등록한다.
     @Transactional
@@ -108,6 +112,13 @@ public class VisitorVehicleService {
                 .build();
 
         VisitorVehicle saved = visitorVehicleRepository.save(entity);
+
+        // 방문차량 등록 알림 outbox 적재 — 관리자 대상
+        parkingVehicleOutboxService.saveVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.VISITOR_VEHICLE_REGISTERED,
+                ParkingVehicleOutboxService.TARGET_ADMIN,
+                userId);
 
         return VisitorVehicleCreateRes.builder()
                 .visitorVehicleId(saved.getId())
@@ -247,6 +258,13 @@ public class VisitorVehicleService {
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         VisitorVehicle saved = visitorVehicleRepository.save(visitorVehicle);
 
+        // 방문차량 수정 알림 outbox 적재 — 관리자 대상
+        parkingVehicleOutboxService.saveVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.VISITOR_VEHICLE_UPDATED,
+                ParkingVehicleOutboxService.TARGET_ADMIN,
+                userId);
+
         return VisitorVehiclePatchRes.builder()
                 .visitorVehicleId(saved.getId())
                 .visitDate(saved.getVisitDate())
@@ -281,6 +299,13 @@ public class VisitorVehicleService {
 
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         VisitorVehicle saved = visitorVehicleRepository.save(visitorVehicle);
+
+        // 방문차량 취소 알림 outbox 적재 — 관리자 대상
+        parkingVehicleOutboxService.saveVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.VISITOR_VEHICLE_CANCELLED,
+                ParkingVehicleOutboxService.TARGET_ADMIN,
+                userId);
 
         return VisitorVehicleCancelRes.builder()
                 .visitorVehicleId(saved.getId())
@@ -363,6 +388,13 @@ public class VisitorVehicleService {
 
         VisitorVehicle saved = visitorVehicleRepository.save(entity);
 
+        // 방문차량 재등록 알림 outbox 적재 — 관리자 대상
+        parkingVehicleOutboxService.saveVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.VISITOR_VEHICLE_RE_REGISTERED,
+                ParkingVehicleOutboxService.TARGET_ADMIN,
+                userId);
+
         return VisitorVehicleReRegisterRes.builder()
                 .visitorVehicleId(saved.getId())
                 .sourceVisitorVehicleId(source.getId())
@@ -439,6 +471,13 @@ public class VisitorVehicleService {
                 .build();
 
         VisitorVehicle saved = visitorVehicleRepository.save(entity);
+
+        // 관리자 대리 등록 알림 outbox 적재 — 세대 대상, 관리자 컨트롤러가 X-User-Id 미전달이라 actorUserId는 null
+        parkingVehicleOutboxService.saveVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.VISITOR_VEHICLE_CREATED_BY_ADMIN,
+                ParkingVehicleOutboxService.TARGET_HOUSEHOLD,
+                null);
 
         return AdminVisitorVehicleCreateRes.builder()
                 .visitorVehicleId(saved.getId())

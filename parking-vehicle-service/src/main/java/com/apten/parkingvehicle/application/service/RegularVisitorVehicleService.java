@@ -17,6 +17,7 @@ import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
 import com.apten.parkingvehicle.domain.repository.RegularVisitorVehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
+import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +38,9 @@ public class RegularVisitorVehicleService {
 
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
+
+    // 고정 방문차량 알림 outbox 적재 서비스
+    private final ParkingVehicleOutboxService parkingVehicleOutboxService;
 
     // 고정 방문차량을 등록한다.
     @Transactional
@@ -91,6 +95,13 @@ public class RegularVisitorVehicleService {
                 .build();
 
         RegularVisitorVehicle saved = regularVisitorVehicleRepository.save(entity);
+
+        // 고정 방문차량 등록 알림 outbox 적재 — 관리자 대상
+        parkingVehicleOutboxService.saveRegularVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.REGULAR_VISITOR_VEHICLE_REGISTERED,
+                ParkingVehicleOutboxService.TARGET_ADMIN,
+                userId);
 
         return RegularVisitorVehicleCreateRes.builder()
                 .regularVisitorVehicleId(saved.getId())
@@ -188,6 +199,13 @@ public class RegularVisitorVehicleService {
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         RegularVisitorVehicle saved = regularVisitorVehicleRepository.save(entity);
 
+        // 고정 방문차량 수정 알림 outbox 적재 — 관리자 대상
+        parkingVehicleOutboxService.saveRegularVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.REGULAR_VISITOR_VEHICLE_UPDATED,
+                ParkingVehicleOutboxService.TARGET_ADMIN,
+                userId);
+
         return RegularVisitorVehiclePatchRes.builder()
                 .regularVisitorVehicleId(saved.getId())
                 .visitorName(saved.getVisitorName())
@@ -252,6 +270,13 @@ public class RegularVisitorVehicleService {
 
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         RegularVisitorVehicle saved = regularVisitorVehicleRepository.save(entity);
+
+        // 관리자 강제 삭제 알림 outbox 적재 — 세대 대상, 관리자 컨트롤러가 X-User-Id 미전달이라 actorUserId는 null
+        parkingVehicleOutboxService.saveRegularVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.REGULAR_VISITOR_VEHICLE_FORCE_DELETED_BY_ADMIN,
+                ParkingVehicleOutboxService.TARGET_HOUSEHOLD,
+                null);
 
         return AdminRegularVisitorVehicleDeleteRes.builder()
                 .message("고정 방문차량 강제 삭제 완료")
