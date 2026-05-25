@@ -31,6 +31,7 @@ import com.apten.parkingvehicle.domain.repository.VisitorVehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,11 @@ public class VisitorVehicleService {
         // 차량번호 필수값 검증
         String licensePlate = request.getLicensePlate();
         if (licensePlate == null || licensePlate.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 방문 시간대 필수값 검증
+        if (request.getStartTime() == null || request.getEndTime() == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
@@ -200,44 +206,123 @@ public class VisitorVehicleService {
     }
 
     // 방문차량 정보를 수정한다.
+    @Transactional
     public VisitorVehiclePatchRes updateVisitorVehicle(Long visitorVehicleId, VisitorVehiclePatchReq request, Long userId, String userRole, Long complexId) {
-        //TODO 입주민 컨텍스트 검증
-        //TODO 방문 예정일 유효성 검증
-        //TODO 사용자 소속 세대 확인
-        //TODO 방문차량 소유자 검증
-        //TODO APPROVED 상태 차량만 수정 가능 여부 확인
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 요청 본문 null 검증
+        if (request == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
+        VisitorVehicle visitorVehicle = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 방문차량 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
+        if (!visitorVehicle.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_COMPLEX_MISMATCH);
+        }
+
+        // 수정 가능 상태 검증 — APPROVED만 허용
+        if (visitorVehicle.getStatus() != VisitorVehicleStatus.APPROVED) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_STATUS_INVALID);
+        }
+
+        // 기존 방문 시작 일시가 이미 지났으면 수정 불가 (startTime null이면 visitDate 자정으로 폴백)
+        LocalTime existingStartTime = visitorVehicle.getStartTime();
+        LocalDateTime visitStart = existingStartTime != null
+                ? LocalDateTime.of(visitorVehicle.getVisitDate(), existingStartTime)
+                : visitorVehicle.getVisitDate().atStartOfDay();
+        if (!visitStart.isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_STATUS_INVALID);
+        }
+
+        // 방문 예정일 유효성 검증 — 수정 시 visitDate는 필수 입력, null과 과거 날짜 거부
+        LocalDate visitDate = request.getVisitDate();
+        if (visitDate == null || visitDate.isBefore(LocalDate.now())) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISIT_DATE_INVALID);
+        }
+
+        // 부분 갱신값 계산 — visitDate 외 null 필드는 기존값 유지
+        String visitorName = request.getVisitorName() != null ? request.getVisitorName() : visitorVehicle.getVisitorName();
+        String phone = request.getPhone() != null ? request.getPhone() : visitorVehicle.getPhone();
+        LocalTime startTime = request.getStartTime() != null ? request.getStartTime() : visitorVehicle.getStartTime();
+        LocalTime endTime = request.getEndTime() != null ? request.getEndTime() : visitorVehicle.getEndTime();
+
+        // 엔티티 부분 갱신 적용
+        visitorVehicle.update(visitorName, phone, visitDate, startTime, endTime);
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        VisitorVehicle saved = visitorVehicleRepository.save(visitorVehicle);
+
         return VisitorVehiclePatchRes.builder()
-                .visitorVehicleId(visitorVehicleId)
-                .visitDate(request.getVisitDate())
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
-                .updatedAt(LocalDateTime.now())
+                .visitorVehicleId(saved.getId())
+                .visitDate(saved.getVisitDate())
+                .startTime(saved.getStartTime())
+                .endTime(saved.getEndTime())
+                .updatedAt(saved.getUpdatedAt())
                 .build();
     }
 
     // 방문차량을 취소한다.
+    @Transactional
     public VisitorVehicleCancelRes cancelVisitorVehicle(Long visitorVehicleId, Long userId, String userRole, Long complexId) {
-        //TODO 입주민 컨텍스트 검증
-        //TODO 방문차량 존재 여부 확인
-        //TODO 사용자 소속 세대 확인
-        //TODO APPROVED/CANCELLED/DELETED 상태 처리
-        //TODO 상태 변경 이벤트 또는 집계 대상 여부 확인
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
+        VisitorVehicle visitorVehicle = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 방문차량 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
+        if (!visitorVehicle.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_COMPLEX_MISMATCH);
+        }
+
+        // 취소 가능 상태 검증 — APPROVED만 허용 (중복 취소·만료 후 취소 차단)
+        if (visitorVehicle.getStatus() != VisitorVehicleStatus.APPROVED) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_STATUS_INVALID);
+        }
+
+        // 취소 상태 반영
+        visitorVehicle.changeStatus(VisitorVehicleStatus.CANCELLED);
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        VisitorVehicle saved = visitorVehicleRepository.save(visitorVehicle);
+
         return VisitorVehicleCancelRes.builder()
-                .visitorVehicleId(visitorVehicleId)
-                .status(VisitorVehicleStatus.CANCELLED)
-                .updatedAt(LocalDateTime.now())
+                .visitorVehicleId(saved.getId())
+                .status(saved.getStatus())
+                .updatedAt(saved.getUpdatedAt())
                 .build();
     }
 
     // 방문차량을 삭제한다.
+    @Transactional
     public VisitorVehicleDeleteRes deleteVisitorVehicle(Long visitorVehicleId, Long userId, String userRole, Long complexId) {
-        //TODO 입주민 컨텍스트 검증
-        //TODO 방문차량 존재 여부 확인
-        //TODO 사용자 소속 세대 확인
-        //TODO APPROVED/CANCELLED/DELETED 상태 처리
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
+        VisitorVehicle visitorVehicle = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 방문차량 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
+        if (!visitorVehicle.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_COMPLEX_MISMATCH);
+        }
+
+        // 소프트 삭제 — isDeleted/deletedAt/status를 markDeleted가 한 번에 처리, 상태 검증 없음
+        visitorVehicle.markDeleted(LocalDateTime.now());
+
+        // dirty checking 명시화, 다른 메서드와 패턴 통일
+        VisitorVehicle saved = visitorVehicleRepository.save(visitorVehicle);
+
         return VisitorVehicleDeleteRes.builder()
                 .message("방문차량 삭제 완료")
-                .deletedAt(LocalDateTime.now())
+                .deletedAt(saved.getDeletedAt())
                 .build();
     }
 
@@ -279,6 +364,11 @@ public class VisitorVehicleService {
         // 세대 식별자 필수값 검증
         Long householdId = request.getHouseholdId();
         if (householdId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 방문 시간대 필수값 검증
+        if (request.getStartTime() == null || request.getEndTime() == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
