@@ -33,7 +33,7 @@ public class VehicleController {
 
     private final VehicleService vehicleService;
 
-    //차량 등록 신청 API-301
+    //차량 등록 신청
     @PostMapping("/api/vehicles")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<VehicleCreateRes> createVehicle(
@@ -45,7 +45,7 @@ public class VehicleController {
         return ResultResponse.success("차량 등록 신청 성공", vehicleService.createVehicle(request, userId, userRole, complexId));
     }
 
-    //차량 수정 API-302
+    //차량 수정
     @PatchMapping("/api/vehicles/{vehicleId}")
     public ResultResponse<VehiclePatchRes> updateVehicle(
             @PathVariable Long vehicleId,
@@ -57,7 +57,7 @@ public class VehicleController {
         return ResultResponse.success("차량 수정 성공", vehicleService.updateVehicle(vehicleId, request, userId, userRole, complexId));
     }
 
-    //차량 삭제 API-303
+    //차량 삭제
     @DeleteMapping("/api/vehicles/{vehicleId}")
     public ResultResponse<VehicleDeleteRes> deleteVehicle(
             @PathVariable Long vehicleId,
@@ -68,7 +68,7 @@ public class VehicleController {
         return ResultResponse.success("차량 삭제 성공", vehicleService.deleteVehicle(vehicleId, userId, userRole, complexId));
     }
 
-    //내 차량 목록 조회 API-306
+    //내 차량 목록 조회
     @GetMapping("/api/vehicles")
     public ResultResponse<PageResponse<com.apten.parkingvehicle.application.model.response.VehicleListRes>> getMyVehicleList(
             @ModelAttribute VehicleListReq request,
@@ -79,7 +79,7 @@ public class VehicleController {
         return ResultResponse.success("내 차량 목록 조회 성공", vehicleService.getMyVehicleList(request, userId, userRole, complexId));
     }
 
-    //내 차량 상세 조회 API-335
+    //내 차량 상세 조회
     @GetMapping("/api/vehicles/{vehicleId}")
     public ResultResponse<VehicleDetailRes> getMyVehicleDetail(
             @PathVariable Long vehicleId,
@@ -90,7 +90,7 @@ public class VehicleController {
         return ResultResponse.success("내 차량 상세 조회 성공", vehicleService.getMyVehicleDetail(vehicleId, userId, userRole, complexId));
     }
 
-    //차량번호 중복 확인 API-308
+    //차량번호 중복 확인
     @GetMapping("/api/vehicles/check-license-plate")
     public ResultResponse<LicensePlateCheckRes> checkDuplicateLicensePlate(
             @RequestParam String licensePlate,

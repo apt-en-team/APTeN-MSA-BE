@@ -14,9 +14,6 @@ import org.springframework.data.repository.query.Param;
 // 방문차량 원본 테이블 접근을 담당하는 저장소이다.
 public interface VisitorVehicleRepository extends JpaRepository<VisitorVehicle, Long> {
 
-    // 사용자 기준 방문차량 목록을 조회한다.
-    List<VisitorVehicle> findByUserIdAndIsDeletedFalse(Long userId);
-
     // 방문차량 식별자와 미삭제 조건으로 방문차량을 조회한다.
     Optional<VisitorVehicle> findByIdAndIsDeletedFalse(Long id);
 

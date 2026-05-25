@@ -18,6 +18,7 @@ import com.apten.parkingvehicle.application.model.response.VehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.VehicleListRes;
 import com.apten.parkingvehicle.application.model.response.VehiclePatchRes;
 import com.apten.parkingvehicle.application.model.response.VehicleRejectRes;
+import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
 import com.apten.parkingvehicle.domain.entity.UserCache;
 import com.apten.parkingvehicle.domain.entity.Vehicle;
@@ -65,7 +66,7 @@ public class VehicleService {
     @Transactional
     public VehicleCreateRes createVehicle(VehicleCreateReq request, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 요청 본문 null 검증
         if (request == null) {
@@ -139,7 +140,7 @@ public class VehicleService {
     @Transactional
     public VehiclePatchRes updateVehicle(Long vehicleId, VehiclePatchReq request, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 요청 본문 null 검증
         if (request == null) {
@@ -152,7 +153,7 @@ public class VehicleService {
 
         // 차량 단지가 요청 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(complexId)) {
-            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
         // 수정 가능 상태 검증 — PENDING/APPROVED만 허용 (REJECTED/DELETED 차량은 수정 불가)
@@ -190,7 +191,7 @@ public class VehicleService {
     @Transactional
     public VehicleDeleteRes deleteVehicle(Long vehicleId, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 차량 단건 + 소유자 동시 검증, 미존재 시 404
         Vehicle vehicle = vehicleRepository.findByIdAndUserIdAndIsDeletedFalse(vehicleId, userId)
@@ -198,7 +199,7 @@ public class VehicleService {
 
         // 차량 단지가 요청 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(complexId)) {
-            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
         // 소프트 삭제 — isDeleted/deletedAt/status를 markDeleted가 한 번에 처리
@@ -220,7 +221,7 @@ public class VehicleService {
     @Transactional(readOnly = true)
     public PageResponse<VehicleListRes> getMyVehicleList(VehicleListReq request, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 페이지 파라미터 디폴트 방어
         int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
@@ -260,7 +261,7 @@ public class VehicleService {
     @Transactional(readOnly = true)
     public VehicleDetailRes getMyVehicleDetail(Long vehicleId, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 차량 단건 + 소유자 동시 검증, 미존재 시 404
         Vehicle vehicle = vehicleRepository.findByIdAndUserIdAndIsDeletedFalse(vehicleId, userId)
@@ -268,7 +269,7 @@ public class VehicleService {
 
         // 차량 단지가 요청 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(complexId)) {
-            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
         return VehicleDetailRes.builder()
@@ -289,7 +290,7 @@ public class VehicleService {
     @Transactional(readOnly = true)
     public LicensePlateCheckRes checkDuplicateLicensePlate(String licensePlate, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 차량번호 필수값 검증
         if (licensePlate == null || licensePlate.isBlank()) {
@@ -308,7 +309,7 @@ public class VehicleService {
     @Transactional
     public VehicleApproveRes approveVehicle(Long vehicleId, String userRole, Long complexId, Long selectedComplexId) {
         // 관리자 컨텍스트 해석
-        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
 
         // 차량 단건 존재 확인
         Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
@@ -316,7 +317,7 @@ public class VehicleService {
 
         // 차량 단지가 관리자 컨텍스트 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(targetComplexId)) {
-            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
         // 승인 가능 상태 검증 — PENDING만 허용
@@ -355,7 +356,7 @@ public class VehicleService {
     @Transactional
     public VehicleRejectRes rejectVehicle(Long vehicleId, VehicleRejectReq request, String userRole, Long complexId, Long selectedComplexId) {
         // 관리자 컨텍스트 해석
-        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
 
         // 요청 본문 null 검증
         if (request == null) {
@@ -374,7 +375,7 @@ public class VehicleService {
 
         // 차량 단지가 관리자 컨텍스트 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(targetComplexId)) {
-            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
         // 거절 가능 상태 검증 — PENDING만 허용
@@ -403,7 +404,7 @@ public class VehicleService {
     @Transactional(readOnly = true)
     public PageResponse<AdminVehicleListRes> getAdminVehicleList(AdminVehicleListReq request, String userRole, Long complexId, Long selectedComplexId) {
         // 관리자 컨텍스트 해석
-        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
 
         // 페이지 파라미터 디폴트 방어
         int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
@@ -462,7 +463,7 @@ public class VehicleService {
     @Transactional(readOnly = true)
     public AdminVehicleDetailRes getAdminVehicleDetail(Long vehicleId, String userRole, Long complexId, Long selectedComplexId) {
         // 관리자 컨텍스트 해석
-        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
 
         // 차량 단건 존재 확인
         Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
@@ -470,7 +471,7 @@ public class VehicleService {
 
         // 차량 단지가 관리자 컨텍스트 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(targetComplexId)) {
-            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_OWNER_MISMATCH);
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
         // 입주민과 세대 캐시 조회, 누락 시 null
@@ -496,45 +497,4 @@ public class VehicleService {
                 .build();
     }
 
-    // 입주민 API 헤더 컨텍스트 검증, USER 권한과 식별자 필수
-    private void validateResidentContext(Long userId, String userRole, Long complexId) {
-        // userRole 빈값 검증
-        if (userRole == null || userRole.isBlank()) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
-        // USER 권한 아니면 입주민 API 차단
-        if (!"USER".equals(userRole)) {
-            throw new BusinessException(CommonErrorCode.FORBIDDEN);
-        }
-
-        // userId, complexId 필수값 검증
-        if (userId == null || complexId == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-    }
-
-    // 관리자 주차 API의 단지 컨텍스트를 역할별 헤더 기준으로 해석한다.
-    // MASTER는 선택 단지, 일반 관리자는 토큰 단지 기준으로 처리한다.
-    private Long resolveAdminContextComplexId(String userRole, Long complexId, Long selectedComplexId) {
-        if (userRole == null || userRole.isBlank()) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
-        if ("MASTER".equals(userRole)) {
-            if (selectedComplexId == null) {
-                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-            }
-            return selectedComplexId;
-        }
-
-        if ("MANAGER".equals(userRole) || "ADMIN".equals(userRole)) {
-            if (complexId == null) {
-                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-            }
-            return complexId;
-        }
-
-        throw new BusinessException(CommonErrorCode.FORBIDDEN);
-    }
 }

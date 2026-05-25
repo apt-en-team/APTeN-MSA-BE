@@ -11,6 +11,7 @@ import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicle
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleDeleteRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleListRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehiclePatchRes;
+import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
 import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
@@ -43,7 +44,7 @@ public class RegularVisitorVehicleService {
             RegularVisitorVehicleCreateReq request, Long userId, String userRole, Long complexId
     ) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 요청 본문 null 검증
         if (request == null) {
@@ -109,7 +110,7 @@ public class RegularVisitorVehicleService {
             RegularVisitorVehicleListReq request, Long userId, String userRole, Long complexId
     ) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 페이지 파라미터 디폴트 방어
         int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
@@ -153,7 +154,7 @@ public class RegularVisitorVehicleService {
             Long userId, String userRole, Long complexId
     ) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 요청 본문 null 검증
         if (request == null) {
@@ -205,7 +206,7 @@ public class RegularVisitorVehicleService {
             Long userId, String userRole, Long complexId
     ) {
         // 입주민 컨텍스트 검증
-        validateResidentContext(userId, userRole, complexId);
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
         // 고정 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
         RegularVisitorVehicle entity = regularVisitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(regularVisitorVehicleId, userId)
@@ -235,7 +236,7 @@ public class RegularVisitorVehicleService {
             String userRole, Long complexId, Long selectedComplexId
     ) {
         // 관리자 컨텍스트 해석으로 대상 단지 확정
-        Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
 
         // 고정 방문차량 단건 존재 확인
         RegularVisitorVehicle entity = regularVisitorVehicleRepository.findByIdAndIsDeletedFalse(regularVisitorVehicleId)
@@ -258,45 +259,4 @@ public class RegularVisitorVehicleService {
                 .build();
     }
 
-    // 입주민 API 헤더 컨텍스트 검증, USER 권한과 식별자 필수
-    private void validateResidentContext(Long userId, String userRole, Long complexId) {
-        // userRole 빈값 검증
-        if (userRole == null || userRole.isBlank()) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
-        // USER 권한 아니면 입주민 API 차단
-        if (!"USER".equals(userRole)) {
-            throw new BusinessException(CommonErrorCode.FORBIDDEN);
-        }
-
-        // userId, complexId 필수값 검증
-        if (userId == null || complexId == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-    }
-
-    // 관리자 주차 API의 단지 컨텍스트를 역할별 헤더 기준으로 해석한다.
-    // MASTER는 선택 단지, 일반 관리자는 토큰 단지 기준으로 처리한다.
-    private Long resolveAdminContextComplexId(String userRole, Long complexId, Long selectedComplexId) {
-        if (userRole == null || userRole.isBlank()) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
-        if ("MASTER".equals(userRole)) {
-            if (selectedComplexId == null) {
-                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-            }
-            return selectedComplexId;
-        }
-
-        if ("MANAGER".equals(userRole) || "ADMIN".equals(userRole)) {
-            if (complexId == null) {
-                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-            }
-            return complexId;
-        }
-
-        throw new BusinessException(CommonErrorCode.FORBIDDEN);
-    }
 }

@@ -26,7 +26,7 @@ public class AdminVehicleController {
 
     private final VehicleService vehicleService;
 
-    //차량 승인 API-304
+    //차량 승인
     @PatchMapping("/api/admin/vehicles/{vehicleId}/approve")
     public ResultResponse<VehicleApproveRes> approveVehicle(
             @PathVariable Long vehicleId,
@@ -37,7 +37,7 @@ public class AdminVehicleController {
         return ResultResponse.success("차량 승인 성공", vehicleService.approveVehicle(vehicleId, userRole, complexId, selectedComplexId));
     }
 
-    //차량 거절 API-305
+    //차량 거절
     @PatchMapping("/api/admin/vehicles/{vehicleId}/reject")
     public ResultResponse<VehicleRejectRes> rejectVehicle(
             @PathVariable Long vehicleId,
@@ -49,7 +49,7 @@ public class AdminVehicleController {
         return ResultResponse.success("차량 거절 성공", vehicleService.rejectVehicle(vehicleId, request, userRole, complexId, selectedComplexId));
     }
 
-    //전체 차량 조회 API-307
+    //전체 차량 조회
     @GetMapping("/api/admin/vehicles")
     public ResultResponse<PageResponse<AdminVehicleListRes>> getAdminVehicleList(
             @ModelAttribute AdminVehicleListReq request,
@@ -60,7 +60,7 @@ public class AdminVehicleController {
         return ResultResponse.success("전체 차량 목록 조회 성공", vehicleService.getAdminVehicleList(request, userRole, complexId, selectedComplexId));
     }
 
-    //관리자 차량 상세 조회 API-336
+    //관리자 차량 상세 조회
     @GetMapping("/api/admin/vehicles/{vehicleId}")
     public ResultResponse<AdminVehicleDetailRes> getAdminVehicleDetail(
             @PathVariable Long vehicleId,

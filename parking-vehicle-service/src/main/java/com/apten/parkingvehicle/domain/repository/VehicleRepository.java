@@ -3,7 +3,6 @@ package com.apten.parkingvehicle.domain.repository;
 import com.apten.parkingvehicle.domain.entity.Vehicle;
 import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,9 +13,6 @@ import org.springframework.data.repository.query.Param;
 // 입주민 차량 원본 테이블 접근을 담당하는 저장소이다.
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
-    // 단지 기준 차량번호 중복 여부를 조회한다.
-    boolean existsByComplexIdAndLicensePlateAndIsDeletedFalse(Long complexId, String licensePlate);
-
     // 단지 기준 차량번호 중복 여부를 조회한다 (소프트 삭제 이력 포함).
     boolean existsByComplexIdAndLicensePlate(Long complexId, String licensePlate);
 
@@ -26,14 +22,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     // 세대 기준 여러 상태의 차량 수를 한 번에 조회한다.
     long countByHouseholdIdAndStatusInAndIsDeletedFalse(Long householdId, Collection<VehicleStatus> statuses);
 
-    // 사용자 기준 차량 목록을 조회한다.
-    List<Vehicle> findByUserIdAndIsDeletedFalse(Long userId);
-
     // 차량 식별자와 미삭제 조건으로 차량을 조회한다.
     Optional<Vehicle> findByIdAndIsDeletedFalse(Long id);
-
-    // 단지와 상태 기준 차량 목록을 조회한다.
-    List<Vehicle> findByComplexIdAndStatusAndIsDeletedFalse(Long complexId, VehicleStatus status);
 
     // 단지와 차량번호 기준 승인된 미삭제 차량을 조회한다 (입차 시 입주민 차량 매칭용).
     Optional<Vehicle> findByComplexIdAndLicensePlateAndStatusAndIsDeletedFalse(

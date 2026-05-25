@@ -21,13 +21,13 @@ public class InternalParkingFeeController {
     // 비용 산정 응용 서비스이다.
     private final ParkingFeeCalculationService parkingFeeCalculationService;
 
-    //차량 비용 산정 및 발행 API-333
+    //차량 비용 산정 및 발행
     @PostMapping("/vehicle-fees/calculate")
     public ResultResponse<VehicleFeeCalculateRes> calculateVehicleFees(@RequestBody VehicleFeeCalculateReq request) {
         return ResultResponse.success("차량 비용 산정 실행 성공", parkingFeeCalculationService.calculateVehicleFees(request));
     }
 
-    //방문차량 비용 산정 및 발행 API-334
+    //방문차량 비용 산정 및 발행
     @PostMapping("/visitor-fees/calculate")
     public ResultResponse<VisitorFeeCalculateRes> calculateVisitorFees(@RequestBody VisitorFeeCalculateReq request) {
         return ResultResponse.success("방문차량 비용 산정 실행 성공", parkingFeeCalculationService.calculateVisitorFees(request));
