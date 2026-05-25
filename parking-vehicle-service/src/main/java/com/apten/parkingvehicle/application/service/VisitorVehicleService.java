@@ -32,7 +32,6 @@ import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -92,16 +91,6 @@ public class VisitorVehicleService {
         // 헤더 단지와 세대 단지 일치 검증, 불일치는 세대 미존재와 동일하게 처리
         if (!household.getComplexId().equals(complexId)) {
             throw new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND);
-        }
-
-        // 같은 차량번호 3회 초과 등록 거부 — 이번 달 createdAt 범위, 미삭제 건수 기준
-        YearMonth thisMonth = YearMonth.now();
-        LocalDateTime monthStart = thisMonth.atDay(1).atStartOfDay();
-        LocalDateTime nextMonthStart = thisMonth.plusMonths(1).atDay(1).atStartOfDay();
-        long monthlyCount = visitorVehicleRepository.countRegistrationsInRange(
-                household.getId(), licensePlate, monthStart, nextMonthStart);
-        if (monthlyCount >= 3) {
-            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_LIMIT_EXCEEDED);
         }
 
         // 신규 방문차량 엔티티 — status는 빌더 디폴트(APPROVED), sourceId는 null, isDeleted는 false
@@ -327,20 +316,61 @@ public class VisitorVehicleService {
     }
 
     // 방문차량을 재등록한다.
+    @Transactional
     public VisitorVehicleReRegisterRes reRegisterVisitorVehicle(Long visitorVehicleId, VisitorVehicleReRegisterReq request, Long userId, String userRole, Long complexId) {
-        //TODO 입주민 컨텍스트 검증
-        //TODO 기존 방문차량 존재 여부 확인
-        //TODO 방문 예정일 유효성 검증
-        //TODO 사용자 소속 세대 확인
-        //TODO sourceId를 유지한 신규 방문차량 등록
-        return VisitorVehicleReRegisterRes.builder()
-                .visitorVehicleId(null)
-                .sourceVisitorVehicleId(visitorVehicleId)
-                .visitDate(request.getVisitDate())
+        // 입주민 컨텍스트 검증
+        validateResidentContext(userId, userRole, complexId);
+
+        // 요청 본문 null 검증
+        if (request == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 원본 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
+        VisitorVehicle source = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 원본 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
+        if (!source.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_COMPLEX_MISMATCH);
+        }
+
+        // 방문 시간대 필수값 검증
+        if (request.getStartTime() == null || request.getEndTime() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 방문 예정일 유효성 검증 — null과 과거 날짜 거부, 같은 날은 허용
+        LocalDate visitDate = request.getVisitDate();
+        if (visitDate == null || visitDate.isBefore(LocalDate.now())) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISIT_DATE_INVALID);
+        }
+
+        // 신규 방문차량 엔티티 — 식별/연락 정보는 원본 승계, 일정은 요청값, sourceId는 원본 ID
+        VisitorVehicle entity = VisitorVehicle.builder()
+                .userId(source.getUserId())
+                .householdId(source.getHouseholdId())
+                .complexId(source.getComplexId())
+                .licensePlate(source.getLicensePlate())
+                .visitorName(source.getVisitorName())
+                .phone(source.getPhone())
+                .visitDate(visitDate)
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
-                .status(VisitorVehicleStatus.APPROVED)
-                .createdAt(LocalDateTime.now())
+                .sourceId(source.getId())
+                .build();
+
+        VisitorVehicle saved = visitorVehicleRepository.save(entity);
+
+        return VisitorVehicleReRegisterRes.builder()
+                .visitorVehicleId(saved.getId())
+                .sourceVisitorVehicleId(source.getId())
+                .licensePlate(saved.getLicensePlate())
+                .visitDate(saved.getVisitDate())
+                .startTime(saved.getStartTime())
+                .endTime(saved.getEndTime())
+                .status(saved.getStatus())
+                .createdAt(saved.getCreatedAt())
                 .build();
     }
 
@@ -391,16 +421,6 @@ public class VisitorVehicleService {
         Long headUserId = household.getHeadUserId();
         if (headUserId == null) {
             throw new BusinessException(ParkingVehicleErrorCode.USER_NOT_FOUND);
-        }
-
-        // 같은 차량번호 3회 초과 등록 거부 — 이번 달 createdAt 범위, 미삭제 건수 기준
-        YearMonth thisMonth = YearMonth.now();
-        LocalDateTime monthStart = thisMonth.atDay(1).atStartOfDay();
-        LocalDateTime nextMonthStart = thisMonth.plusMonths(1).atDay(1).atStartOfDay();
-        long monthlyCount = visitorVehicleRepository.countRegistrationsInRange(
-                householdId, licensePlate, monthStart, nextMonthStart);
-        if (monthlyCount >= 3) {
-            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_LIMIT_EXCEEDED);
         }
 
         // 신규 방문차량 엔티티 — userId는 세대주, status는 빌더 디폴트(APPROVED), sourceId는 null
