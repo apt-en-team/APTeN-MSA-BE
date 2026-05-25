@@ -26,6 +26,7 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     VISIT_DATE_INVALID(HttpStatus.BAD_REQUEST, "PVH_400_03", "방문 예정일이 올바르지 않습니다."),
     VISITOR_VEHICLE_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_04", "방문차량을 찾을 수 없습니다."),
     VISITOR_VEHICLE_OWNER_MISMATCH(HttpStatus.FORBIDDEN, "PVH_403_02", "방문차량 소유자가 아닙니다."),
+    VISITOR_VEHICLE_COMPLEX_MISMATCH(HttpStatus.FORBIDDEN, "PVH_403_05", "다른 단지의 방문차량입니다."),
     VISITOR_VEHICLE_STATUS_INVALID(HttpStatus.BAD_REQUEST, "PVH_400_04", "방문차량 상태가 올바르지 않습니다."),
     REGULAR_VISITOR_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_05", "고정 방문차량을 찾을 수 없습니다."),
     REGULAR_VISITOR_OWNER_MISMATCH(HttpStatus.FORBIDDEN, "PVH_403_03", "고정 방문차량 소유자가 아닙니다."),
