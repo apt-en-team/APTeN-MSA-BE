@@ -259,24 +259,49 @@ public class ParkingService {
         // 단지 컨텍스트 해석 + 기능 활성 여부 검증
         Long targetComplexId = resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
         featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
+        // 단지 운영 타입이 NONE이면 차단 (다른 admin 진입점과 동일 정책)
+        parkingSettingService.validateParkingEnabled(targetComplexId);
 
         // 필수값 검증 (zoneId / licensePlate / entryType)
-        if (request.getZoneId() == null
-                || request.getLicensePlate() == null || request.getLicensePlate().isBlank()
-                || request.getEntryType() == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        validateParkingLogRequest(request);
+
+        // 주차 구역 검증: 단지 일치 + 단건 존재
+        ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(request.getZoneId(), targetComplexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
+
+        return executeParkingLog(zone, request);
+    }
+
+    // 정문 LPR 카메라가 호출하는 입출차 로그 등록. 관리자 컨텍스트 없이 zoneId로 단지를 역추적한다.
+    @Transactional
+    public ParkingLogCreateRes createParkingLogByGateRecognition(ParkingLogCreateReq request) {
+        // 필수값 검증 (zoneId / licensePlate / entryType)
+        validateParkingLogRequest(request);
+
+        // zoneId로 zone 조회 + 단지 역추적 (zone이 단지에 종속이라 zoneId만으로 단지가 결정된다)
+        ParkingZone zone = parkingZoneRepository.findById(request.getZoneId())
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
+        Long targetComplexId = zone.getComplexId();
+
+        // 단지 기능 활성 + 운영 타입 NONE 차단
+        featureAccessService.validateEnabled(targetComplexId, FeatureCode.PARKING_STATUS);
+        parkingSettingService.validateParkingEnabled(targetComplexId);
+
+        return executeParkingLog(zone, request);
+    }
+
+    // 입출차 등록 공통 처리 — zone 활성 검증, 4단계 차종 매칭, parking_log 저장, zone 카운터 발행
+    private ParkingLogCreateRes executeParkingLog(ParkingZone zone, ParkingLogCreateReq request) {
+        Long targetComplexId = zone.getComplexId();
+
+        // zone 활성 상태 검증
+        if (!Boolean.TRUE.equals(zone.getIsActive())) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_INACTIVE);
         }
 
         // 기록 시각이 비어 있으면 서버 현재 시각으로 처리 (자동 게이트 등 시각 미전달 케이스 대응)
         LocalDateTime loggedAt = request.getLoggedAt() != null ? request.getLoggedAt() : LocalDateTime.now();
         String licensePlate = request.getLicensePlate().trim();
-
-        // 주차 구역 검증: 단지 일치 + 활성 상태
-        ParkingZone zone = parkingZoneRepository.findByIdAndComplexId(request.getZoneId(), targetComplexId)
-                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_NOT_FOUND));
-        if (!Boolean.TRUE.equals(zone.getIsActive())) {
-            throw new BusinessException(ParkingVehicleErrorCode.PARKING_ZONE_INACTIVE);
-        }
 
         // 직전 로그 조회 (단지 + 차량번호 기준 최신 1건)
         // IN 요청: 중복 IN 차단용 / OUT 요청: 매칭 검증 + 차종 ID 복사용
@@ -377,6 +402,15 @@ public class ParkingService {
                 .entryType(saved.getEntryType())
                 .loggedAt(saved.getLoggedAt())
                 .build();
+    }
+
+    // 입출차 등록 요청 필수값 검증
+    private void validateParkingLogRequest(ParkingLogCreateReq request) {
+        if (request.getZoneId() == null
+                || request.getLicensePlate() == null || request.getLicensePlate().isBlank()
+                || request.getEntryType() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
     }
 
     // 관리자 주차 현황을 조회한다.
