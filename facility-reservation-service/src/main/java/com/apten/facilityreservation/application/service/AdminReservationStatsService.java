@@ -29,6 +29,11 @@ public class AdminReservationStatsService {
 
         long todayTotal = reservationRepository.countByComplexIdAndReservationDate(complexId, today);
 
+        long todayConfirmed = reservationRepository.countByComplexIdAndReservationDateAndStatus(complexId, today, ReservationStatus.CONFIRMED);
+        long todayCompleted = reservationRepository.countByComplexIdAndReservationDateAndStatus(complexId, today, ReservationStatus.COMPLETED);
+        long todayReserved = todayConfirmed + todayCompleted;
+        long todayCancelled = reservationRepository.countByComplexIdAndReservationDateAndStatus(complexId, today, ReservationStatus.CANCELLED);
+
         long facilityConfirmed = reservationRepository.countByComplexIdAndStatus(complexId, ReservationStatus.CONFIRMED);
         long gxConfirmed = gxReservationRepository.countByComplexIdAndStatus(complexId, GxReservationStatus.CONFIRMED);
         long gxWaiting = gxReservationRepository.countByComplexIdAndStatus(complexId, GxReservationStatus.WAITING);
@@ -44,6 +49,9 @@ public class AdminReservationStatsService {
 
         return AdminReservationStatsRes.builder()
                 .todayTotal(todayTotal)
+                .todayReserved(todayReserved)
+                .gxWaiting(gxWaiting)
+                .todayCancelled(todayCancelled)
                 .activeCount(activeCount)
                 .cancelledCount(cancelledCount)
                 .monthlyTotal(monthlyTotal)

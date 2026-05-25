@@ -158,6 +158,8 @@ public class FacilityPolicyService {
                     .feeType(req.getFeeType())
                     .includedPersonCount(req.getIncludedPersonCount())
                     .extraPersonFee(req.getExtraPersonFee())
+                    .subscribeCutoffDay(req.getSubscribeCutoffDay())
+                    .cancelCutoffDay(req.getCancelCutoffDay())
                     .build());
         } else {
             // 신규 정책 저장
@@ -172,7 +174,8 @@ public class FacilityPolicyService {
                     .feeType(req.getFeeType() != null ? req.getFeeType() : FacilityFeeType.FLAT)
                     .includedPersonCount(req.getIncludedPersonCount())
                     .extraPersonFee(req.getExtraPersonFee())
-                    .billingCutoffDay(req.getBillingCutoffDay())
+                    .subscribeCutoffDay(req.getSubscribeCutoffDay())
+                    .cancelCutoffDay(req.getCancelCutoffDay())
                     .isActive(true)
                     .build());
         }
@@ -190,7 +193,8 @@ public class FacilityPolicyService {
                 .feeType(policy.getFeeType())
                 .includedPersonCount(policy.getIncludedPersonCount())
                 .extraPersonFee(policy.getExtraPersonFee())
-                .billingCutoffDay(policy.getBillingCutoffDay())
+                .subscribeCutoffDay(policy.getSubscribeCutoffDay())
+                .cancelCutoffDay(policy.getCancelCutoffDay())
                 .isActive(policy.getIsActive())
                 .updatedAt(policy.getUpdatedAt())
                 .build();
@@ -225,7 +229,8 @@ public class FacilityPolicyService {
                         .feeType(policy.getFeeType())
                         .includedPersonCount(policy.getIncludedPersonCount())
                         .extraPersonFee(policy.getExtraPersonFee())
-                        .billingCutoffDay(policy.getBillingCutoffDay())
+                        .subscribeCutoffDay(policy.getSubscribeCutoffDay())
+                .cancelCutoffDay(policy.getCancelCutoffDay())
                         .isActive(policy.getIsActive())
                         .updatedAt(policy.getUpdatedAt())
                         .build())

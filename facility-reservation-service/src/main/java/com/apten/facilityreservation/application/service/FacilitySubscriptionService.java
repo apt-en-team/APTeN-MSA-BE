@@ -14,11 +14,13 @@ import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
+import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
+import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDate;
@@ -40,6 +42,7 @@ public class FacilitySubscriptionService {
     private final UserCacheRepository userCacheRepository;
     private final FacilityRepository facilityRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final ReservationRepository reservationRepository;
     private final FeatureAccessService featureAccessService;
 
     // 입주민이 시설 구독을 해지한다.
@@ -58,6 +61,20 @@ public class FacilitySubscriptionService {
         // 조회된 구독이 요청 단지 소속인지 검증한다.
         if (!subscription.getComplexId().equals(complexId)) {
             throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_NOT_FOUND);
+        }
+
+        // CONFIRMED 예약이 남아 있으면 먼저 취소를 요청한다.
+        if (reservationRepository.existsByUserIdAndFacilityIdAndStatus(userId, facilityId, ReservationStatus.CONFIRMED)) {
+            throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_HAS_CONFIRMED_RESERVATION);
+        }
+
+        // 이번 달에 COMPLETED 이용 이력이 있고 가입일로부터 30일 미만이면 해지를 거부한다.
+        LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
+        LocalDate monthEnd = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+        boolean hasCompletedThisMonth = reservationRepository.existsByUserIdAndFacilityIdAndReservationDateBetweenAndStatus(
+                userId, facilityId, monthStart, monthEnd, ReservationStatus.COMPLETED);
+        if (hasCompletedThisMonth && subscription.getSubscribedAt().plusDays(30).isAfter(LocalDate.now())) {
+            throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_TOO_EARLY_TO_CANCEL);
         }
 
         subscription.cancel(LocalDate.now());
@@ -131,18 +148,27 @@ public class FacilitySubscriptionService {
                 .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                 .stream().collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
+        LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
+        LocalDate monthEnd = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+
         return subscriptions.stream()
                 .map(s -> {
                     Facility facility = facilityMap.get(s.getFacilityId());
                     FacilityPolicy policy = policyMap.get(s.getFacilityId());
+                    boolean hasCompleted = reservationRepository.existsByUserIdAndFacilityIdAndReservationDateBetweenAndStatus(
+                            userId, s.getFacilityId(), monthStart, monthEnd, ReservationStatus.COMPLETED);
                     return ResidentFacilitySubscriptionListRes.builder()
                             .subscriptionId(s.getId())
                             .facilityId(s.getFacilityId())
                             .facilityName(facility != null ? facility.getName() : "")
                             .feeType(policy != null ? policy.getFeeType() : null)
+                            .baseFee(policy != null ? policy.getBaseFee() : null)
+                            .subscribeCutoffDay(policy != null ? policy.getSubscribeCutoffDay() : null)
+                            .cancelCutoffDay(policy != null ? policy.getCancelCutoffDay() : null)
                             .subscribedAt(s.getSubscribedAt())
                             .cancelledAt(s.getCancelledAt())
                             .status(s.getStatus())
+                            .hasCompletedThisMonth(hasCompleted)
                             .build();
                 })
                 .toList();

@@ -129,8 +129,8 @@ public class FacilityFeeService {
                 if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
                     continue;
                 }
-                // billingCutoffDay 규칙: 기준일 이후 신청/해지는 당월 미반영
-                if (!isBillableInMonth(subscription, yearMonth, policy.getBillingCutoffDay())) {
+                // subscribeCutoffDay / cancelCutoffDay 규칙: 기준일 이후 신청/해지는 당월 미반영
+                if (!isBillableInMonth(subscription, yearMonth, policy)) {
                     continue;
                 }
                 BigDecimal fee = calcSubscriptionFee(policy, feeType);
@@ -302,33 +302,36 @@ public class FacilityFeeService {
         return baseFee;
     }
 
-    // billingCutoffDay 규칙에 따라 구독이 당월 청구 대상인지 판별한다.
-    // cutoffDay가 null이면 항상 청구한다.
-    // 신청: subscribedAt의 일자가 cutoffDay 초과이면 당월 제외 (익월부터 청구)
-    // 해지: cancelledAt의 일자가 cutoffDay 초과이면 당월 포함 (익월부터 미청구)
-    private boolean isBillableInMonth(FacilitySubscription subscription, YearMonth yearMonth, Integer cutoffDay) {
-        if (cutoffDay == null) {
-            return true;
-        }
-        int maxDay = Math.min(cutoffDay, yearMonth.lengthOfMonth());
+    // subscribeCutoffDay / cancelCutoffDay 규칙에 따라 구독이 당월 청구 대상인지 판별한다.
+    // 각 기준일이 null이면 해당 규칙을 적용하지 않는다 (항상 당월 반영).
+    // 신청: subscribedAt의 일자가 subscribeCutoffDay 초과이면 당월 제외 (익월부터 청구)
+    // 해지: cancelledAt의 일자가 cancelCutoffDay 이하이면 당월 제외 (익월부터 미청구)
+    private boolean isBillableInMonth(FacilitySubscription subscription, YearMonth yearMonth, FacilityPolicy policy) {
+        Integer subscribeCutoffDay = policy.getSubscribeCutoffDay();
+        Integer cancelCutoffDay = policy.getCancelCutoffDay();
 
-        // 신청일이 이 달인 경우: cutoffDay 초과 신청은 당월 제외
-        LocalDate subscribeMonth = YearMonth.from(subscription.getSubscribedAt()).atDay(1);
-        if (subscribeMonth.equals(yearMonth.atDay(1))) {
-            if (subscription.getSubscribedAt().getDayOfMonth() > maxDay) {
-                return false;
+        // 신청일이 이 달인 경우: subscribeCutoffDay 초과 신청은 당월 제외
+        if (subscribeCutoffDay != null) {
+            int maxSubscribeDay = Math.min(subscribeCutoffDay, yearMonth.lengthOfMonth());
+            LocalDate subscribeMonth = YearMonth.from(subscription.getSubscribedAt()).atDay(1);
+            if (subscribeMonth.equals(yearMonth.atDay(1))) {
+                if (subscription.getSubscribedAt().getDayOfMonth() > maxSubscribeDay) {
+                    return false;
+                }
             }
         }
 
-        // 해지일이 이 달 이전인 경우: cutoffDay 이전 해지는 당월 제외
+        // 해지일 검사
         if (subscription.getCancelledAt() != null) {
             LocalDate cancelMonth = YearMonth.from(subscription.getCancelledAt()).atDay(1);
+            // 해지일이 이 달 이전이면 당월 미청구
             if (cancelMonth.isBefore(yearMonth.atDay(1))) {
                 return false;
             }
-            // 해지일이 이 달인 경우: cutoffDay 이전 해지는 당월 제외
-            if (cancelMonth.equals(yearMonth.atDay(1))) {
-                if (subscription.getCancelledAt().getDayOfMonth() <= maxDay) {
+            // 해지일이 이 달인 경우: cancelCutoffDay 이하 해지는 당월 제외
+            if (cancelCutoffDay != null && cancelMonth.equals(yearMonth.atDay(1))) {
+                int maxCancelDay = Math.min(cancelCutoffDay, yearMonth.lengthOfMonth());
+                if (subscription.getCancelledAt().getDayOfMonth() <= maxCancelDay) {
                     return false;
                 }
             }

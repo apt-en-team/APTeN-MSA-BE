@@ -41,6 +41,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     // 사용자별 예약 목록을 조회한다.
     List<Reservation> findByUserId(Long userId);
 
+    // 사용자 + 단지 기준 전체 예약 목록을 조회한다. (통합 목록 API 용)
+    List<Reservation> findByUserIdAndComplexId(Long userId, Long complexId);
+
     // 시설별 예약 목록을 조회한다.
     List<Reservation> findByFacilityId(Long facilityId);
 
@@ -184,25 +187,45 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 완료 처리는 비용/현황 집계의 기준이 되므로 종료 시각이 지난 CONFIRMED만 조회한다.
+    // 완료 처리 대상 조회 — 당일 예약과 자정 초과(야간) 예약을 구분해 완료 기준일을 적용한다.
+    // endTime >= startTime : 당일 완료 (reservationDate 기준)
+    // endTime < startTime  : 자정을 넘기는 예약 — 다음날(reservationDate + 1) 기준으로 완료 처리
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.status = :status
           AND (
-            r.reservationDate < :currentDate
-            OR (r.reservationDate = :currentDate AND r.endTime < :currentTime)
+            (r.endTime >= r.startTime AND (
+              r.reservationDate < :currentDate
+              OR (r.reservationDate = :currentDate AND r.endTime <= :currentTime)
+            ))
+            OR
+            (r.endTime < r.startTime AND (
+              r.reservationDate < :yesterday
+              OR (r.reservationDate = :yesterday AND r.endTime <= :currentTime)
+            ))
           )
         ORDER BY r.reservationDate ASC, r.endTime ASC
         """)
     List<Reservation> findCompletableReservations(
             @Param("status") ReservationStatus status,
             @Param("currentDate") LocalDate currentDate,
+            @Param("yesterday") LocalDate yesterday,
             @Param("currentTime") LocalTime currentTime,
             Pageable pageable
     );
 
+    // 사용자 + 시설 기준 특정 상태 예약 존재 여부 확인 (구독 해지 검증용)
+    boolean existsByUserIdAndFacilityIdAndStatus(Long userId, Long facilityId, ReservationStatus status);
+
+    // 사용자 + 시설 기준 기간 내 특정 상태 예약 존재 여부 확인 (이번달 이용 이력 검증용)
+    boolean existsByUserIdAndFacilityIdAndReservationDateBetweenAndStatus(
+            Long userId, Long facilityId, LocalDate from, LocalDate to, ReservationStatus status);
+
     // 통계 — 단지 기준 오늘 예약 수
     long countByComplexIdAndReservationDate(Long complexId, LocalDate reservationDate);
+
+    // 통계 — 단지 기준 날짜+상태별 예약 수
+    long countByComplexIdAndReservationDateAndStatus(Long complexId, LocalDate reservationDate, ReservationStatus status);
 
     // 통계 — 단지 기준 상태별 예약 수
     long countByComplexIdAndStatus(Long complexId, ReservationStatus status);

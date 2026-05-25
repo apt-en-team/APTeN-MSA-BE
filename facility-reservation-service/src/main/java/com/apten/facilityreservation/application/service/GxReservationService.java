@@ -6,6 +6,7 @@ import com.apten.facilityreservation.application.model.request.GxReservationPost
 import com.apten.facilityreservation.application.model.request.GxReservationRejectReq;
 import com.apten.facilityreservation.application.model.response.AdminGxReservationDetailRes;
 import com.apten.facilityreservation.application.model.response.GxReservationApproveRes;
+import com.apten.facilityreservation.application.model.response.ReservationCompleteRes;
 import com.apten.facilityreservation.application.model.response.GxReservationCancelRes;
 import com.apten.facilityreservation.application.model.response.GxReservationPostRes;
 import com.apten.facilityreservation.application.model.response.GxReservationRejectRes;
@@ -28,11 +29,15 @@ import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepos
 import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +45,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class GxReservationService {
+
+    // 완료 처리 배치 크기이다.
+    @Value("${apten.scheduler.gx-complete.batch-size:100}")
+    private int gxCompleteBatchSize;
 
     private final FeatureAccessService featureAccessService;
     private final GxProgramRepository gxProgramRepository;
@@ -113,8 +122,9 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // 중복 신청 차단
-        if (gxReservationRepository.existsByProgramIdAndUserId(req.getProgramId(), userId)) {
+        // WAITING/CONFIRMED 상태인 신청이 있을 때만 중복으로 간주한다. 취소·거절·완료 후 재신청은 허용한다.
+        List<GxReservationStatus> activeStatuses = List.of(GxReservationStatus.WAITING, GxReservationStatus.CONFIRMED);
+        if (gxReservationRepository.existsByProgramIdAndUserIdAndStatusIn(req.getProgramId(), userId, activeStatuses)) {
             throw new BusinessException(FacilityReservationErrorCode.GX_ALREADY_APPLIED);
         }
 
@@ -127,14 +137,21 @@ public class GxReservationService {
         long currentWaiting = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.WAITING);
         int waitNo = (int) (currentWaiting + 1);
 
-        GxReservation reservation = gxReservationRepository.save(GxReservation.builder()
-                .complexId(complexId)
-                .programId(req.getProgramId())
-                .userId(userId)
-                .householdId(memberCache.getHouseholdId())
-                .status(GxReservationStatus.WAITING)
-                .waitNo(waitNo)
-                .build());
+        // DB 유니크 제약(program_id, user_id)으로 INSERT가 불가하므로, 기존 레코드가 있으면 재활성화한다.
+        GxReservation reservation = gxReservationRepository
+                .findByProgramIdAndUserId(req.getProgramId(), userId)
+                .map(existing -> {
+                    existing.reapply(waitNo);
+                    return existing;
+                })
+                .orElseGet(() -> gxReservationRepository.save(GxReservation.builder()
+                        .complexId(complexId)
+                        .programId(req.getProgramId())
+                        .userId(userId)
+                        .householdId(memberCache.getHouseholdId())
+                        .status(GxReservationStatus.WAITING)
+                        .waitNo(waitNo)
+                        .build()));
 
         return GxReservationPostRes.builder()
                 .gxReservationId(reservation.getId())
@@ -204,21 +221,27 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // 프로그램 정원 초과 여부 확인
-        GxProgram program = gxProgramRepository.findByIdAndComplexId(reservation.getProgramId(), complexId)
-                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
+        // 낙관적 락(OPTIMISTIC_FORCE_INCREMENT)으로 GxProgram 버전을 선점한다.
+        // 두 관리자가 동시에 승인하면 한 명은 커밋 시점에 버전 충돌로 실패한다.
+        try {
+            GxProgram program = gxProgramRepository
+                    .findByIdAndComplexIdWithOptimisticLock(reservation.getProgramId(), complexId)
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
-        long confirmedCount = gxReservationRepository.countByProgramIdAndStatus(reservation.getProgramId(), GxReservationStatus.CONFIRMED);
-        if (confirmedCount >= program.getMaxCount()) {
-            throw new BusinessException(FacilityReservationErrorCode.GX_CAPACITY_FULL);
+            long confirmedCount = gxReservationRepository.countByProgramIdAndStatus(reservation.getProgramId(), GxReservationStatus.CONFIRMED);
+            if (confirmedCount >= program.getMaxCount()) {
+                throw new BusinessException(FacilityReservationErrorCode.GX_CAPACITY_FULL);
+            }
+
+            reservation.approve();
+
+            // TODO: 승인 알림 발행 (가은 담당)
+
+            // 승인 후 남은 WAITING 순번을 재정렬한다.
+            resequenceWaitingNos(reservation.getProgramId());
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_CONCURRENT_UPDATE);
         }
-
-        reservation.approve();
-
-        // TODO: 승인 알림 발행 (가은 담당)
-
-        // 승인 후 남은 WAITING 순번을 재정렬한다.
-        resequenceWaitingNos(reservation.getProgramId());
 
         return GxReservationApproveRes.builder()
                 .gxReservationId(reservation.getId())
@@ -241,12 +264,20 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        reservation.reject(req.getRejectReason());
+        try {
+            gxProgramRepository
+                    .findByIdAndComplexIdWithOptimisticLock(reservation.getProgramId(), complexId)
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
-        // TODO: 거절 알림 발행 (가은 담당)
+            reservation.reject(req.getRejectReason());
 
-        // 거절 후 남은 WAITING 순번을 재정렬한다.
-        resequenceWaitingNos(reservation.getProgramId());
+            // TODO: 거절 알림 발행 (가은 담당)
+
+            // 거절 후 남은 WAITING 순번을 재정렬한다.
+            resequenceWaitingNos(reservation.getProgramId());
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_CONCURRENT_UPDATE);
+        }
 
         return GxReservationRejectRes.builder()
                 .gxReservationId(reservation.getId())
@@ -335,16 +366,47 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        reservation.cancel(GxReservationCancelReason.ADMIN);
+        try {
+            gxProgramRepository
+                    .findByIdAndComplexIdWithOptimisticLock(reservation.getProgramId(), complexId)
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
-        // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
-        resequenceWaitingNos(reservation.getProgramId());
+            reservation.cancel(GxReservationCancelReason.ADMIN);
+
+            // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
+            resequenceWaitingNos(reservation.getProgramId());
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new BusinessException(FacilityReservationErrorCode.GX_CONCURRENT_UPDATE);
+        }
 
         return GxReservationCancelRes.builder()
                 .gxReservationId(reservation.getId())
                 .status(reservation.getStatus())
                 .cancelReason(reservation.getCancelReason())
                 .cancelledAt(reservation.getCancelledAt())
+                .build();
+    }
+
+    // 종료된 GX 프로그램의 WAITING/CONFIRMED 예약을 COMPLETED로 일괄 전환한다.
+    @Transactional
+    public ReservationCompleteRes completeGxReservations() {
+        LocalDateTime now = LocalDateTime.now();
+        List<GxReservationStatus> targetStatuses = List.of(
+                GxReservationStatus.WAITING, GxReservationStatus.CONFIRMED
+        );
+
+        List<GxReservation> completable = gxReservationRepository.findCompletableGxReservations(
+                targetStatuses,
+                now.toLocalDate(),
+                now.toLocalTime(),
+                PageRequest.of(0, Math.max(gxCompleteBatchSize, 1))
+        );
+
+        completable.forEach(GxReservation::complete);
+
+        return ReservationCompleteRes.builder()
+                .completedCount(completable.size())
+                .processedAt(now)
                 .build();
     }
 

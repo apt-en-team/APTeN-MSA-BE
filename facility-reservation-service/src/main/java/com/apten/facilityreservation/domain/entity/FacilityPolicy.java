@@ -93,9 +93,13 @@ public class FacilityPolicy extends BaseEntity {
     @Column(name = "extra_person_fee", precision = 12, scale = 2)
     private BigDecimal extraPersonFee;
 
-    // 구독 청구 기준일이다. 이 일자 이전 신청/해지는 당월 반영, 이후는 익월부터 반영한다. null이면 정책 미설정이다.
-    @Column(name = "billing_cutoff_day")
-    private Integer billingCutoffDay;
+    // 구독 신청 기준일이다. 이 일자 이하 신청은 당월부터 청구, 초과 신청은 익월부터 청구한다. null이면 항상 당월 청구한다.
+    @Column(name = "subscribe_cutoff_day")
+    private Integer subscribeCutoffDay;
+
+    // 구독 해지 기준일이다. 이 일자 이하 해지는 당월 미청구, 초과 해지는 익월부터 미청구한다. null이면 항상 당월 청구한다.
+    @Column(name = "cancel_cutoff_day")
+    private Integer cancelCutoffDay;
 
     // 정책 활성 여부이다. 항상 true로 고정된다.
     @Builder.Default
@@ -131,8 +135,9 @@ public class FacilityPolicy extends BaseEntity {
         // BASE_PLUS_EXTRA 전용 필드는 null 포함 항상 덮어쓴다.
         this.includedPersonCount = req.getIncludedPersonCount();
         this.extraPersonFee = req.getExtraPersonFee();
-        // billingCutoffDay는 null 포함 항상 덮어쓴다.
-        this.billingCutoffDay = req.getBillingCutoffDay();
+        // 신청/해지 기준일은 null 포함 항상 덮어쓴다.
+        this.subscribeCutoffDay = req.getSubscribeCutoffDay();
+        this.cancelCutoffDay = req.getCancelCutoffDay();
         // isActive는 항상 true로 고정한다.
         this.isActive = true;
     }

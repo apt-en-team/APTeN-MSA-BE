@@ -42,6 +42,9 @@ public class FacilityPolicyPutReq {
     // BASE_PLUS_EXTRA 전용 — 초과 인원당 추가 요금이다.
     private BigDecimal extraPersonFee;
 
-    // 구독 청구 기준일이다. null이면 정책 미설정이다.
-    private Integer billingCutoffDay;
+    // 구독 신청 기준일이다. null이면 항상 당월 청구한다.
+    private Integer subscribeCutoffDay;
+
+    // 구독 해지 기준일이다. null이면 항상 당월 청구한다.
+    private Integer cancelCutoffDay;
 }

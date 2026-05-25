@@ -44,9 +44,12 @@ public enum FacilityReservationErrorCode implements ErrorCode {
     GX_ALREADY_APPLIED(HttpStatus.CONFLICT, "FRS_409_08", "이미 신청한 GX 프로그램입니다."),
     GX_RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_09", "GX 예약을 찾을 수 없습니다."),
     GX_CAPACITY_FULL(HttpStatus.CONFLICT, "FRS_409_09", "GX 정원이 가득 찼습니다."),
+    GX_CONCURRENT_UPDATE(HttpStatus.CONFLICT, "FRS_409_10", "다른 관리자가 동시에 처리 중입니다. 새로고침 후 다시 시도해주세요."),
     GX_WAITING_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_10", "GX 대기 정보를 찾을 수 없습니다."),
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_11", "구독 정보를 찾을 수 없습니다."),
     SUBSCRIPTION_ALREADY_CANCELLED(HttpStatus.BAD_REQUEST, "FRS_400_12", "이미 해지된 구독입니다."),
+    SUBSCRIPTION_TOO_EARLY_TO_CANCEL(HttpStatus.BAD_REQUEST, "FRS_400_13", "신청 후 1개월 이후부터 해지할 수 있습니다."),
+    SUBSCRIPTION_HAS_CONFIRMED_RESERVATION(HttpStatus.BAD_REQUEST, "FRS_400_14", "확정된 예약을 먼저 취소 후 구독을 해지해 주세요."),
     HOUSEHOLD_NOT_FOUND(HttpStatus.NOT_FOUND, "FRS_404_12", "세대 정보를 찾을 수 없습니다."),
     EVENT_PUBLISH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FRS_500_01", "이벤트 발행에 실패했습니다."),
     INTERNAL_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "FRS_500_02", "내부 처리 중 오류가 발생했습니다.");
