@@ -32,6 +32,13 @@ public interface FacilitySubscriptionRepository extends JpaRepository<FacilitySu
             Long complexId
     );
 
+    // 세대-시설의 가장 최근 해지된 구독을 조회한다. (유예기간 판단용)
+    Optional<FacilitySubscription> findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
+            Long householdId,
+            Long facilityId,
+            FacilitySubscriptionStatus status
+    );
+
     // 관리자 단지 내 전체 구독 목록을 구독 시작일 내림차순으로 조회한다.
     List<FacilitySubscription> findByComplexIdOrderBySubscribedAtDesc(Long complexId);
 

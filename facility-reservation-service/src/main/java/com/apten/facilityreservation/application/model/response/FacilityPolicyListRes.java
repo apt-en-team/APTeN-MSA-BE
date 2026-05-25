@@ -45,8 +45,11 @@ public class FacilityPolicyListRes {
     // BASE_PLUS_EXTRA 전용 — 초과 인원당 추가 요금이다.
     private BigDecimal extraPersonFee;
 
-    // 구독 청구 기준일이다.
-    private Integer billingCutoffDay;
+    // 구독 신청 기준일이다.
+    private Integer subscribeCutoffDay;
+
+    // 구독 해지 기준일이다.
+    private Integer cancelCutoffDay;
 
     // 활성 여부이다.
     private Boolean isActive;

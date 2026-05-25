@@ -217,6 +217,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     // 통계 — 단지 기준 오늘 예약 수
     long countByComplexIdAndReservationDate(Long complexId, LocalDate reservationDate);
 
+    // 통계 — 단지 기준 날짜+상태별 예약 수
+    long countByComplexIdAndReservationDateAndStatus(Long complexId, LocalDate reservationDate, ReservationStatus status);
+
     // 통계 — 단지 기준 상태별 예약 수
     long countByComplexIdAndStatus(Long complexId, ReservationStatus status);
 

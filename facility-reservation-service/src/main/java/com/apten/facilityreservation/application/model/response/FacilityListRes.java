@@ -59,4 +59,7 @@ public class FacilityListRes {
 
     // 오늘 날짜에 활성 차단 시간이 존재하는지 여부이다. 점검중 표시에 사용한다.
     private Boolean isTodayBlocked;
+
+    // 차단 유형이다. BLOCK(임시 점검), CLOSURE(정기 휴무), null(차단 없음)
+    private String blockType;
 }

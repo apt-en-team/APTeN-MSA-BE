@@ -60,6 +60,11 @@ public class FacilitySubscriptionService {
             throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_NOT_FOUND);
         }
 
+        // 신청일로부터 30일 미만이면 해지를 거부한다.
+        if (subscription.getSubscribedAt().plusDays(30).isAfter(LocalDate.now())) {
+            throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_TOO_EARLY_TO_CANCEL);
+        }
+
         subscription.cancel(LocalDate.now());
 
         return FacilitySubscriptionCancelRes.builder()
@@ -140,6 +145,9 @@ public class FacilitySubscriptionService {
                             .facilityId(s.getFacilityId())
                             .facilityName(facility != null ? facility.getName() : "")
                             .feeType(policy != null ? policy.getFeeType() : null)
+                            .baseFee(policy != null ? policy.getBaseFee() : null)
+                            .subscribeCutoffDay(policy != null ? policy.getSubscribeCutoffDay() : null)
+                            .cancelCutoffDay(policy != null ? policy.getCancelCutoffDay() : null)
                             .subscribedAt(s.getSubscribedAt())
                             .cancelledAt(s.getCancelledAt())
                             .status(s.getStatus())

@@ -38,7 +38,9 @@ import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.ReservationType;
+import com.apten.facilityreservation.domain.entity.FacilityClosureRule;
 import com.apten.facilityreservation.domain.repository.FacilityBlockTimeRepository;
+import com.apten.facilityreservation.domain.repository.FacilityClosureRuleRepository;
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
@@ -82,6 +84,7 @@ public class ReservationService {
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
+    private final FacilityClosureRuleRepository facilityClosureRuleRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
     private final FacilitySubscriptionRepository facilitySubscriptionRepository;
     private final FacilitySeatRepository facilitySeatRepository;
@@ -128,6 +131,15 @@ public class ReservationService {
             closeSec += 86400;
         }
         long slotSec = (long) slotMin * 60;
+
+        // 정기 휴무 규칙으로 예약 날짜가 차단된 경우 빈 슬롯 목록을 반환한다.
+        boolean closureBlocked = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(req.getFacilityId())
+                .stream()
+                .anyMatch(rule -> rule.isDateBlocked(req.getReservationDate()));
+        if (closureBlocked) {
+            return List.of();
+        }
 
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(req.getFacilityId(), req.getReservationDate());
@@ -848,12 +860,30 @@ public class ReservationService {
                 householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
             return;
         }
+        // 해지 후 유예기간(이번달 요금 청구 중) 내에 있으면 새 구독을 생성하지 않는다.
+        java.util.Optional<FacilitySubscription> recentCancelled = facilitySubscriptionRepository
+                .findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
+                        householdId, facilityId, FacilitySubscriptionStatus.CANCELLED);
+        if (recentCancelled.isPresent() && isCancelledInGracePeriod(recentCancelled.get(), policy)) {
+            return;
+        }
         facilitySubscriptionRepository.save(FacilitySubscription.builder()
                 .complexId(complexId)
                 .householdId(householdId)
                 .facilityId(facilityId)
                 .subscribedAt(subscribedAt)
                 .build());
+    }
+
+    // 해지된 구독이 이번달 유예기간(요금 청구 중) 내에 있는지 판단한다.
+    // 해지일이 이번달이고 기준일 초과 해지이면 이번달 요금이 청구되므로 이용이 유지된다.
+    private boolean isCancelledInGracePeriod(FacilitySubscription cancelled, FacilityPolicy policy) {
+        if (cancelled.getCancelledAt() == null) return false;
+        java.time.YearMonth cancelledMonth = java.time.YearMonth.from(cancelled.getCancelledAt());
+        if (!cancelledMonth.equals(java.time.YearMonth.now())) return false;
+        Integer cutoff = policy.getCancelCutoffDay();
+        if (cutoff == null) return true;  // 기준일 없음 = 항상 당월 청구 = 유예기간
+        return cancelled.getCancelledAt().getDayOfMonth() > cutoff;
     }
 
     // 익일 마감 운영 범위 검증 — open 이후이거나 close 이전이면 유효한 시간대
@@ -868,6 +898,15 @@ public class ReservationService {
             LocalTime startTime,
             LocalTime endTime
     ) {
+        // 정기 휴무 규칙으로 해당 날짜가 차단된 경우 예약을 거부한다.
+        boolean closureBlocked = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId)
+                .stream()
+                .anyMatch(rule -> rule.isDateBlocked(reservationDate));
+        if (closureBlocked) {
+            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        }
+
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, reservationDate);
 

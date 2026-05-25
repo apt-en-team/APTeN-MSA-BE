@@ -2,6 +2,7 @@ package com.apten.facilityreservation.application.model.response;
 
 import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Getter;
@@ -31,4 +32,13 @@ public class ResidentFacilitySubscriptionListRes {
 
     // 구독 상태이다.
     private FacilitySubscriptionStatus status;
+
+    // 기본 요금이다. (정책이 없으면 null)
+    private BigDecimal baseFee;
+
+    // 구독 신청 월정산 기준일이다. null이면 항상 당월 청구한다.
+    private Integer subscribeCutoffDay;
+
+    // 구독 해지 월정산 기준일이다. null이면 항상 당월 청구한다.
+    private Integer cancelCutoffDay;
 }

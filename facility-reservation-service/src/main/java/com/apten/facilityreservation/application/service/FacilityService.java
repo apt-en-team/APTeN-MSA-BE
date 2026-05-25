@@ -328,17 +328,22 @@ public class FacilityService {
                                 row -> ((Long) row[1]).intValue()
                         ));
 
-        // 오늘 임시 차단 존재 여부 배치 조회 (N+1 방지)
-        Set<Long> blockedFacilityIds = facilityIds.isEmpty() ? Set.of() :
+        // 오늘 임시 차단(점검) 시설 ID 배치 조회
+        Set<Long> blockFacilityIds = facilityIds.isEmpty() ? Set.of() :
                 new java.util.HashSet<>(facilityBlockTimeRepository.findBlockedFacilityIds(facilityIds, today));
 
-        // 오늘 정기 휴무 규칙 적용 여부를 평가해 blockedFacilityIds에 추가한다
+        // 오늘 정기 휴무 규칙 적용 시설 ID 배치 조회
+        Set<Long> closureFacilityIds = new java.util.HashSet<>();
         if (!facilityIds.isEmpty()) {
             facilityClosureRuleRepository.findByFacilityIdInAndIsActiveTrue(facilityIds).stream()
                     .filter(rule -> rule.isDateBlocked(today))
                     .map(FacilityClosureRule::getFacilityId)
-                    .forEach(blockedFacilityIds::add);
+                    .forEach(closureFacilityIds::add);
         }
+
+        // 합산 차단 집합 (isTodayBlocked 판단용)
+        Set<Long> blockedFacilityIds = new java.util.HashSet<>(blockFacilityIds);
+        blockedFacilityIds.addAll(closureFacilityIds);
 
         // 목록 응답 변환
         List<FacilityListRes> items = facilities.stream()
@@ -362,6 +367,9 @@ public class FacilityService {
                             .reservationUnitLabel(buildReservationUnitLabel(policy))
                             .todayReservedCount(todayCountMap.getOrDefault(facility.getId(), 0))
                             .isTodayBlocked(blockedFacilityIds.contains(facility.getId()))
+                            .blockType(closureFacilityIds.contains(facility.getId()) ? "CLOSURE"
+                                    : blockFacilityIds.contains(facility.getId()) ? "BLOCK"
+                                    : null)
                             .build();
                 })
                 .toList();
