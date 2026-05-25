@@ -3,6 +3,7 @@ package com.apten.parkingvehicle.domain.repository;
 import com.apten.parkingvehicle.domain.entity.VisitorVehicle;
 import com.apten.parkingvehicle.domain.enums.VisitorVehicleStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -29,6 +30,22 @@ public interface VisitorVehicleRepository extends JpaRepository<VisitorVehicle, 
 
     // 방문차량 단건 + 소유자 동시 조회, 미삭제 조건 포함
     Optional<VisitorVehicle> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
+
+    // 세대와 차량번호 기준 지정 기간 등록 건수를 조회한다 (3회 초과 거부 판정용).
+    @Query("""
+            SELECT COUNT(v) FROM VisitorVehicle v
+            WHERE v.householdId = :householdId
+              AND v.licensePlate = :licensePlate
+              AND v.isDeleted = false
+              AND v.createdAt >= :fromDateTime
+              AND v.createdAt < :toDateTime
+            """)
+    long countRegistrationsInRange(
+            @Param("householdId") Long householdId,
+            @Param("licensePlate") String licensePlate,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime
+    );
 
     // 내 방문차량 목록 페이지 조회, 기간 동적 필터
     @Query("""
