@@ -390,6 +390,16 @@ public class ParkingService {
                 .build();
         ParkingLog saved = parkingLogRepository.save(log);
 
+        // 방문차량 OUT 기록이면 해당 방문차량을 EXPIRED로 전환 (APPROVED만 대상, 같은 트랜잭션 안)
+        if (request.getEntryType() == ParkingEntryType.OUT && matchedVisitorVehicleId != null) {
+            visitorVehicleRepository.findByIdAndIsDeletedFalse(matchedVisitorVehicleId)
+                    .filter(v -> v.getStatus() == VisitorVehicleStatus.APPROVED)
+                    .ifPresent(v -> {
+                        v.changeStatus(VisitorVehicleStatus.EXPIRED);
+                        visitorVehicleRepository.save(v);
+                    });
+        }
+
         // 변경 후 zone 점유 수와 면수를 트랜잭션 안에서 미리 계산 (커밋 후 발행에 사용)
         long zoneOccupied = parkingLogRepository.countCurrentParkedInZone(targetComplexId, zone.getId());
         int zoneTotalSlots = zone.getTotalSlots() != null ? zone.getTotalSlots() : 0;

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +61,10 @@ public class VisitorVehicleService {
 
     // 방문차량 알림 outbox 적재 서비스
     private final ParkingVehicleOutboxService parkingVehicleOutboxService;
+
+    // 미출차 방문차량 만료 유예 일수 (visitDate 기준 +N일까지 출차 없으면 EXPIRED 처리)
+    @Value("${apten.policy.visitor-vehicle.expire-grace-days:3}")
+    private int expireGraceDays;
 
     // 방문차량을 등록한다.
     @Transactional
@@ -595,12 +600,24 @@ public class VisitorVehicleService {
     }
 
     // 방문차량 자동 만료를 처리한다.
+    // 출차 기록 없이 유예 기간이 지난 APPROVED 방문차량을 EXPIRED로 일괄 전환한다.
+    @Transactional
     public VisitorVehicleExpireRes expireVisitorVehicles() {
-        //TODO visitDate가 지난 APPROVED 방문차량 조회
-        //TODO EXPIRED 상태로 변경
-        //TODO 만료 처리 건수 반환
+        // visitDate < (오늘 - 유예일) 기준으로 미출차 APPROVED 방문차량 조회
+        LocalDate cutoff = LocalDate.now().minusDays(expireGraceDays);
+        List<VisitorVehicle> targets = visitorVehicleRepository
+                .findByVisitDateBeforeAndStatusAndIsDeletedFalse(cutoff, VisitorVehicleStatus.APPROVED);
+
+        // 상태 일괄 전환, dirty checking 명시화
+        for (VisitorVehicle target : targets) {
+            target.changeStatus(VisitorVehicleStatus.EXPIRED);
+        }
+        if (!targets.isEmpty()) {
+            visitorVehicleRepository.saveAll(targets);
+        }
+
         return VisitorVehicleExpireRes.builder()
-                .expiredCount(0)
+                .expiredCount(targets.size())
                 .executedAt(LocalDateTime.now())
                 .build();
     }
