@@ -70,7 +70,12 @@ spring:
         - id: notification-service
           uri: http://localhost:${NOTIFICATION_SERVER_PORT}
           predicates:
-            - Path=/notifications/**
+            - Path=/api/notifications/**,/notifications/**
+
+        - id: notification-service-websocket
+          uri: ws://localhost:${NOTIFICATION_SERVER_PORT}
+          predicates:
+            - Path=/ws/notifications,/ws/notifications/**
 
 gateway:
   auth:
