@@ -71,7 +71,7 @@ public class FreeBoardController {
         return ResultResponse.success("게시글 삭제 성공", freeBoardService.deletePost(postId));
     }
 
-    //좋아요 등록/취소 API-509
+    //좋아요 등록/취소
     @PostMapping("/posts/{postId}/likes/toggle")
     public ResultResponse<PostLikeToggleRes> togglePostLike(@PathVariable Long postId) {
         return ResultResponse.success("좋아요 등록 또는 취소 성공", freeBoardService.togglePostLike(postId));
