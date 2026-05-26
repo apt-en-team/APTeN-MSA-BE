@@ -17,6 +17,7 @@ import com.apten.auth.domain.repository.LoginHistoryRepository;
 import com.apten.auth.domain.repository.ResidentProfileRepository;
 import com.apten.auth.domain.repository.UserRepository;
 import com.apten.auth.exception.AuthErrorCode;
+import com.apten.auth.infrastructure.kafka.AuthHouseholdMatchOutboxService;
 import com.apten.auth.infrastructure.kafka.AuthOutboxService;
 import com.apten.auth.infrastructure.mail.MailService;
 import com.apten.auth.infrastructure.mapper.AuthQueryMapper;
@@ -81,6 +82,9 @@ public class AuthService {
 
     // 로그인 이력 저장소
     private final LoginHistoryRepository loginHistoryRepository;
+
+    // 회원가입 후 세대 매칭 요청 이벤트를 Outbox에 저장하는 서비스
+    private final AuthHouseholdMatchOutboxService authHouseholdMatchOutboxService;
 
     // 이메일 로그인 서비스
     @Transactional
@@ -262,6 +266,7 @@ public class AuthService {
 
         // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
         authOutboxService.saveCreatedEvent(savedUser, complexId);
+        authHouseholdMatchOutboxService.saveMatchRequestedEvent(savedUser, savedResident);
 
         return AuthRegisterPostRes.builder()
                 .complexId(savedResident.getComplexId())
@@ -312,6 +317,7 @@ public class AuthService {
 
         // Kafka 직접 발행 대신 생성 이벤트를 같은 트랜잭션 안에서 Outbox에 적재
         authOutboxService.saveCreatedEvent(savedUser, complexId);
+        authHouseholdMatchOutboxService.saveMatchRequestedEvent(savedUser, savedResident);
 
         return AuthSocialSignupPostRes.builder()
                 .complexId(savedResident.getComplexId())
