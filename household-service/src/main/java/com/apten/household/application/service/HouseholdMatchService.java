@@ -2,6 +2,7 @@ package com.apten.household.application.service;
 
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.common.enumcode.EnumMapperType;
 import com.apten.common.kafka.payload.HouseholdMatchRequestEventPayload;
 import com.apten.common.kafka.payload.HouseholdMatchResultEventPayload;
 import com.apten.household.application.model.request.HouseholdMatchListReq;
@@ -28,6 +29,7 @@ import com.apten.household.domain.repository.HouseholdRepository;
 import com.apten.household.exception.HouseholdErrorCode;
 import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -62,8 +64,8 @@ public class HouseholdMatchService {
         return HouseholdMatchPostRes.builder()
                 .matchRequestId(matchRequest.getId())
                 .matchedHouseholdId(matchRequest.getMatchedHouseholdId())
-                .processType(matchRequest.getProcessType().name())
-                .matchStatus(matchRequest.getMatchStatus().name())
+                .processType(matchRequest.getProcessType().getCode())
+                .matchStatus(matchRequest.getMatchStatus().getCode())
                 .createdAt(matchRequest.getCreatedAt())
                 .build();
     }
@@ -135,6 +137,9 @@ public class HouseholdMatchService {
                         matchRequest.getInputUnit())
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND));
 
+        if (householdMemberRepository.existsByUserIdAndComplexId(matchRequest.getUserId(), complexId)) {
+            throw new BusinessException(HouseholdErrorCode.ALREADY_HOUSEHOLD_MEMBER);
+        }
         if (householdMemberRepository.existsByHouseholdIdAndUserId(household.getId(), matchRequest.getUserId())) {
             throw new BusinessException(HouseholdErrorCode.ALREADY_HOUSEHOLD_MEMBER);
         }
@@ -147,7 +152,7 @@ public class HouseholdMatchService {
 
         return HouseholdMatchApproveRes.builder()
                 .matchRequestId(matchRequestId)
-                .matchStatus(HouseholdMatchStatus.APPROVED.name())
+                .matchStatus(HouseholdMatchStatus.APPROVED.getCode())
                 .processedAt(matchRequest.getProcessedAt())
                 .build();
     }
@@ -164,9 +169,9 @@ public class HouseholdMatchService {
 
         return HouseholdMatchRejectRes.builder()
                 .matchRequestId(matchRequestId)
-                .matchStatus(HouseholdMatchStatus.REJECTED.name())
+                .matchStatus(HouseholdMatchStatus.REJECTED.getCode())
                 .processedAt(matchRequest.getProcessedAt())
-                .reason(reason.name())
+                .reason(reason.getCode())
                 .build();
     }
 
@@ -295,11 +300,19 @@ public class HouseholdMatchService {
         if (request == null || isBlank(request.getReason())) {
             return HouseholdMatchRejectReason.ADMIN_REJECTED;
         }
-        try {
-            return HouseholdMatchRejectReason.valueOf(request.getReason().trim());
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        String reason = request.getReason().trim();
+        return Arrays.stream(HouseholdMatchRejectReason.values())
+                .filter(value -> matchesEnumCode(value, reason))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+    }
+
+    private boolean matchesEnumCode(Enum<?> value, String input) {
+        if (value.name().equalsIgnoreCase(input)) {
+            return true;
         }
+        EnumMapperType mapper = (EnumMapperType) value;
+        return mapper.getCode().equalsIgnoreCase(input) || mapper.getValue().equals(input);
     }
 
     private HouseholdMatchResultEventPayload buildMatchResultPayload(HouseholdMatchRequest matchRequest, Long householdId) {

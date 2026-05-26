@@ -7,8 +7,6 @@ import com.apten.household.domain.enums.HouseholdMatchStatus;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -93,7 +91,6 @@ public class HouseholdMatchRequest extends BaseEntity {
     private LocalDateTime processedAt;
 
     // 정해진 거절 사유 코드이다.
-    @Enumerated(EnumType.STRING)
     @Column(name = "reject_reason", length = 50)
     private HouseholdMatchRejectReason rejectReason;
 

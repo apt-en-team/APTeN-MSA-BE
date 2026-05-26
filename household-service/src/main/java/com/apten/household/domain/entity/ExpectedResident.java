@@ -6,8 +6,6 @@ import com.apten.household.domain.enums.HouseholdMemberRole;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
@@ -68,7 +66,6 @@ public class ExpectedResident extends BaseEntity {
     private HouseholdMemberRole householdRole;
 
     @Builder.Default
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ExpectedResidentStatus status = ExpectedResidentStatus.AVAILABLE;
 
@@ -86,5 +83,31 @@ public class ExpectedResident extends BaseEntity {
         this.status = ExpectedResidentStatus.MATCHED;
         this.matchedUserId = userId;
         this.matchedAt = LocalDateTime.now();
+    }
+
+    // 관리자 명부 정보를 수정한다.
+    public void update(
+            Long householdId,
+            String building,
+            String unit,
+            String name,
+            String phone,
+            LocalDate birthDate,
+            String relationship,
+            HouseholdMemberRole householdRole
+    ) {
+        this.householdId = householdId;
+        this.building = building;
+        this.unit = unit;
+        this.name = name;
+        this.phone = phone;
+        this.birthDate = birthDate;
+        this.relationship = relationship;
+        this.householdRole = householdRole;
+    }
+
+    // 관리자 명부를 자동매칭 대상에서 제외한다.
+    public void disable() {
+        this.status = ExpectedResidentStatus.DISABLED;
     }
 }
