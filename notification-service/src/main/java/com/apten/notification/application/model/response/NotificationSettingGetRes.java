@@ -1,16 +1,17 @@
 package com.apten.notification.application.model.response;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 미읽음 알림 수 응답 DTO
+// 알림 설정 조회 응답 DTO
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class NotificationUnreadCountRes {
-    // 현재 로그인 사용자의 미읽음 알림 개수
-    private Long unreadCount;
+public class NotificationSettingGetRes {
+    // 전체 category 설정 상태 목록
+    private List<NotificationSettingItemRes> settings;
 }

@@ -12,7 +12,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationPostRes {
-    private String notificationUid;
-    private String receiverUserUid;
+    // 생성된 DB 알림 ID, 설정 OFF로 생성 제외되면 null일 수 있다
+    private Long notificationId;
+    // 생성 요청 대상 사용자 ID
+    private Long receiverUserId;
+    // 생성 시각 또는 생성 제외 처리 시각
     private LocalDateTime createdAt;
 }
