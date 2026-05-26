@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationFcmTokenPatchRes {
+    // 새 토큰으로 갱신 처리 성공 여부
     private Boolean tokenUpdated;
+    // 갱신 처리 시각
     private LocalDateTime updatedAt;
 }

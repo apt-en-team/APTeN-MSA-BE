@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationFcmTokenDeleteReq {
+    // 비활성화할 FCM 토큰 원문
     private String token;
 }

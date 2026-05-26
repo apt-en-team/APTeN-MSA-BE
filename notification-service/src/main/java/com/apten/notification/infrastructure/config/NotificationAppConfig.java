@@ -1,9 +1,11 @@
 package com.apten.notification.infrastructure.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 // notification-service의 기술 설정을 모아둘 기본 Config 클래스
-// 이후 JPA, MyBatis, Kafka 관련 세부 설정이 이 패키지 아래에서 확장된다
+// PushProperties를 Bean으로 등록해 FCM guard 설정을 서비스에서 읽을 수 있게 한다
 @Configuration
+@EnableConfigurationProperties(NotificationPushProperties.class)
 public class NotificationAppConfig {
 }

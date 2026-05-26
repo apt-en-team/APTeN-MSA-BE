@@ -22,3 +22,11 @@ spring:
 constants:
   api:
     prefix: /api/notifications
+
+apten:
+  notification:
+    push:
+      fcm-enabled: ${APTEN_NOTIFICATION_PUSH_FCM_ENABLED:false}
+      firebase:
+        credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+        project-id: ${FIREBASE_PROJECT_ID:}
