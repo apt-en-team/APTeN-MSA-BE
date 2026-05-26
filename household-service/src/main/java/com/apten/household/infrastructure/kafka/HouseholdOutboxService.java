@@ -74,12 +74,12 @@ public class HouseholdOutboxService {
 
     // 세대 매칭 승인 결과 이벤트 적재 준비 메서드이다.
     public void saveMatchApprovedEvent(HouseholdMatchResultEventPayload payload) {
-        // TODO 세대 매칭 승인 결과용 공통 EventType과 topic을 정의한 뒤 Outbox 적재를 연결한다.
+        saveOutboxEvent(KafkaTopics.HOUSEHOLD, EventType.HOUSEHOLD_MATCH_APPROVED, payload.getMatchRequestId(), payload);
     }
 
     // 세대 매칭 거절 결과 이벤트 적재 준비 메서드이다.
     public void saveMatchRejectedEvent(HouseholdMatchResultEventPayload payload) {
-        // TODO 세대 매칭 거절 결과용 공통 EventType과 topic을 정의한 뒤 Outbox 적재를 연결한다.
+        saveOutboxEvent(KafkaTopics.HOUSEHOLD, EventType.HOUSEHOLD_MATCH_REJECTED, payload.getMatchRequestId(), payload);
     }
 
     // 세대 이벤트 payload를 만들어 Outbox에 저장한다.
