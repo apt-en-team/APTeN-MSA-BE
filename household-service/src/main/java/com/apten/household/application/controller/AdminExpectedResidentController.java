@@ -5,6 +5,7 @@ import com.apten.common.response.ResultResponse;
 import com.apten.household.application.model.dto.HouseholdRequestContext;
 import com.apten.household.application.model.request.ExpectedResidentCreateReq;
 import com.apten.household.application.model.request.ExpectedResidentListReq;
+import com.apten.household.application.model.request.ExpectedResidentPatchReq;
 import com.apten.household.application.model.response.ExpectedResidentListRes;
 import com.apten.household.application.model.response.ExpectedResidentRes;
 import com.apten.household.application.service.ExpectedResidentService;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -57,5 +60,32 @@ public class AdminExpectedResidentController {
     ) {
         HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("입주민 명부 목록 조회 성공", expectedResidentService.getExpectedResidentList(context, request));
+    }
+
+    // 관리자 입주민 명부를 수정한다.
+    @PatchMapping("/{expectedResidentId}")
+    public ResultResponse<ExpectedResidentRes> updateExpectedResident(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long expectedResidentId,
+            @RequestBody ExpectedResidentPatchReq request
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("입주민 명부 수정 성공", expectedResidentService.updateExpectedResident(context, expectedResidentId, request));
+    }
+
+    // 관리자 입주민 명부를 자동매칭 대상에서 제외한다.
+    @PatchMapping("/{expectedResidentId}/disable")
+    public ResultResponse<ExpectedResidentRes> disableExpectedResident(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long expectedResidentId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("입주민 명부 비활성화 성공", expectedResidentService.disableExpectedResident(context, expectedResidentId));
     }
 }

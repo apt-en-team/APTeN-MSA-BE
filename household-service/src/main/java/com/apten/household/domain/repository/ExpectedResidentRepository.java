@@ -18,6 +18,8 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             ExpectedResidentStatus status
     );
 
+    List<ExpectedResident> findByHouseholdIdAndStatus(Long householdId, ExpectedResidentStatus status);
+
     @Query("""
             SELECT e FROM ExpectedResident e
             WHERE e.complexId = :complexId
