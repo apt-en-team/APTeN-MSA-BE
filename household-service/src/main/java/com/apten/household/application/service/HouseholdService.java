@@ -29,12 +29,15 @@ import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.HouseholdRepository;
 import com.apten.household.domain.repository.UserCacheRepository;
 import com.apten.household.exception.HouseholdErrorCode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -95,13 +98,25 @@ public class HouseholdService {
         //TODO Header에서 해석한 complexId 기준으로 동, 호, 상태 조건 조회
         //TODO request.complexId는 더 이상 조회 기준으로 사용하지 않는다.
         //TODO 페이지 메타데이터 계산
+        int pageNumber = request.getPage() != null ? request.getPage() : 0;
+        int pageSize = request.getSize() != null ? request.getSize() : 20;
+        String building = blankToNull(request.getBuilding());
+        String unit = blankToNull(request.getUnit());
+        PageRequest pageable = PageRequest.of(pageNumber, pageSize);
+        Page<Household> page = request.getStatus() == null
+                ? householdRepository.findByFilters(complexId, building, unit, pageable)
+                : householdRepository.findByFiltersAndStatus(complexId, building, unit, request.getStatus(), pageable);
+
         return HouseholdListRes.builder()
-                .content(List.of())
-                .page(request.getPage())
-                .size(request.getSize())
-                .totalElements(0L)
-                .totalPages(0)
-                .hasNext(false)
+                .content(page.getContent().stream()
+                        .map(this::toHouseholdListItem)
+                        .toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .summary(buildHouseholdSummary(complexId))
                 .build();
     }
 
@@ -331,6 +346,45 @@ public class HouseholdService {
     }
 
     // 세대 존재 여부를 확인하고 없으면 예외를 던진다.
+    private HouseholdListRes.Item toHouseholdListItem(Household household) {
+        String headName = null;
+        if (household.getHeadUserId() != null) {
+            headName = userCacheRepository.findById(household.getHeadUserId())
+                    .map(UserCache::getName)
+                    .orElse(null);
+        }
+
+        return HouseholdListRes.Item.builder()
+                .householdId(household.getId())
+                .complexId(household.getComplexId())
+                .building(household.getBuilding())
+                .unit(household.getUnit())
+                .typeId(household.getTypeId())
+                .status(household.getStatus())
+                .headName(headName)
+                .memberCount(householdMemberRepository.countByHouseholdIdAndIsActiveTrue(household.getId()))
+                .carCount(0L)
+                .createdAt(household.getCreatedAt())
+                .build();
+    }
+
+    private HouseholdListRes.Summary buildHouseholdSummary(Long complexId) {
+        LocalDate now = LocalDate.now();
+        LocalDateTime from = now.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime to = now.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+
+        return HouseholdListRes.Summary.builder()
+                .totalHouseholds(householdRepository.countByComplexId(complexId))
+                .occupiedHouseholds(householdRepository.countByComplexIdAndStatus(complexId, HouseholdStatus.OCCUPIED))
+                .vacantHouseholds(householdRepository.countByComplexIdAndStatus(complexId, HouseholdStatus.VACANT))
+                .currentMonthMoveIns(householdRepository.countByComplexIdAndStatusAndUpdatedAtBetween(complexId, HouseholdStatus.OCCUPIED, from, to))
+                .build();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
     private Household getHouseholdOrThrow(Long householdId) {
         return householdRepository.findById(householdId)
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND));
