@@ -28,7 +28,7 @@ public class NotificationFcmController {
     @PostMapping("/api/notifications/fcm-tokens")
     public ResultResponse<NotificationFcmTokenPostRes> registerFcmToken(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
-            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestBody NotificationFcmTokenPostReq request
     ) {
         return ResultResponse.success("FCM 토큰 등록 성공", notificationFcmService.registerFcmToken(userId, complexId, request));
@@ -47,7 +47,7 @@ public class NotificationFcmController {
     @PatchMapping("/api/notifications/fcm-tokens")
     public ResultResponse<NotificationFcmTokenPatchRes> updateFcmToken(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
-            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestBody NotificationFcmTokenPatchReq request
     ) {
         return ResultResponse.success("FCM 토큰 갱신 성공", notificationFcmService.updateFcmToken(userId, complexId, request));

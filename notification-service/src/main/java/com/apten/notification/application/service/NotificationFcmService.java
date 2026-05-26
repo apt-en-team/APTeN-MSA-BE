@@ -9,8 +9,10 @@ import com.apten.notification.application.model.response.NotificationFcmTokenDel
 import com.apten.notification.application.model.response.NotificationFcmTokenPatchRes;
 import com.apten.notification.application.model.response.NotificationFcmTokenPostRes;
 import com.apten.notification.domain.entity.FcmToken;
+import com.apten.notification.domain.entity.UserCache;
 import com.apten.notification.domain.enums.FcmDeviceType;
 import com.apten.notification.domain.repository.FcmTokenRepository;
+import com.apten.notification.domain.repository.UserCacheRepository;
 import com.apten.notification.exception.NotificationErrorCode;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -23,11 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationFcmService {
 
     private final FcmTokenRepository fcmTokenRepository;
+    private final UserCacheRepository userCacheRepository;
 
     @Transactional
-    public NotificationFcmTokenPostRes registerFcmToken(Long userId, Long complexId, NotificationFcmTokenPostReq request) {
+    public NotificationFcmTokenPostRes registerFcmToken(Long userId, Long complexIdHeader, NotificationFcmTokenPostReq request) {
         // Gateway가 전달한 사용자/단지 컨텍스트를 기준으로 토큰 소유자를 결정한다
-        validateUserContext(userId, complexId);
+        Long complexId = resolveComplexId(userId, complexIdHeader);
         validateToken(request == null ? null : request.getToken());
         LocalDateTime now = LocalDateTime.now();
 
@@ -77,9 +80,9 @@ public class NotificationFcmService {
     }
 
     @Transactional
-    public NotificationFcmTokenPatchRes updateFcmToken(Long userId, Long complexId, NotificationFcmTokenPatchReq request) {
+    public NotificationFcmTokenPatchRes updateFcmToken(Long userId, Long complexIdHeader, NotificationFcmTokenPatchReq request) {
         // 토큰 갱신도 현재 로그인 사용자와 단지 컨텍스트를 기준으로 처리한다
-        validateUserContext(userId, complexId);
+        Long complexId = resolveComplexId(userId, complexIdHeader);
         if (request == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
@@ -115,11 +118,16 @@ public class NotificationFcmService {
                 .build();
     }
 
-    private void validateUserContext(Long userId, Long complexId) {
+    private Long resolveComplexId(Long userId, Long complexIdHeader) {
         validateUserId(userId);
-        if (complexId == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        if (complexIdHeader != null) {
+            return complexIdHeader;
         }
+        // 신규 가입 대기처럼 JWT에 complexId가 없으면 user_cache에서 보완한다
+        return userCacheRepository.findById(userId)
+                .map(UserCache::getComplexId)
+                .filter(complexId -> complexId != null)
+                .orElseThrow(() -> new BusinessException(NotificationErrorCode.USER_CACHE_NOT_FOUND));
     }
 
     private void validateUserId(Long userId) {

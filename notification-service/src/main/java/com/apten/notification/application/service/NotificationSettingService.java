@@ -19,8 +19,12 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 // 사용자별 알림 카테고리 ON/OFF 설정을 관리하는 응용 서비스
 @Service
@@ -29,6 +33,7 @@ public class NotificationSettingService {
 
     private final NotificationSettingRepository notificationSettingRepository;
     private final UserCacheRepository userCacheRepository;
+    private final PlatformTransactionManager transactionManager;
 
     @Transactional
     public NotificationSettingGetRes getSettings(Long userId, Long complexIdHeader) {
@@ -79,20 +84,42 @@ public class NotificationSettingService {
     }
 
     private List<NotificationSetting> ensureDefaultRows(Long userId, Long complexId) {
+        try {
+            return createMissingDefaultRows(userId, complexId);
+        } catch (DataIntegrityViolationException exception) {
+            // 동시 첫 진입 시 같은 기본 설정 row를 동시에 만들 수 있으므로 unique 충돌 시 재조회한다
+            return notificationSettingRepository.findByUserId(userId);
+        }
+    }
+
+    private List<NotificationSetting> createMissingDefaultRows(Long userId, Long complexId) {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return transactionTemplate.execute(status -> createMissingDefaultRowsInNewTransaction(userId, complexId));
+    }
+
+    private List<NotificationSetting> createMissingDefaultRowsInNewTransaction(Long userId, Long complexId) {
         // 조회 API 호출 시 빠진 category row를 생성해 이후 변경/조회 흐름을 단순하게 유지한다
         Map<NotificationCategory, NotificationSetting> settingMap =
                 toMap(notificationSettingRepository.findByUserId(userId));
 
-        for (NotificationCategory category : NotificationCategory.values()) {
-            settingMap.computeIfAbsent(category, missing -> NotificationSetting.builder()
-                    .userId(userId)
-                    .complexId(complexId)
-                    .category(missing)
-                    .enabled(true)
-                    .build());
+        List<NotificationSetting> missingSettings = Arrays.stream(NotificationCategory.values())
+                .filter(category -> !settingMap.containsKey(category))
+                .map(category -> NotificationSetting.builder()
+                        .userId(userId)
+                        .complexId(complexId)
+                        .category(category)
+                        .enabled(true)
+                        .build())
+                .toList();
+
+        if (missingSettings.isEmpty()) {
+            return settingMap.values().stream().toList();
         }
 
-        return notificationSettingRepository.saveAll(settingMap.values());
+        notificationSettingRepository.saveAllAndFlush(missingSettings);
+
+        return notificationSettingRepository.findByUserId(userId);
     }
 
     private Map<NotificationCategory, NotificationSetting> toMap(List<NotificationSetting> settings) {
