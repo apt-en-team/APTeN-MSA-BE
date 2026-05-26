@@ -31,6 +31,9 @@ import com.apten.household.domain.repository.UserCacheRepository;
 import com.apten.household.exception.HouseholdErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -104,7 +107,7 @@ public class HouseholdService {
 
     // 세대 상세 조회 서비스이다.
     public HouseholdDetailRes getHouseholdDetail(Long complexId, Long householdId) {
-        //TODO householdId가 현재 complexId 소속인지 검증
+        getHouseholdForComplex(complexId, householdId);
         //TODO 세대 기본 정보 조회
         //TODO 세대원 목록 조회
         //TODO 최근 청구 요약 조회
@@ -113,9 +116,8 @@ public class HouseholdService {
 
     // 세대 정보 수정 서비스이다.
     public HouseholdPatchRes updateHousehold(Long complexId, Long householdId, HouseholdPatchReq request) {
-        Household household = getHouseholdOrThrow(householdId);
+        Household household = getHouseholdForComplex(complexId, householdId);
 
-        // TODO householdId가 현재 complexId 소속인지 검증한다.
         // TODO request의 단지 식별자 값이 있더라도 Header에서 해석한 complexId를 우선 사용한다.
         household.update(
                 complexId,
@@ -140,9 +142,8 @@ public class HouseholdService {
 
     // 세대 상태 변경 서비스이다.
     public HouseholdStatusPatchRes changeHouseholdStatus(Long complexId, Long householdId, HouseholdStatusPatchReq request) {
-        Household household = getHouseholdOrThrow(householdId);
+        Household household = getHouseholdForComplex(complexId, householdId);
 
-        // TODO householdId가 현재 complexId 소속인지 검증한다.
         // TODO 상태 변경에 따른 세대원/정산 연쇄 처리 정책은 담당자가 후속 구현한다.
         if (request.getStatus() == null) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_STATUS_INVALID);
@@ -167,18 +168,17 @@ public class HouseholdService {
 
     // 입주와 퇴거 이력 조회 서비스이다.
     public List<HouseholdHistoryRes> getHouseholdHistory(Long complexId, Long householdId) {
-        //TODO householdId가 현재 complexId 소속인지 검증
+        getHouseholdForComplex(complexId, householdId);
         //TODO 세대 상태 변경 이력 조회
         return List.of();
     }
 
     // 세대원 등록 서비스이다.
     public HouseholdMemberPostRes addHouseholdMember(Long complexId, Long householdId, HouseholdMemberPostReq request) {
-        Household household = getHouseholdOrThrow(householdId);
+        Household household = getHouseholdForComplex(complexId, householdId);
         UserCache userCache = getUserCacheOrThrow(request.getUserId());
         HouseholdMemberRole role = request.getRole() != null ? request.getRole() : HouseholdMemberRole.MEMBER;
 
-        // TODO householdId가 현재 complexId 소속인지 검증한다.
         // 세대와 사용자 조합 중복 등록을 막는다.
         if (householdMemberRepository.existsByHouseholdIdAndUserId(householdId, request.getUserId())) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_ALREADY_LINKED);
@@ -211,18 +211,17 @@ public class HouseholdService {
 
     // 세대원 조회 서비스이다.
     public List<HouseholdMemberListRes> getHouseholdMembers(Long complexId, Long householdId) {
-        //TODO householdId가 현재 complexId 소속인지 검증
+        getHouseholdForComplex(complexId, householdId);
         //TODO 세대원 목록 조회
         return List.of();
     }
 
     // 세대원 수정 서비스이다.
     public HouseholdMemberPatchRes updateHouseholdMember(Long complexId, Long householdMemberId, HouseholdMemberPatchReq request) {
-        HouseholdMember householdMember = getHouseholdMemberOrThrow(householdMemberId);
+        HouseholdMember householdMember = getHouseholdMemberForComplex(complexId, householdMemberId);
         HouseholdMemberRole nextRole = request.getRole() != null ? request.getRole() : householdMember.getRole();
         Boolean nextIsActive = request.getIsActive() != null ? request.getIsActive() : householdMember.getIsActive();
 
-        // TODO householdMember가 현재 complexId 소속 세대에 속하는지 검증한다.
         validateHeadRemoval(householdMember, nextRole, nextIsActive);
         validateHeadDuplication(householdMember.getHouseholdId(), nextRole, householdMember.getId());
 
@@ -242,9 +241,8 @@ public class HouseholdService {
 
     // 세대원 삭제 서비스이다.
     public HouseholdMemberDeleteRes deleteHouseholdMember(Long complexId, Long householdMemberId) {
-        HouseholdMember householdMember = getHouseholdMemberOrThrow(householdMemberId);
+        HouseholdMember householdMember = getHouseholdMemberForComplex(complexId, householdMemberId);
 
-        // TODO householdMember가 현재 complexId 소속 세대에 속하는지 검증한다.
         validateHeadRemoval(householdMember, householdMember.getRole(), false);
 
         // 물리 삭제 대신 비활성 처리 후 removed 이벤트를 적재한다.
@@ -263,9 +261,8 @@ public class HouseholdService {
 
     // 세대주 권한 변경 서비스이다.
     public HouseholdHeadPatchRes changeHouseholdHead(Long complexId, Long householdId, HouseholdHeadPatchReq request) {
-        Household household = getHouseholdOrThrow(householdId);
+        Household household = getHouseholdForComplex(complexId, householdId);
 
-        // TODO householdId가 현재 complexId 소속인지 검증한다.
         HouseholdMember newHead = householdMemberRepository.findByHouseholdIdAndUserIdAndIsActiveTrue(householdId, request.getUserId())
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
 
@@ -298,18 +295,50 @@ public class HouseholdService {
 
     // 내 세대 정보 조회 서비스이다.
     public MyHouseholdRes getMyHousehold(Long userId, Long complexId) {
-        //TODO 로그인 사용자 기준 활성 세대원 조회
-        //TODO householdId가 현재 complexId 소속인지 재검증
-        //TODO 세대 기본 정보 조회
-        //TODO 세대원 이름과 연락처를 user_cache에서 조합
+        HouseholdMember myMember = householdMemberRepository.findActiveByUserIdAndComplexId(userId, complexId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+        Household household = getHouseholdForComplex(complexId, myMember.getHouseholdId());
+
+        List<HouseholdMember> members = householdMemberRepository.findByHouseholdId(household.getId());
+        Map<Long, UserCache> userCacheMap = userCacheRepository.findAllById(
+                        members.stream()
+                                .map(HouseholdMember::getUserId)
+                                .distinct()
+                                .toList()
+                )
+                .stream()
+                .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+
         return MyHouseholdRes.builder()
-                .members(List.of())
+                .householdId(household.getId())
+                .complexId(household.getComplexId())
+                .building(household.getBuilding())
+                .unit(household.getUnit())
+                .status(household.getStatus())
+                .members(members.stream()
+                        .map(member -> {
+                            UserCache userCache = userCacheMap.get(member.getUserId());
+                            return MyHouseholdRes.MemberItem.builder()
+                                    .userId(member.getUserId())
+                                    .name(userCache != null ? userCache.getName() : null)
+                                    .phone(userCache != null ? userCache.getPhone() : null)
+                                    .role(member.getRole())
+                                    .isActive(member.getIsActive())
+                                    .build();
+                        })
+                        .toList())
                 .build();
     }
 
     // 세대 존재 여부를 확인하고 없으면 예외를 던진다.
     private Household getHouseholdOrThrow(Long householdId) {
         return householdRepository.findById(householdId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND));
+    }
+
+    // 세대가 현재 단지 소속인지 확인하고 없으면 예외를 던진다.
+    private Household getHouseholdForComplex(Long complexId, Long householdId) {
+        return householdRepository.findByIdAndComplexId(householdId, complexId)
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND));
     }
 
@@ -322,6 +351,12 @@ public class HouseholdService {
     // 세대원 존재 여부를 확인하고 없으면 예외를 던진다.
     private HouseholdMember getHouseholdMemberOrThrow(Long householdMemberId) {
         return householdMemberRepository.findById(householdMemberId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+    }
+
+    // 세대원이 현재 단지 소속 세대에 속하는지 확인하고 없으면 예외를 던진다.
+    private HouseholdMember getHouseholdMemberForComplex(Long complexId, Long householdMemberId) {
+        return householdMemberRepository.findByIdAndComplexId(householdMemberId, complexId)
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
     }
 
