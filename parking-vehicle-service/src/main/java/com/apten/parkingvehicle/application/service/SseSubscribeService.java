@@ -3,6 +3,7 @@ package com.apten.parkingvehicle.application.service;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.parkingvehicle.application.model.event.ParkingSpotChangedEvent;
+import com.apten.parkingvehicle.application.model.event.ZoneCounterChangedEvent;
 import com.apten.parkingvehicle.infrastructure.sse.SseEmitterRegistry;
 import java.io.IOException;
 import java.util.Map;
@@ -28,7 +29,7 @@ public class SseSubscribeService {
     // 입주민 SSE 구독 시작
     public SseEmitter subscribe(String userRole, Long complexId) {
         validateResidentContext(userRole, complexId);
-        parkingSettingService.validateSensorType(complexId);
+        parkingSettingService.validateParkingEnabled(complexId);
 
         SseEmitter emitter = new SseEmitter(timeoutMs);
         String emitterId = registry.register(complexId, emitter);
@@ -55,6 +56,24 @@ public class SseSubscribeService {
             } catch (IOException e) {
                 // 전송 실패 emitter만 제거하고 다른 emitter 발송은 계속 진행한다.
                 log.warn("SSE 전송 실패 complexId={}, emitterId={}", complexId, emitterId, e);
+                registry.remove(complexId, emitterId);
+            }
+        }
+    }
+
+    // 단지별 emitter에 zone 카운터 변경 이벤트 발행
+    public void publishZoneCounterToComplex(Long complexId, ZoneCounterChangedEvent event) {
+        Map<String, SseEmitter> targets = registry.findByComplexId(complexId);
+        for (Map.Entry<String, SseEmitter> entry : targets.entrySet()) {
+            String emitterId = entry.getKey();
+            SseEmitter emitter = entry.getValue();
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("zone-counter-changed")
+                        .data(event));
+            } catch (IOException e) {
+                // 전송 실패 emitter만 제거하고 다른 emitter 발송은 계속 진행한다.
+                log.warn("SSE zone 카운터 전송 실패 complexId={}, emitterId={}", complexId, emitterId, e);
                 registry.remove(complexId, emitterId);
             }
         }

@@ -47,11 +47,16 @@ public class SensorStatusRepository {
     // 문자열 키/값 전용 RedisTemplate
     private final RedisTemplate<String, String> redisTemplate;
 
-    // 센서 초기 상태 등록
+    // 센서 초기 상태 등록 (멱등 보장 — 같은 sensorCode 재호출 시 카운터와 Hash 최종 상태가 1회 호출과 동일)
     public void initSensor(String sensorCode, Long zoneId, Long complexId, String spotNumber, Integer zoneTotalSlots, SensorStatus initialStatus) {
         String sensorKey = buildSensorKey(sensorCode);
         String zoneKey = buildZoneOccupiedKey(zoneId);
         String now = LocalDateTime.now().toString();
+
+        // MULTI 시작 전 현재 Hash의 status 필드 조회로 차분 적용 방향 결정
+        Map<String, String> currentHash = getSensorHash(sensorCode);
+        String currentStatusRaw = currentHash.get(FIELD_STATUS);
+        SensorStatus currentStatus = currentStatusRaw == null ? null : SensorStatus.valueOf(currentStatusRaw);
 
         redisTemplate.execute(new SessionCallback<Object>() {
             @Override
@@ -65,9 +70,13 @@ public class SensorStatusRepository {
                 operations.opsForHash().put(sensorKey, FIELD_SPOT_NUMBER, spotNumber);
                 operations.opsForHash().put(sensorKey, FIELD_ZONE_TOTAL_SLOTS, String.valueOf(zoneTotalSlots));
                 operations.opsForSet().add(REGISTERED_SET_KEY, sensorCode);
-                // 초기 상태가 점유면 zone 카운터 1 증가
-                if (initialStatus == SensorStatus.OCCUPIED) {
+                // 현재 상태와 요청 상태 조합으로 zone 카운터 차분 적용
+                if (currentStatus == null && initialStatus == SensorStatus.OCCUPIED) {
                     operations.opsForValue().increment(zoneKey);
+                } else if (currentStatus == SensorStatus.VACANT && initialStatus == SensorStatus.OCCUPIED) {
+                    operations.opsForValue().increment(zoneKey);
+                } else if (currentStatus == SensorStatus.OCCUPIED && initialStatus == SensorStatus.VACANT) {
+                    operations.opsForValue().decrement(zoneKey);
                 }
                 return operations.exec();
             }
@@ -83,6 +92,35 @@ public class SensorStatusRepository {
         return SensorStatus.valueOf(raw);
     }
 
+    // 센서 상태 일괄 조회. SessionCallback + pipeline으로 1 round trip 처리
+    // RedisTemplate 직렬화기를 그대로 사용해 단건 조회와 byte 일관성 보장. status 없는 센서는 맵에서 제외
+    public Map<String, SensorStatus> getStatusMap(List<String> sensorCodes) {
+        if (sensorCodes == null || sensorCodes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Object> rawResults = redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            public Object execute(RedisOperations operations) {
+                for (String sensorCode : sensorCodes) {
+                    operations.opsForHash().get(buildSensorKey(sensorCode), FIELD_STATUS);
+                }
+                return null;
+            }
+        }, redisTemplate.getHashValueSerializer());
+
+        Map<String, SensorStatus> result = new LinkedHashMap<>(sensorCodes.size());
+        for (int i = 0; i < sensorCodes.size(); i++) {
+            Object raw = rawResults.get(i);
+            if (raw == null) {
+                continue;
+            }
+            result.put(sensorCodes.get(i), SensorStatus.valueOf((String) raw));
+        }
+        return result;
+    }
+
     // 센서 Hash 전체 조회
     public Map<String, String> getSensorHash(String sensorCode) {
         Map<Object, Object> raw = redisTemplate.opsForHash().entries(buildSensorKey(sensorCode));
@@ -95,7 +133,7 @@ public class SensorStatusRepository {
     }
 
     // 센서 상태 갱신
-    public void updateStatus(String sensorCode, SensorStatus newStatus) {
+    public void updateStatus(String sensorCode, SensorStatus newStatus, boolean affectCounter) {
         String sensorKey = buildSensorKey(sensorCode);
         Map<String, String> hash = getSensorHash(sensorCode);
         if (hash.isEmpty()) {
@@ -126,11 +164,13 @@ public class SensorStatusRepository {
                 operations.multi();
                 operations.opsForHash().put(sensorKey, FIELD_STATUS, newStatus.name());
                 operations.opsForHash().put(sensorKey, FIELD_CHANGED_AT, now);
-                // 전환 방향에 따라 zone 카운터 증감
-                if (newStatus == SensorStatus.OCCUPIED) {
-                    operations.opsForValue().increment(zoneKey);
-                } else {
-                    operations.opsForValue().decrement(zoneKey);
+                // 활성 자리에 한해 전환 방향에 따라 zone 카운터 증감 (사용불가 자리는 카운터에서 제외)
+                if (affectCounter) {
+                    if (newStatus == SensorStatus.OCCUPIED) {
+                        operations.opsForValue().increment(zoneKey);
+                    } else {
+                        operations.opsForValue().decrement(zoneKey);
+                    }
                 }
                 return operations.exec();
             }
@@ -144,6 +184,16 @@ public class SensorStatusRepository {
             return 0L;
         }
         return Long.valueOf(raw);
+    }
+
+    // zone 점유 카운터 +1 (자리 활성화 보정용)
+    public void incrementZoneOccupied(Long zoneId) {
+        redisTemplate.opsForValue().increment(buildZoneOccupiedKey(zoneId));
+    }
+
+    // zone 점유 카운터 -1 (자리 비활성화 보정용)
+    public void decrementZoneOccupied(Long zoneId) {
+        redisTemplate.opsForValue().decrement(buildZoneOccupiedKey(zoneId));
     }
 
     // zone 카운터 일괄 조회. 키 없는 zone은 0L로 채워 반환

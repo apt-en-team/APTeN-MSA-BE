@@ -50,17 +50,17 @@ spring:
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
-            - Path=/parking-vehicles/**,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
+            - Path=/parking-vehicles/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
 
         - id: facility-reservation-service-admin
           uri: http://localhost:${FACILITY_SERVER_PORT}
           predicates:
-            - Path=/api/admin/facilities,/api/admin/facilities/**,/api/admin/facility-types,/api/admin/facility-types/**,/api/admin/facility-policies,/api/admin/facility-policies/**,/api/admin/gx-programs,/api/admin/gx-programs/**,/api/admin/gx-reservations,/api/admin/gx-reservations/**,/api/admin/reservations,/api/admin/reservations/**,/api/admin/facility-seats,/api/admin/facility-seats/**,/api/admin/facility-usage,/api/admin/facility-usage/**
+            - Path=/api/admin/facilities,/api/admin/facilities/**,/api/admin/facility-types,/api/admin/facility-types/**,/api/admin/facility-policies,/api/admin/facility-policies/**,/api/admin/gx-programs,/api/admin/gx-programs/**,/api/admin/gx-reservations,/api/admin/gx-reservations/**,/api/admin/reservations,/api/admin/reservations/**,/api/admin/facility-seats,/api/admin/facility-seats/**,/api/admin/facility-usage,/api/admin/facility-usage/**,/api/admin/facility-subscriptions,/api/admin/facility-subscriptions/**
 
         - id: facility-reservation-service
           uri: http://localhost:${FACILITY_SERVER_PORT}
           predicates:
-            - Path=/api/facilities,/api/facilities/**,/api/reservations,/api/reservations/**,/api/gx-programs,/api/gx-programs/**,/api/gx-reservations,/api/gx-reservations/**,/facilities/**,/facility-reservations/**
+            - Path=/api/facilities,/api/facilities/**,/api/reservations,/api/reservations/**,/api/gx-programs,/api/gx-programs/**,/api/gx-reservations,/api/gx-reservations/**,/facilities/**,/facility-reservations/**,/api/facility-subscriptions,/api/facility-subscriptions/**
 
         - id: board-service
           uri: http://localhost:${BOARD_SERVER_PORT}

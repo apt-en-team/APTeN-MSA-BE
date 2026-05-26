@@ -6,6 +6,8 @@ import com.apten.facilityreservation.application.model.request.AdminReservationC
 import com.apten.facilityreservation.application.model.request.AdminReservationListReq;
 import com.apten.facilityreservation.application.model.request.AvailableTimeListReq;
 import com.apten.facilityreservation.application.model.request.MyReservationListReq;
+import com.apten.facilityreservation.application.model.request.MyUnifiedReservationReq;
+import com.apten.facilityreservation.application.model.response.MyUnifiedReservationRes;
 import com.apten.facilityreservation.application.model.request.ReservationCancelReq;
 import com.apten.facilityreservation.application.model.request.ReservationPostReq;
 import com.apten.facilityreservation.application.model.request.SeatHoldPostReq;
@@ -25,18 +27,29 @@ import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
+import com.apten.facilityreservation.domain.entity.FacilitySubscription;
 import com.apten.facilityreservation.domain.entity.HouseholdMemberCache;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.entity.ReservationTempHold;
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
+import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
 import com.apten.facilityreservation.domain.enums.ReservationCancelReason;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.ReservationType;
+import com.apten.facilityreservation.domain.entity.FacilityClosureRule;
 import com.apten.facilityreservation.domain.repository.FacilityBlockTimeRepository;
+import com.apten.facilityreservation.domain.repository.FacilityClosureRuleRepository;
+import com.apten.facilityreservation.domain.entity.GxProgram;
+import com.apten.facilityreservation.domain.entity.GxReservation;
+import com.apten.facilityreservation.domain.repository.GxProgramRepository;
+import com.apten.facilityreservation.domain.repository.GxReservationRepository;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
+import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.domain.repository.ReservationTempHoldRepository;
@@ -63,7 +76,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReservationService {
 
-    private static final Duration SEAT_HOLD_TTL = Duration.ofMinutes(15);
+    private static final Duration SEAT_HOLD_TTL = Duration.ofMinutes(10);
 
     @Value("${apten.scheduler.reservation-complete.batch-size:100}")
     private int reservationCompleteBatchSize;
@@ -71,10 +84,15 @@ public class ReservationService {
     private final FeatureAccessService featureAccessService;
     private final FacilityRepository facilityRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
+    private final FacilityClosureRuleRepository facilityClosureRuleRepository;
     private final FacilityPolicyRepository facilityPolicyRepository;
+    private final FacilitySubscriptionRepository facilitySubscriptionRepository;
     private final FacilitySeatRepository facilitySeatRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
     private final ReservationRepository reservationRepository;
+    private final GxReservationRepository gxReservationRepository;
+    private final GxProgramRepository gxProgramRepository;
     private final ReservationTempHoldRepository reservationTempHoldRepository;
     private final UserCacheRepository userCacheRepository;
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
@@ -108,7 +126,20 @@ public class ReservationService {
 
         long openSec = facility.getOpenTime().toSecondOfDay();
         long closeSec = facility.getCloseTime().toSecondOfDay();
+        // 자정을 넘기는 운영 시간(예: 22:00~02:00)은 마감 초에 하루치를 더해 슬롯 범위를 연장한다
+        if (closeSec <= openSec) {
+            closeSec += 86400;
+        }
         long slotSec = (long) slotMin * 60;
+
+        // 정기 휴무 규칙으로 예약 날짜가 차단된 경우 빈 슬롯 목록을 반환한다.
+        boolean closureBlocked = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(req.getFacilityId())
+                .stream()
+                .anyMatch(rule -> rule.isDateBlocked(req.getReservationDate()));
+        if (closureBlocked) {
+            return List.of();
+        }
 
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(req.getFacilityId(), req.getReservationDate());
@@ -130,7 +161,7 @@ public class ReservationService {
 
         List<AvailableTimeListRes> result = new ArrayList<>();
 
-        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다
+        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다. % 86400으로 LocalTime 범위를 유지한다.
         long slotStart = openSec;
         if (slotSec >= 86400) {
             // 슬롯이 하루 이상이면 운영 전체를 단일 슬롯으로 처리한다
@@ -138,8 +169,8 @@ public class ReservationService {
                     facility.getOpenTime(), facility.getCloseTime()));
         } else {
             while (slotStart + slotSec <= closeSec) {
-                LocalTime start = LocalTime.ofSecondOfDay(slotStart);
-                LocalTime end = LocalTime.ofSecondOfDay(slotStart + slotSec);
+                LocalTime start = LocalTime.ofSecondOfDay(slotStart % 86400);
+                LocalTime end = LocalTime.ofSecondOfDay((slotStart + slotSec) % 86400);
                 result.add(buildSlot(facility, blockTimes, confirmedReservations, activeHolds, maxReservationCount, seatTotalCount, start, end));
                 slotStart += slotSec;
             }
@@ -408,6 +439,9 @@ public class ReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
 
+        // FLAT/PER_PERSON 시설은 첫 예약 시 구독 레코드를 자동 생성한다.
+        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
+
         // TODO: 예약 생성 알림 / 이벤트 발행은 가은 담당과 연동 후 추가한다.
 
         return ReservationPostRes.builder()
@@ -663,21 +697,42 @@ public class ReservationService {
                 ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
                 : null;
 
+        com.apten.facilityreservation.domain.entity.HouseholdCache household =
+                (reservation.getHouseholdId() != null)
+                        ? householdCacheRepository.findByHouseholdId(reservation.getHouseholdId()).orElse(null)
+                        : null;
+
+        String unit = null;
+        if (household != null && household.getBuildingNo() != null && household.getUnitNo() != null) {
+            unit = household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
+        }
+
+        long currentCount = (reservation.getFacilityId() != null && reservation.getReservationDate() != null)
+                ? reservationRepository.countByFacilityIdAndReservationDateAndStatus(
+                        reservation.getFacilityId(), reservation.getReservationDate(), ReservationStatus.CONFIRMED)
+                : 0L;
+
         return AdminReservationDetailRes.builder()
                 .reservationId(reservation.getId())
                 .userId(reservation.getUserId())
                 .residentName(user != null ? user.getName() : null)
+                .dong(household != null ? household.getBuildingNo() : null)
+                .ho(household != null ? household.getUnitNo() : null)
+                .unit(unit)
                 .facilityId(reservation.getFacilityId())
                 .facilityName(facility != null ? facility.getName() : null)
                 .reservationDate(reservation.getReservationDate())
                 .startTime(reservation.getStartTime())
                 .endTime(reservation.getEndTime())
                 .seatNo(seat != null ? seat.getSeatNo() : null)
-                .status(reservation.getStatus())
+                .status(reservation.getStatus().name())
+                .statusName(reservation.getStatus().getValue())
                 .cancelReason(reservation.getCancelReason())
                 .cancelledAt(reservation.getCancelledAt())
                 .completedAt(reservation.getCompletedAt())
                 .createdAt(reservation.getCreatedAt())
+                .currentCount(currentCount)
+                .maxCount(facility != null ? facility.getMaxCount() : null)
                 .build();
     }
 
@@ -703,7 +758,7 @@ public class ReservationService {
         return AdminReservationCancelRes.builder()
                 .reservationId(reservation.getId())
                 .status(reservation.getStatus())
-                .cancelReason(req.getReason())
+                .cancelReason(req != null ? req.getReason() : null)
                 .cancelledAt(reservation.getCancelledAt())
                 .build();
     }
@@ -714,9 +769,11 @@ public class ReservationService {
         LocalDateTime now = LocalDateTime.now();
 
         // 스케줄러는 반복 실행되므로 한 번에 처리하는 수를 제한해 락 점유를 줄인다.
+        // 야간 예약(endTime < startTime)은 다음날 기준으로 완료 처리하므로 yesterday를 함께 전달한다.
         List<Reservation> completableReservations = reservationRepository.findCompletableReservations(
                 ReservationStatus.CONFIRMED,
                 now.toLocalDate(),
+                now.toLocalDate().minusDays(1),
                 now.toLocalTime(),
                 PageRequest.of(0, Math.max(reservationCompleteBatchSize, 1))
         );
@@ -738,7 +795,7 @@ public class ReservationService {
                 || req.getReservationDate() == null
                 || req.getStartTime() == null
                 || req.getEndTime() == null
-                || !req.getStartTime().isBefore(req.getEndTime())) {
+                || req.getStartTime().equals(req.getEndTime())) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
     }
@@ -763,16 +820,75 @@ public class ReservationService {
                 || req.getReservationDate() == null
                 || req.getStartTime() == null
                 || req.getEndTime() == null
-                || !req.getStartTime().isBefore(req.getEndTime())) {
+                || req.getStartTime().equals(req.getEndTime())) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
     }
 
     private void validateReservationTimeWindow(Facility facility, LocalTime startTime, LocalTime endTime) {
-        if (startTime.isBefore(facility.getOpenTime())
-                || endTime.isAfter(facility.getCloseTime())) {
-            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        LocalTime open = facility.getOpenTime();
+        LocalTime close = facility.getCloseTime();
+        // closeTime <= openTime이면 익일 마감(예: 22:00~02:00)으로 판단한다
+        boolean isOvernight = !close.isAfter(open);
+        if (isOvernight) {
+            if (!isWithinOvernightRange(startTime, open, close) || !isWithinOvernightRange(endTime, open, close)) {
+                throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+            }
+        } else {
+            if (startTime.isBefore(open) || endTime.isAfter(close)) {
+                throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+            }
         }
+    }
+
+    // FLAT/PER_PERSON 시설에 활성 구독이 없으면 첫 예약일 기준으로 구독을 생성한다.
+    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long householdId, java.time.LocalDate subscribedAt) {
+        if (householdId == null) {
+            return;
+        }
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facilityId)
+                .orElse(null);
+        if (policy == null) {
+            return;
+        }
+        FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+        if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
+            return;
+        }
+        if (facilitySubscriptionRepository.existsByHouseholdIdAndFacilityIdAndStatus(
+                householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
+            return;
+        }
+        // 해지 후 유예기간(이번달 요금 청구 중) 내에 있으면 새 구독을 생성하지 않는다.
+        java.util.Optional<FacilitySubscription> recentCancelled = facilitySubscriptionRepository
+                .findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
+                        householdId, facilityId, FacilitySubscriptionStatus.CANCELLED);
+        if (recentCancelled.isPresent() && isCancelledInGracePeriod(recentCancelled.get(), policy)) {
+            return;
+        }
+        facilitySubscriptionRepository.save(FacilitySubscription.builder()
+                .complexId(complexId)
+                .householdId(householdId)
+                .facilityId(facilityId)
+                .subscribedAt(subscribedAt)
+                .build());
+    }
+
+    // 해지된 구독이 이번달 유예기간(요금 청구 중) 내에 있는지 판단한다.
+    // 해지일이 이번달이고 기준일 초과 해지이면 이번달 요금이 청구되므로 이용이 유지된다.
+    private boolean isCancelledInGracePeriod(FacilitySubscription cancelled, FacilityPolicy policy) {
+        if (cancelled.getCancelledAt() == null) return false;
+        java.time.YearMonth cancelledMonth = java.time.YearMonth.from(cancelled.getCancelledAt());
+        if (!cancelledMonth.equals(java.time.YearMonth.now())) return false;
+        Integer cutoff = policy.getCancelCutoffDay();
+        if (cutoff == null) return true;  // 기준일 없음 = 항상 당월 청구 = 유예기간
+        return cancelled.getCancelledAt().getDayOfMonth() > cutoff;
+    }
+
+    // 익일 마감 운영 범위 검증 — open 이후이거나 close 이전이면 유효한 시간대
+    private boolean isWithinOvernightRange(LocalTime time, LocalTime open, LocalTime close) {
+        return !time.isBefore(open) || !time.isAfter(close);
     }
 
     private void validateReservationBlockTime(
@@ -782,6 +898,15 @@ public class ReservationService {
             LocalTime startTime,
             LocalTime endTime
     ) {
+        // 정기 휴무 규칙으로 해당 날짜가 차단된 경우 예약을 거부한다.
+        boolean closureBlocked = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId)
+                .stream()
+                .anyMatch(rule -> rule.isDateBlocked(reservationDate));
+        if (closureBlocked) {
+            throw new BusinessException(FacilityReservationErrorCode.TIME_SLOT_NOT_AVAILABLE);
+        }
+
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, reservationDate);
 
@@ -917,5 +1042,120 @@ public class ReservationService {
                 .endTime(req.getEndTime())
                 .status(ReservationStatus.CONFIRMED)
                 .build());
+    }
+
+    // 입주민 내 예약 통합 목록 (일반 시설 + GX) 을 조회한다.
+    @Transactional(readOnly = true)
+    public PageResponse<MyUnifiedReservationRes> getMyUnifiedReservations(Long userId, Long complexId, MyUnifiedReservationReq req) {
+        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
+
+        int page = req.getPage() != null ? Math.max(req.getPage(), 0) : 0;
+        int size = req.getSize() != null && req.getSize() > 0 ? req.getSize() : 10;
+
+        // 일반 시설 예약 조회
+        List<Reservation> facilityReservations = reservationRepository.findByUserIdAndComplexId(userId, complexId);
+        Map<Long, Facility> facilityMap = facilityReservations.isEmpty() ? Map.of()
+                : facilityRepository.findAllById(
+                        facilityReservations.stream().map(Reservation::getFacilityId).distinct().toList())
+                .stream().collect(Collectors.toMap(Facility::getId, f -> f));
+
+        List<Long> seatIds = facilityReservations.stream()
+                .map(Reservation::getSeatId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, FacilitySeat> seatMap = seatIds.isEmpty() ? Map.of()
+                : facilitySeatRepository.findAllById(seatIds).stream()
+                .collect(Collectors.toMap(FacilitySeat::getId, s -> s));
+
+        // GX 예약 조회
+        List<GxReservation> gxReservations = gxReservationRepository.findByUserIdAndComplexId(userId, complexId);
+        Map<Long, GxProgram> programMap = gxReservations.isEmpty() ? Map.of()
+                : gxProgramRepository.findAllById(
+                        gxReservations.stream().map(GxReservation::getProgramId).filter(Objects::nonNull).distinct().toList())
+                .stream().collect(Collectors.toMap(GxProgram::getId, p -> p));
+
+        // 통합 목록 생성
+        List<MyUnifiedReservationRes> unified = new ArrayList<>();
+
+        for (Reservation r : facilityReservations) {
+            Facility facility = facilityMap.get(r.getFacilityId());
+            FacilitySeat seat = r.getSeatId() != null ? seatMap.get(r.getSeatId()) : null;
+            unified.add(MyUnifiedReservationRes.builder()
+                    .type("FACILITY")
+                    .reservationId(r.getId())
+                    .name(facility != null ? facility.getName() : null)
+                    .reservationDate(r.getReservationDate())
+                    .startTime(r.getStartTime())
+                    .endTime(r.getEndTime())
+                    .seatNo(seat != null ? seat.getSeatNo() : null)
+                    .status(r.getStatus() != null ? r.getStatus().name() : null)
+                    .createdAt(r.getCreatedAt())
+                    .build());
+        }
+
+        for (GxReservation r : gxReservations) {
+            GxProgram p = r.getProgramId() != null ? programMap.get(r.getProgramId()) : null;
+            unified.add(MyUnifiedReservationRes.builder()
+                    .type("GX")
+                    .gxReservationId(r.getId())
+                    .programId(r.getProgramId())
+                    .name(p != null ? p.getName() : null)
+                    .reservationDate(p != null ? p.getStartDate() : null)
+                    .endDate(p != null ? p.getEndDate() : null)
+                    .startTime(p != null ? p.getStartTime() : null)
+                    .endTime(p != null ? p.getEndTime() : null)
+                    .daysOfWeek(p != null ? p.getDaysOfWeek() : null)
+                    .status(r.getStatus() != null ? r.getStatus().name() : null)
+                    .waitNo(r.getWaitNo())
+                    .createdAt(r.getCreatedAt())
+                    .build());
+        }
+
+        // phase 필터 적용
+        if ("UPCOMING".equalsIgnoreCase(req.getPhase())) {
+            unified = unified.stream().filter(this::isUpcoming).toList();
+        } else if ("PAST".equalsIgnoreCase(req.getPhase())) {
+            unified = unified.stream().filter(this::isPast).toList();
+        }
+
+        // 예정: 날짜 오름차순, 지난: 날짜 내림차순
+        boolean ascending = "UPCOMING".equalsIgnoreCase(req.getPhase());
+        unified = unified.stream()
+                .sorted((a, b) -> {
+                    java.time.LocalDate da = a.getReservationDate();
+                    java.time.LocalDate db = b.getReservationDate();
+                    if (da == null && db == null) return 0;
+                    if (da == null) return 1;
+                    if (db == null) return -1;
+                    return ascending ? da.compareTo(db) : db.compareTo(da);
+                })
+                .toList();
+
+        long total = unified.size();
+        int totalPages = (int) Math.ceil((double) total / size);
+        int fromIdx = page * size;
+        int toIdx = (int) Math.min(fromIdx + size, total);
+
+        List<MyUnifiedReservationRes> content = (fromIdx >= total) ? List.of() : unified.subList(fromIdx, toIdx);
+
+        return PageResponse.<MyUnifiedReservationRes>builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(total)
+                .totalPages(totalPages)
+                .hasNext(page + 1 < totalPages)
+                .build();
+    }
+
+    // 예정 예약 여부 판단 — 일반: CONFIRMED, GX: WAITING/CONFIRMED
+    private boolean isUpcoming(MyUnifiedReservationRes r) {
+        if ("FACILITY".equals(r.getType())) {
+            return "CONFIRMED".equals(r.getStatus());
+        }
+        return "WAITING".equals(r.getStatus()) || "CONFIRMED".equals(r.getStatus());
+    }
+
+    // 지난 예약 여부 판단 — 일반: COMPLETED/CANCELLED, GX: COMPLETED/CANCELLED/REJECTED
+    private boolean isPast(MyUnifiedReservationRes r) {
+        return !isUpcoming(r);
     }
 }

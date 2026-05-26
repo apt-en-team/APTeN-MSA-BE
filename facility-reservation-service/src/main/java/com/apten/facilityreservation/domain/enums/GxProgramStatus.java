@@ -11,10 +11,13 @@ public enum GxProgramStatus implements EnumMapperType {
     // 모집 중인 상태이다.
     OPEN("01", "모집중"),
 
+    // 관리자가 모집을 수동으로 마감한 상태이다. 프로그램은 계속 진행된다.
+    WAITING_CLOSED("04", "모집마감"),
+
     // 프로그램이 취소된 상태이다.
     CANCELLED("02", "프로그램취소"),
 
-    // 프로그램이 종료된 상태이다.
+    // 프로그램 기간이 종료된 상태이다.
     CLOSED("03", "종료");
 
     // DB에 저장하는 코드값이다.

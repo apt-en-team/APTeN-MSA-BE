@@ -2,12 +2,14 @@ package com.apten.facilityreservation.domain.repository;
 
 import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.enums.GxProgramStatus;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,8 +22,21 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
     // 단지 소속 단건 조회한다.
     Optional<GxProgram> findByIdAndComplexId(Long id, Long complexId);
 
+    // 비관적 락을 걸어 단지 소속 단건을 조회한다. waitNo 동시 충돌 방지용이다.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT g FROM GxProgram g WHERE g.id = :id AND g.complexId = :complexId")
+    Optional<GxProgram> findByIdAndComplexIdForUpdate(@Param("id") Long id, @Param("complexId") Long complexId);
+
+    // 낙관적 락(버전 강제 증가)을 걸어 단지 소속 단건을 조회한다. 관리자 승인/거절/취소 동시 충돌 감지용이다.
+    @Lock(LockModeType.OPTIMISTIC_FORCE_INCREMENT)
+    @Query("SELECT g FROM GxProgram g WHERE g.id = :id AND g.complexId = :complexId")
+    Optional<GxProgram> findByIdAndComplexIdWithOptimisticLock(@Param("id") Long id, @Param("complexId") Long complexId);
+
     // 월 비용 산정은 프로그램별 요금을 한 번에 읽어 N+1을 피한다.
     List<GxProgram> findByIdIn(List<Long> ids);
+
+    // GX 비용 산정: 프로그램 시작일 기준으로 당월 대상 프로그램을 조회한다.
+    List<GxProgram> findByStartDateBetween(LocalDate fromDate, LocalDate toDate);
 
     // 관리자 GX 프로그램 목록 조회 - status 필터 없음
     @Query("""

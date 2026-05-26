@@ -35,6 +35,9 @@ public interface ParkingSensorRepository extends JpaRepository<ParkingSensor, Lo
     // zone 기준 미삭제 센서 존재 여부 확인
     boolean existsByZoneIdAndIsDeletedFalse(Long zoneId);
 
+    // zone 기준 활성 미삭제 센서 수 조회 (사용 가능 자리 수 산출용)
+    long countByZoneIdAndIsActiveTrueAndIsDeletedFalse(Long zoneId);
+
     // zone 내 spotNumber 중복 여부 확인
     boolean existsByZoneIdAndSpotNumberAndIsDeletedFalse(Long zoneId, String spotNumber);
 

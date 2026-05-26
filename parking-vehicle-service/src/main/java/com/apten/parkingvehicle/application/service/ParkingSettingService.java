@@ -54,6 +54,19 @@ public class ParkingSettingService {
         }
     }
 
+    // 단지가 주차 운영 활성 타입인지 검증한다 (BASIC 또는 SENSOR 허용, NONE 차단).
+    @Transactional(readOnly = true)
+    public void validateParkingEnabled(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        ParkingSetting setting = parkingSettingRepository.findByComplexId(complexId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
+        if (setting.getParkingType() == ParkingType.NONE) {
+            throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NONE);
+        }
+    }
+
     // 단지의 주차 운영 타입을 변경한다.
     @Transactional
     public ParkingSettingPatchRes updateParkingSetting(

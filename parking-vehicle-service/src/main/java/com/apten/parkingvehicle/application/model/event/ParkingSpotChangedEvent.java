@@ -30,6 +30,9 @@ public class ParkingSpotChangedEvent {
     // 자리 점유 상태이다.
     private SensorStatus status;
 
+    // 자리 활성 여부이다. false면 사용불가.
+    private Boolean isActive;
+
     // 해당 zone 현재 점유 수이다.
     private int zoneOccupied;
 

@@ -19,6 +19,12 @@ public class FacilityBlockTimeListRes {
     // 좌석 ID이다.
     private Long seatId;
 
+    // 좌석 번호이다.
+    private Integer seatNo;
+
+    // 좌석 이름이다.
+    private String seatName;
+
     // 차단일이다.
     private LocalDate blockDate;
 
@@ -33,4 +39,7 @@ public class FacilityBlockTimeListRes {
 
     // 활성 여부이다.
     private Boolean isActive;
+
+    // 반복 차단 그룹 ID이다. null이면 단건 등록
+    private Long batchId;
 }

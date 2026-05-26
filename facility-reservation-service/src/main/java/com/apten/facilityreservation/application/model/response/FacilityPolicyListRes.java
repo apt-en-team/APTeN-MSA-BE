@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.application.model.response;
 
+import com.apten.facilityreservation.domain.enums.FacilityFeeType;
 import com.apten.facilityreservation.domain.enums.FacilityUsageUnitType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,6 +35,21 @@ public class FacilityPolicyListRes {
 
     // 최대 예약 인원이다.
     private Integer maxReservationCount;
+
+    // 요금 청구 방식이다.
+    private FacilityFeeType feeType;
+
+    // BASE_PLUS_EXTRA 전용 — 기본 포함 인원 수이다.
+    private Integer includedPersonCount;
+
+    // BASE_PLUS_EXTRA 전용 — 초과 인원당 추가 요금이다.
+    private BigDecimal extraPersonFee;
+
+    // 구독 신청 기준일이다.
+    private Integer subscribeCutoffDay;
+
+    // 구독 해지 기준일이다.
+    private Integer cancelCutoffDay;
 
     // 활성 여부이다.
     private Boolean isActive;

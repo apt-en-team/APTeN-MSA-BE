@@ -51,12 +51,12 @@ public class ReservationTempHoldRedisService {
             LocalTime endTime
     ) {
         String holdKey = buildHoldKey(facilityId, seatId, reservationDate, startTime, endTime);
-
-        // TODO 2단계에서 hasKey 또는 value 존재 여부 검증을 구현한다.
         return Boolean.TRUE.equals(stringRedisTemplate.hasKey(holdKey));
     }
 
     // 예약 확정 전에 hold key 유효성을 검증한다.
+    // Redis value에 저장된 userId와 요청 userId가 일치해야 통과한다.
+    // TTL 만료 시 key가 없으므로 자동으로 false를 반환한다.
     public boolean validateHold(
             Long facilityId,
             Long seatId,
@@ -66,13 +66,11 @@ public class ReservationTempHoldRedisService {
             Long userId
     ) {
         String holdKey = buildHoldKey(facilityId, seatId, reservationDate, startTime, endTime);
-
-        // TODO 2단계에서 Redis value와 userId 또는 holdId를 비교해 실제 유효성을 검증한다.
-        // TODO TTL 만료 직전 경쟁 상황에서 DB hold 상태와 Redis key를 함께 확인하는 흐름을 구현한다.
-        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(holdKey));
+        String storedUserId = stringRedisTemplate.opsForValue().get(holdKey);
+        return String.valueOf(userId).equals(storedUserId);
     }
 
-    // 예약 취소 또는 확정 후 hold key를 해제한다.
+    // 예약 확정 또는 취소 후 hold key를 해제한다.
     public void releaseHold(
             Long facilityId,
             Long seatId,
@@ -81,8 +79,6 @@ public class ReservationTempHoldRedisService {
             LocalTime endTime
     ) {
         String holdKey = buildHoldKey(facilityId, seatId, reservationDate, startTime, endTime);
-
-        // TODO 2단계에서 예약 확정/취소 후 Redis key 삭제를 구현한다.
         stringRedisTemplate.delete(holdKey);
     }
 }

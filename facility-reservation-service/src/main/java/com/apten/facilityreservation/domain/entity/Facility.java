@@ -70,6 +70,10 @@ public class Facility extends BaseEntity {
     @Column(name = "close_time", nullable = false)
     private LocalTime closeTime;
 
+    // 시설 최대 동시 이용 인원이다.
+    @Column(name = "max_count")
+    private Integer maxCount;
+
     // 활성 여부이다.
     @Builder.Default
     @Column(name = "is_active", nullable = false)
@@ -103,6 +107,9 @@ public class Facility extends BaseEntity {
         }
         if (req.getCloseTime() != null) {
             this.closeTime = req.getCloseTime();
+        }
+        if (req.getMaxCount() != null) {
+            this.maxCount = req.getMaxCount();
         }
     }
 

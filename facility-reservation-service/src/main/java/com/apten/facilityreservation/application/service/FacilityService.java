@@ -5,8 +5,12 @@ import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.facilityreservation.application.model.request.CountStatusReq;
 import com.apten.facilityreservation.application.model.request.FacilityActivePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimeBatchPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimeListReq;
+import com.apten.facilityreservation.application.model.request.FacilityBlockTimePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityBlockTimePostReq;
+import com.apten.facilityreservation.application.model.request.FacilityClosureRulePatchReq;
+import com.apten.facilityreservation.application.model.request.FacilityClosureRulePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityListReq;
 import com.apten.facilityreservation.application.model.request.FacilityPatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityPostReq;
@@ -19,35 +23,16 @@ import com.apten.facilityreservation.application.model.request.FacilityTypePostR
 import com.apten.facilityreservation.application.model.request.FacilityUsageStatusReq;
 import com.apten.facilityreservation.application.model.request.ResidentFacilityListReq;
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
-import com.apten.facilityreservation.application.model.response.CountStatusRes;
-import com.apten.facilityreservation.application.model.response.FacilityActivePatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityBlockTimeListRes;
-import com.apten.facilityreservation.application.model.response.FacilityBlockTimePostRes;
-import com.apten.facilityreservation.application.model.response.FacilityDeleteRes;
-import com.apten.facilityreservation.application.model.response.FacilityDetailRes;
-import com.apten.facilityreservation.application.model.response.FacilityListRes;
-import com.apten.facilityreservation.application.model.response.FacilityPatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityPostRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatListRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatPatchRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatBulkPostRes;
-import com.apten.facilityreservation.application.model.response.FacilitySeatPostRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypeListRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypePatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypePostRes;
-import com.apten.facilityreservation.application.model.response.FacilityUsageStatusRes;
-import com.apten.facilityreservation.application.model.response.PageResponse;
-import com.apten.facilityreservation.application.model.response.ResidentFacilityDetailRes;
-import com.apten.facilityreservation.application.model.response.ResidentFacilityListRes;
-import com.apten.facilityreservation.application.model.response.ResidentSeatStatusRes;
-import com.apten.facilityreservation.application.model.response.SeatStatusRes;
+import com.apten.facilityreservation.application.model.response.*;
 import com.apten.facilityreservation.domain.entity.Facility;
 import com.apten.facilityreservation.domain.entity.FacilityBlockTime;
+import com.apten.facilityreservation.domain.entity.FacilityClosureRule;
 import com.apten.facilityreservation.domain.entity.FacilityPolicy;
 import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import com.apten.facilityreservation.domain.entity.FacilityType;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.entity.ReservationTempHold;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.entity.UserCache;
 import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
 import com.apten.facilityreservation.domain.enums.ReservationHoldStatus;
@@ -57,6 +42,7 @@ import com.apten.facilityreservation.domain.repository.*;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import lombok.RequiredArgsConstructor;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -65,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -86,8 +73,10 @@ public class FacilityService {
     private final ReservationRepository reservationRepository;
     private final ComplexCacheRepository complexCacheRepository;
     private final FacilityBlockTimeRepository facilityBlockTimeRepository;
+    private final FacilityClosureRuleRepository facilityClosureRuleRepository;
     private final ReservationTempHoldRepository reservationTempHoldRepository;
     private final UserCacheRepository userCacheRepository;
+    private final HouseholdCacheRepository householdCacheRepository;
 
 
     // 시설 관리자 접근 검증
@@ -148,6 +137,9 @@ public class FacilityService {
         if (req == null || req.getName() == null || req.getName().isBlank() || req.getTypeId() == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
+        if (req.getMaxCount() != null && req.getMaxCount() < 1) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
     }
 
     // 시설 수정 요청 검증
@@ -155,6 +147,9 @@ public class FacilityService {
         if (req == null || req.getName() == null || req.getName().isBlank()
                 || req.getTypeId() == null || req.getReservationType() == null
                 || req.getOpenTime() == null || req.getCloseTime() == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        if (req.getMaxCount() != null && req.getMaxCount() < 1) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
@@ -166,25 +161,28 @@ public class FacilityService {
         }
     }
 
-    // 운영 시간 검증
+    // 운영 시간 검증 — openTime < closeTime(일반) 또는 openTime > closeTime(익일 마감) 모두 허용
     private void validateTime(java.time.LocalTime openTime, java.time.LocalTime closeTime) {
-        if (openTime == null || closeTime == null || !openTime.isBefore(closeTime)) {
+        if (openTime == null || closeTime == null || openTime.equals(closeTime)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
     // 현황 조회는 슬롯 범위 해석이 핵심이므로 시작/종료 시각이 모두 필요하다.
+    // 익일 마감(endTime < startTime) 허용 — 동일 시각만 거부한다.
     private void validateSlotRange(LocalDate targetDate, LocalTime startTime, LocalTime endTime) {
-        if (targetDate == null || startTime == null || endTime == null || !startTime.isBefore(endTime)) {
+        if (targetDate == null || startTime == null || endTime == null || startTime.equals(endTime)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
     // 차단과 예약은 같은 시간 구간을 해석해야 하므로 공통 겹침 규칙을 재사용한다.
+    // slotEnd 또는 candidateEnd가 자정(00:00)처럼 시작 이하인 경우 익일 마감으로 간주해 MAX로 처리한다.
     private boolean isTimeOverlap(LocalTime slotStart, LocalTime slotEnd, LocalTime candidateStart, LocalTime candidateEnd) {
         LocalTime effectiveStart = candidateStart != null ? candidateStart : LocalTime.MIN;
-        LocalTime effectiveEnd = candidateEnd != null ? candidateEnd : LocalTime.MAX;
-        return slotStart.isBefore(effectiveEnd) && slotEnd.isAfter(effectiveStart);
+        LocalTime effectiveEnd = (candidateEnd != null && candidateEnd.isAfter(effectiveStart)) ? candidateEnd : LocalTime.MAX;
+        LocalTime effectiveSlotEnd = slotEnd.isAfter(slotStart) ? slotEnd : LocalTime.MAX;
+        return slotStart.isBefore(effectiveEnd) && effectiveSlotEnd.isAfter(effectiveStart);
     }
 
     // 시설 차단 시간 요청 검증
@@ -217,6 +215,18 @@ public class FacilityService {
                 .build();
     }
 
+    // 정책 기준 예약 단위 표시 라벨을 생성한다.
+    // MINUTE: slotMin값+"분" (예: "60분"), DAY: "하루", 정책 없으면 null
+    private String buildReservationUnitLabel(FacilityPolicy policy) {
+        if (policy == null || policy.getUsageUnitType() == null) {
+            return null;
+        }
+        return switch (policy.getUsageUnitType()) {
+            case MINUTE -> policy.getSlotMin() != null ? policy.getSlotMin() + "분" : null;
+            case DAY -> "하루";
+        };
+    }
+
     // 관리자 시설 등록
     @Transactional
     public FacilityPostRes createFacility(Long complexId, FacilityPostReq req) {
@@ -246,6 +256,7 @@ public class FacilityService {
                 .reservationType(reservationType)
                 .openTime(req.getOpenTime())
                 .closeTime(req.getCloseTime())
+                .maxCount(req.getMaxCount())
                 .isActive(req.getIsActive() == null || req.getIsActive())
                 .isDeleted(false)
                 .build());
@@ -290,19 +301,88 @@ public class FacilityService {
                 pageRequest
         );
 
+        List<Facility> facilities = facilityPage.getContent();
+        List<Long> facilityIds = facilities.stream().map(Facility::getId).toList();
+
+        // 시설 타입명 배치 조회 (N+1 방지)
+        List<Long> typeIds = facilities.stream().map(Facility::getTypeId).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> typeNameMap = typeIds.isEmpty() ? Map.of() :
+                facilityTypeRepository.findAllById(typeIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilityType::getId, FacilityType::getTypeName));
+
+        // 정책 배치 조회 (N+1 방지)
+        Map<Long, FacilityPolicy> policyMap = facilityIds.isEmpty() ? Map.of() :
+                facilityPolicyRepository.findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
+
+        // 오늘 예약 수 배치 조회 (CONFIRMED + COMPLETED 기준, N+1 방지)
+        LocalDate today = LocalDate.now();
+        List<ReservationStatus> activeStatuses = List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED);
+        Map<Long, Integer> todayCountMap = facilityIds.isEmpty() ? Map.of() :
+                reservationRepository.countGroupByFacilityId(facilityIds, today, activeStatuses)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> ((Long) row[1]).intValue()
+                        ));
+
+        // 오늘 임시 차단(점검) 시설 ID 배치 조회
+        Set<Long> blockFacilityIds = facilityIds.isEmpty() ? Set.of() :
+                new java.util.HashSet<>(facilityBlockTimeRepository.findBlockedFacilityIds(facilityIds, today));
+
+        // 오늘 정기 휴무 규칙 적용 시설 ID 배치 조회
+        Set<Long> closureFacilityIds = new java.util.HashSet<>();
+        if (!facilityIds.isEmpty()) {
+            facilityClosureRuleRepository.findByFacilityIdInAndIsActiveTrue(facilityIds).stream()
+                    .filter(rule -> rule.isDateBlocked(today))
+                    .map(FacilityClosureRule::getFacilityId)
+                    .forEach(closureFacilityIds::add);
+        }
+
+        // 합산 차단 집합 (isTodayBlocked 판단용)
+        Set<Long> blockedFacilityIds = new java.util.HashSet<>(blockFacilityIds);
+        blockedFacilityIds.addAll(closureFacilityIds);
+
         // 목록 응답 변환
-        Page<FacilityListRes> responsePage = facilityPage.map(facility -> FacilityListRes.builder()
-                .facilityId(facility.getId())
-                .typeId(facility.getTypeId())
-                .name(facility.getName())
-                .reservationType(facility.getReservationType())
-                .openTime(facility.getOpenTime())
-                .closeTime(facility.getCloseTime())
-                .isActive(facility.getIsActive())
-                .build());
+        List<FacilityListRes> items = facilities.stream()
+                .map(facility -> {
+                    FacilityPolicy policy = policyMap.get(facility.getId());
+                    return FacilityListRes.builder()
+                            .facilityId(facility.getId())
+                            .typeId(facility.getTypeId())
+                            .typeName(typeNameMap.get(facility.getTypeId()))
+                            .name(facility.getName())
+                            .reservationType(facility.getReservationType())
+                            .openTime(facility.getOpenTime())
+                            .closeTime(facility.getCloseTime())
+                            .isActive(facility.getIsActive())
+                            .maxCount(facility.getMaxCount())
+                            .baseFee(policy != null ? policy.getBaseFee() : null)
+                            .slotMin(policy != null ? policy.getSlotMin() : null)
+                            .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
+                            .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
+                                    ? policy.getUsageUnitType().getLabel() : null)
+                            .reservationUnitLabel(buildReservationUnitLabel(policy))
+                            .todayReservedCount(todayCountMap.getOrDefault(facility.getId(), 0))
+                            .isTodayBlocked(blockedFacilityIds.contains(facility.getId()))
+                            .blockType(closureFacilityIds.contains(facility.getId()) ? "CLOSURE"
+                                    : blockFacilityIds.contains(facility.getId()) ? "BLOCK"
+                                    : null)
+                            .build();
+                })
+                .toList();
 
         // 페이지 응답 변환
-        return toPageResponse(responsePage);
+        return PageResponse.<FacilityListRes>builder()
+                .content(items)
+                .page(page)
+                .size(size)
+                .totalElements(facilityPage.getTotalElements())
+                .totalPages(facilityPage.getTotalPages())
+                .hasNext(facilityPage.hasNext())
+                .build();
     }
 
     // 관리자 시설 상세를 조회한다. API-603
@@ -315,6 +395,11 @@ public class FacilityService {
 
         // 시설 타입 정보 조회
         FacilityType facilityType = getFacilityType(facility.getTypeId());
+
+        // 활성 정책 조회 (없으면 null)
+        FacilityPolicy policy = facilityPolicyRepository
+                .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, facility.getId())
+                .orElse(null);
 
         // 좌석 목록 기본값
         List<FacilityDetailRes.SeatItem> seats = List.of();
@@ -342,6 +427,13 @@ public class FacilityService {
                 .openTime(facility.getOpenTime())
                 .closeTime(facility.getCloseTime())
                 .isActive(facility.getIsActive())
+                .maxCount(facility.getMaxCount())
+                .baseFee(policy != null ? policy.getBaseFee() : null)
+                .slotMin(policy != null ? policy.getSlotMin() : null)
+                .usageUnitType(policy != null ? policy.getUsageUnitType() : null)
+                .usageUnitTypeName(policy != null && policy.getUsageUnitType() != null
+                        ? policy.getUsageUnitType().getLabel() : null)
+                .reservationUnitLabel(buildReservationUnitLabel(policy))
                 .createdAt(facility.getCreatedAt())
                 .updatedAt(facility.getUpdatedAt())
                 .seats(seats)
@@ -531,24 +623,156 @@ public class FacilityService {
         Boolean isActive = req == null ? null : req.getIsActive();
 
         // 차단 시간 목록 조회 및 응답 변환
-        return facilityBlockTimeRepository.findBlockTimes(
-                        facility.getId(),
-                        fromDate,
-                        toDate,
-                        isActive
-                )
-                .stream()
-                .map(blockTime -> FacilityBlockTimeListRes.builder()
-                        .facilityBlockTimeId(blockTime.getId())
-                        .facilityId(blockTime.getFacilityId())
-                        .seatId(blockTime.getSeatId())
-                        .blockDate(blockTime.getBlockDate())
-                        .startTime(blockTime.getStartTime())
-                        .endTime(blockTime.getEndTime())
-                        .reason(blockTime.getReason())
-                        .isActive(blockTime.getIsActive())
-                        .build())
+        List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository.findBlockTimes(
+                facility.getId(),
+                fromDate,
+                toDate,
+                isActive
+        );
+
+        // seatId가 있는 항목의 좌석 정보를 일괄 조회한다.
+        Set<Long> seatIds = blockTimes.stream()
+                .map(FacilityBlockTime::getSeatId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, FacilitySeat> seatMap = seatIds.isEmpty()
+                ? Map.of()
+                : facilitySeatRepository.findAllById(seatIds)
+                        .stream()
+                        .collect(Collectors.toMap(FacilitySeat::getId, s -> s));
+
+        return blockTimes.stream()
+                .map(blockTime -> {
+                    FacilitySeat seat = blockTime.getSeatId() != null ? seatMap.get(blockTime.getSeatId()) : null;
+                    return FacilityBlockTimeListRes.builder()
+                            .facilityBlockTimeId(blockTime.getId())
+                            .facilityId(blockTime.getFacilityId())
+                            .seatId(blockTime.getSeatId())
+                            .seatNo(seat != null ? seat.getSeatNo() : null)
+                            .seatName(seat != null ? seat.getSeatName() : null)
+                            .blockDate(blockTime.getBlockDate())
+                            .startTime(blockTime.getStartTime())
+                            .endTime(blockTime.getEndTime())
+                            .reason(blockTime.getReason())
+                            .isActive(blockTime.getIsActive())
+                            .batchId(blockTime.getBatchId())
+                            .build();
+                })
                 .toList();
+    }
+
+    // 반복 차단 시간 배치 등록 — daysOfWeek × [validFrom, validUntil] 범위 날짜마다 FacilityBlockTime 행을 생성하고 공통 batchId로 묶는다
+    @Transactional
+    public FacilityBlockTimeBatchPostRes createFacilityBlockTimeBatch(Long complexId, Long facilityId, FacilityBlockTimeBatchPostReq req) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+
+        if (req == null || req.getDaysOfWeek() == null || req.getDaysOfWeek().isEmpty()
+                || req.getValidFrom() == null || req.getValidUntil() == null
+                || req.getValidFrom().isAfter(req.getValidUntil())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        boolean hasStart = req.getStartTime() != null;
+        boolean hasEnd = req.getEndTime() != null;
+        if (hasStart != hasEnd || (hasStart && !req.getStartTime().isBefore(req.getEndTime()))) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        if (req.getSeatId() != null) {
+            FacilitySeat seat = facilitySeatRepository.findById(req.getSeatId())
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+            if (!seat.getFacilityId().equals(facility.getId())) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+        }
+
+        // 양의 Long batchId — 같은 배치 그룹을 하나의 where 절로 처리하기 위한 식별자
+        long batchId = UUID.randomUUID().getLeastSignificantBits() & 0x7FFFFFFFFFFFFFFFL;
+
+        List<FacilityBlockTime> blockTimes = new ArrayList<>();
+        LocalDate current = req.getValidFrom();
+        while (!current.isAfter(req.getValidUntil())) {
+            if (req.getDaysOfWeek().contains(current.getDayOfWeek())) {
+                blockTimes.add(FacilityBlockTime.builder()
+                        .facilityId(facility.getId())
+                        .seatId(req.getSeatId())
+                        .blockDate(current)
+                        .startTime(req.getStartTime())
+                        .endTime(req.getEndTime())
+                        .reason(req.getReason())
+                        .batchId(batchId)
+                        .isActive(true)
+                        .build());
+            }
+            current = current.plusDays(1);
+        }
+
+        if (blockTimes.isEmpty()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        facilityBlockTimeRepository.saveAll(blockTimes);
+
+        return FacilityBlockTimeBatchPostRes.builder()
+                .batchId(batchId)
+                .facilityId(facility.getId())
+                .createdCount(blockTimes.size())
+                .validFrom(req.getValidFrom())
+                .validUntil(req.getValidUntil())
+                .daysOfWeek(req.getDaysOfWeek())
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 반복 차단 그룹 비활성화 — batchId가 같은 모든 행의 is_active를 false로 변경한다
+    @Transactional
+    public FacilityBlockTimeBatchDeactivateRes deactivateFacilityBlockTimeBatch(Long complexId, Long facilityId, Long batchId) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+        int deactivatedCount = facilityBlockTimeRepository.deactivateByBatchIdAndFacilityId(batchId, facility.getId());
+        return FacilityBlockTimeBatchDeactivateRes.builder()
+                .batchId(batchId)
+                .deactivatedCount(deactivatedCount)
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 시설 차단 시간 단건 비활성화 — isActive=false 처리한다
+    @Transactional
+    public FacilityBlockTimeDeactivateRes deactivateFacilityBlockTime(Long complexId, Long facilityId, Long blockTimeId) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+        FacilityBlockTime blockTime = facilityBlockTimeRepository.findById(blockTimeId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+        if (!blockTime.getFacilityId().equals(facility.getId())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        blockTime.deactivate();
+        return FacilityBlockTimeDeactivateRes.builder()
+                .facilityBlockTimeId(blockTime.getId())
+                .processedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 시설 차단 시간 단건 수정 — blockDate·시작·종료 시각을 변경한다
+    @Transactional
+    public FacilityBlockTimePatchRes updateFacilityBlockTime(Long complexId, Long facilityId, Long blockTimeId, FacilityBlockTimePatchReq req) {
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+        FacilityBlockTime blockTime = facilityBlockTimeRepository.findById(blockTimeId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+        if (!blockTime.getFacilityId().equals(facility.getId())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        blockTime.updateSchedule(req.getBlockDate(), req.getStartTime(), req.getEndTime());
+        return FacilityBlockTimePatchRes.builder()
+                .facilityBlockTimeId(blockTime.getId())
+                .blockDate(blockTime.getBlockDate())
+                .startTime(blockTime.getStartTime())
+                .endTime(blockTime.getEndTime())
+                .isActive(blockTime.getIsActive())
+                .build();
     }
 
     // 시설 좌석을 등록한다. API-614
@@ -773,6 +997,9 @@ public class FacilityService {
                 .slotMin(policy == null ? null : policy.getSlotMin())
                 .baseFee(policy == null ? null : policy.getBaseFee())
                 .cancelDeadlineHours(policy == null ? null : policy.getCancelDeadlineHours())
+                .feeType(policy == null ? null : policy.getFeeType())
+                .subscribeCutoffDay(policy == null ? null : policy.getSubscribeCutoffDay())
+                .cancelCutoffDay(policy == null ? null : policy.getCancelCutoffDay())
                 .build();
     }
 
@@ -819,8 +1046,12 @@ public class FacilityService {
         List<FacilitySeat> seats = facilitySeatRepository.findByFacilityIdAndIsActiveTrue(facilityId);
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, req.getTargetDate());
+        // 정기 휴무 규칙을 조회한다 — 임시 차단과 함께 예약 가능 여부를 결정한다
+        List<FacilityClosureRule> closureRules = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId);
         List<Reservation> confirmedReservations = reservationRepository
-                .findByFacilityIdAndReservationDateAndStatus(facilityId, req.getTargetDate(), ReservationStatus.CONFIRMED);
+                .findByFacilityIdAndReservationDateAndStatusIn(facilityId, req.getTargetDate(),
+                        List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED));
         List<ReservationTempHold> activeHolds = reservationTempHoldRepository
                 .findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
                         facilityId,
@@ -840,7 +1071,15 @@ public class FacilityService {
                 userCacheRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
 
-        // 시설 전체 차단이 겹치면 모든 좌석을 BLOCKED로 본다.
+        Set<Long> seatHouseholdIds = confirmedReservations.stream()
+                .map(Reservation::getHouseholdId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, HouseholdCache> seatHouseholdMap = seatHouseholdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(seatHouseholdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
+
+        // 임시 차단 또는 정기 휴무 규칙이 시설 전체에 적용되면 모든 좌석을 BLOCKED로 본다.
         boolean facilityBlocked = blockTimes.stream()
                 .filter(blockTime -> blockTime.getSeatId() == null)
                 .anyMatch(blockTime -> isTimeOverlap(
@@ -848,11 +1087,16 @@ public class FacilityService {
                         req.getEndTime(),
                         blockTime.getStartTime(),
                         blockTime.getEndTime()
-                ));
+                ))
+                || isBlockedByClosureRules(req.getTargetDate(), req.getStartTime(), req.getEndTime(), null, closureRules);
 
         return seats.stream()
                 .map(seat -> {
-                    if (facilityBlocked || isSeatBlocked(seat.getId(), blockTimes, req.getStartTime(), req.getEndTime())) {
+                    // 시설 전체 차단 또는 임시 차단 또는 해당 좌석의 정기 휴무 규칙이 적용되면 BLOCKED이다
+                    boolean seatBlockedByRule = isBlockedByClosureRules(
+                            req.getTargetDate(), req.getStartTime(), req.getEndTime(), seat.getId(), closureRules);
+                    if (facilityBlocked || isSeatBlocked(seat.getId(), blockTimes, req.getStartTime(), req.getEndTime())
+                            || seatBlockedByRule) {
                         return SeatStatusRes.builder()
                                 .seatId(seat.getId())
                                 .seatNo(seat.getSeatNo())
@@ -875,12 +1119,21 @@ public class FacilityService {
                             .orElse(null);
                     if (reservedReservation != null) {
                         UserCache user = userMap.get(reservedReservation.getUserId());
+                        HouseholdCache household = seatHouseholdMap.get(reservedReservation.getHouseholdId());
+                        String buildingNo = household != null ? household.getBuildingNo() : null;
+                        String unitNo = household != null ? household.getUnitNo() : null;
+                        String unit = (buildingNo != null && unitNo != null)
+                                ? buildingNo + "동 " + unitNo + "호" : null;
                         return SeatStatusRes.builder()
                                 .seatId(seat.getId())
+                                .reservationId(String.valueOf(reservedReservation.getId()))
                                 .seatNo(seat.getSeatNo())
                                 .seatName(seat.getSeatName())
                                 .status("RESERVED")
                                 .residentName(user != null ? user.getName() : null)
+                                .dong(buildingNo)
+                                .ho(unitNo)
+                                .unit(unit)
                                 .holdExpiresAt(null)
                                 .build();
                     }
@@ -938,17 +1191,25 @@ public class FacilityService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
         }
 
+        // 정기 휴무 규칙이 이 날짜·시간대에 적용되면 예약 불가 슬롯으로 처리한다
+        List<FacilityClosureRule> closureRules = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId);
+        boolean blockedByRule = isBlockedByClosureRules(
+                req.getTargetDate(), req.getStartTime(), req.getEndTime(), null, closureRules);
+
         List<Reservation> confirmedReservations = reservationRepository
-                .findByFacilityIdAndReservationDateAndStatus(facilityId, req.getTargetDate(), ReservationStatus.CONFIRMED)
+                .findByFacilityIdAndReservationDateAndStatusIn(facilityId, req.getTargetDate(),
+                        List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED))
                 .stream()
                 .filter(reservation -> req.getStartTime().equals(reservation.getStartTime())
                         && req.getEndTime().equals(reservation.getEndTime()))
                 .toList();
 
         // COUNT용 HOLDING은 아직 생성하지 않으므로 현재 잔여 수량은 CONFIRMED 기준으로만 계산한다.
+        // 정기 휴무 규칙에 해당하면 availableCount를 0으로 강제한다.
         int reservedCount = confirmedReservations.size();
         int maxCount = policy.getMaxReservationCount();
-        int availableCount = Math.max(0, maxCount - reservedCount);
+        int availableCount = blockedByRule ? 0 : Math.max(0, maxCount - reservedCount);
 
         Set<Long> userIds = confirmedReservations.stream()
                 .map(Reservation::getUserId)
@@ -957,6 +1218,15 @@ public class FacilityService {
         Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of() :
                 userCacheRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
+
+        // 동/호수 표시를 위해 HouseholdCache를 batch 조회한다. 캐시 미동기 시 null로 내려간다.
+        Set<Long> householdIds = confirmedReservations.stream()
+                .map(Reservation::getHouseholdId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
 
         return CountStatusRes.builder()
                 .facilityId(facilityId)
@@ -967,9 +1237,18 @@ public class FacilityService {
                 .users(confirmedReservations.stream()
                         .map(reservation -> {
                             UserCache user = userMap.get(reservation.getUserId());
+                            HouseholdCache household = householdMap.get(reservation.getHouseholdId());
+                            String buildingNo = household != null ? household.getBuildingNo() : null;
+                            String unitNo = household != null ? household.getUnitNo() : null;
+                            String unit = (buildingNo != null && unitNo != null)
+                                    ? buildingNo + "동 " + unitNo + "호" : null;
                             return CountStatusRes.UserItem.builder()
-                                    .reservationId(reservation.getId())
+                                    .reservationId(String.valueOf(reservation.getId()))
                                     .residentName(user != null ? user.getName() : null)
+                                    .dong(buildingNo)
+                                    .ho(unitNo)
+                                    .unit(unit)
+                                    .status(reservation.getStatus().name())
                                     .build();
                         })
                         .toList())
@@ -993,6 +1272,9 @@ public class FacilityService {
         List<FacilitySeat> seats = facilitySeatRepository.findByFacilityIdAndIsActiveTrue(facilityId);
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, req.getTargetDate());
+        // 정기 휴무 규칙을 조회한다
+        List<FacilityClosureRule> closureRules = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId);
         List<Reservation> confirmedReservations = reservationRepository
                 .findByFacilityIdAndReservationDateAndStatus(facilityId, req.getTargetDate(), ReservationStatus.CONFIRMED);
         List<ReservationTempHold> activeHolds = reservationTempHoldRepository
@@ -1003,7 +1285,7 @@ public class FacilityService {
                         LocalDateTime.now()
                 );
 
-        // 시설 전체 차단 여부를 먼저 판단한다.
+        // 임시 차단 또는 정기 휴무 규칙이 시설 전체에 적용되면 모든 좌석을 BLOCKED로 본다.
         boolean facilityBlocked = blockTimes.stream()
                 .filter(blockTime -> blockTime.getSeatId() == null)
                 .anyMatch(blockTime -> isTimeOverlap(
@@ -1011,11 +1293,15 @@ public class FacilityService {
                         req.getEndTime(),
                         blockTime.getStartTime(),
                         blockTime.getEndTime()
-                ));
+                ))
+                || isBlockedByClosureRules(req.getTargetDate(), req.getStartTime(), req.getEndTime(), null, closureRules);
 
         return seats.stream()
                 .map(seat -> {
-                    if (facilityBlocked || isSeatBlocked(seat.getId(), blockTimes, req.getStartTime(), req.getEndTime())) {
+                    boolean seatBlockedByRule = isBlockedByClosureRules(
+                            req.getTargetDate(), req.getStartTime(), req.getEndTime(), seat.getId(), closureRules);
+                    if (facilityBlocked || isSeatBlocked(seat.getId(), blockTimes, req.getStartTime(), req.getEndTime())
+                            || seatBlockedByRule) {
                         return ResidentSeatStatusRes.builder()
                                 .seatId(seat.getId())
                                 .seatNo(seat.getSeatNo())
@@ -1079,5 +1365,221 @@ public class FacilityService {
         return blockTimes.stream()
                 .filter(blockTime -> seatId.equals(blockTime.getSeatId()))
                 .anyMatch(blockTime -> isTimeOverlap(startTime, endTime, blockTime.getStartTime(), blockTime.getEndTime()));
+    }
+
+    // 정기 휴무 규칙 목록 중 주어진 날짜와 시간대에 해당하는 규칙이 있는지 판단한다.
+    // seatId가 null이면 시설 전체 규칙만 검사하고, 값이 있으면 해당 좌석 규칙도 함께 검사한다.
+    private boolean isBlockedByClosureRules(LocalDate date, LocalTime startTime, LocalTime endTime,
+                                             Long seatId, List<FacilityClosureRule> rules) {
+        return rules.stream()
+                // 날짜 패턴과 맞는 규칙만 남긴다
+                .filter(rule -> rule.isDateBlocked(date))
+                // 해당 규칙이 시설 전체(seatId null) 또는 요청 좌석과 같은 좌석에 적용되는 규칙인지 확인한다
+                .filter(rule -> rule.getSeatId() == null || rule.getSeatId().equals(seatId))
+                // 종일 차단이거나 시간대가 겹치면 차단이다
+                .anyMatch(rule -> rule.isAllDay()
+                        || isTimeOverlap(startTime, endTime, rule.getStartTime(), rule.getEndTime()));
+    }
+
+    // 정기 휴무 규칙 등록 요청 값을 검증한다.
+    private void validateClosureRulePostReq(FacilityClosureRulePostReq req) {
+        if (req == null || req.getRuleType() == null
+                || req.getDaysOfWeek() == null || req.getDaysOfWeek().isEmpty()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        // MONTHLY_NTH는 weekOrdinals가 반드시 필요하다
+        if (req.getRuleType() == com.apten.facilityreservation.domain.enums.ClosureRuleType.MONTHLY_NTH
+                && (req.getWeekOrdinals() == null || req.getWeekOrdinals().isEmpty())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        // weekOrdinals 범위 검사 — 1~5 주만 유효하다
+        if (req.getWeekOrdinals() != null) {
+            for (int ordinal : req.getWeekOrdinals()) {
+                if (ordinal < 1 || ordinal > 5) throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+        }
+        // startTime과 endTime은 둘 다 있거나 둘 다 없어야 한다
+        boolean hasStart = req.getStartTime() != null;
+        boolean hasEnd = req.getEndTime() != null;
+        if (hasStart != hasEnd || (hasStart && !req.getStartTime().isBefore(req.getEndTime()))) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        // validFrom이 validUntil보다 뒤일 수 없다
+        if (req.getValidFrom() != null && req.getValidUntil() != null
+                && req.getValidFrom().isAfter(req.getValidUntil())) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    // List<DayOfWeek>를 쉼표 구분 문자열로 변환한다. 엔티티 저장 형식이다.
+    private String joinDaysOfWeek(List<java.time.DayOfWeek> days) {
+        return days.stream().map(Enum::name).collect(Collectors.joining(","));
+    }
+
+    // List<Integer>를 쉼표 구분 문자열로 변환한다. 엔티티 저장 형식이다.
+    private String joinWeekOrdinals(List<Integer> ordinals) {
+        if (ordinals == null || ordinals.isEmpty()) return null;
+        return ordinals.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    // 정기 휴무 규칙을 등록한다.
+    @Transactional
+    public FacilityClosureRulePostRes createClosureRule(Long complexId, Long facilityId, FacilityClosureRulePostReq req) {
+        // 시설 접근 및 소속 검증
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+
+        // 요청 값 검증
+        validateClosureRulePostReq(req);
+
+        // 좌석 소속 검증 — seatId가 지정된 경우에만 확인한다
+        if (req.getSeatId() != null) {
+            FacilitySeat seat = facilitySeatRepository.findById(req.getSeatId())
+                    .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
+            if (!seat.getFacilityId().equals(facility.getId())) {
+                throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+            }
+        }
+
+        // 규칙 저장
+        FacilityClosureRule rule = facilityClosureRuleRepository.save(FacilityClosureRule.builder()
+                .facilityId(facility.getId())
+                .seatId(req.getSeatId())
+                .ruleType(req.getRuleType())
+                .daysOfWeek(joinDaysOfWeek(req.getDaysOfWeek()))
+                .weekOrdinals(joinWeekOrdinals(req.getWeekOrdinals()))
+                .startTime(req.getStartTime())
+                .endTime(req.getEndTime())
+                .validFrom(req.getValidFrom())
+                .validUntil(req.getValidUntil())
+                .reason(req.getReason())
+                .build());
+
+        return FacilityClosureRulePostRes.builder()
+                .closureRuleId(rule.getId())
+                .facilityId(rule.getFacilityId())
+                .ruleType(rule.getRuleType())
+                .daysOfWeek(req.getDaysOfWeek())
+                .weekOrdinals(req.getWeekOrdinals())
+                .startTime(rule.getStartTime())
+                .endTime(rule.getEndTime())
+                .validFrom(rule.getValidFrom())
+                .validUntil(rule.getValidUntil())
+                .createdAt(rule.getCreatedAt())
+                .build();
+    }
+
+    // 정기 휴무 규칙 목록을 조회한다.
+    public List<FacilityClosureRuleListRes> getClosureRuleList(Long complexId, Long facilityId) {
+        // 시설 접근 및 소속 검증
+        validateAdminAccess(complexId);
+        Facility facility = getFacility(complexId, facilityId);
+
+        // 규칙과 연관된 좌석 정보를 일괄 조회한다 (N+1 방지)
+        List<FacilityClosureRule> rules = facilityClosureRuleRepository
+                .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facility.getId());
+
+        Set<Long> seatIds = rules.stream()
+                .map(FacilityClosureRule::getSeatId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, FacilitySeat> seatMap = seatIds.isEmpty() ? Map.of()
+                : facilitySeatRepository.findAllById(seatIds).stream()
+                        .collect(Collectors.toMap(FacilitySeat::getId, s -> s));
+
+        return rules.stream()
+                .map(rule -> {
+                    FacilitySeat seat = rule.getSeatId() != null ? seatMap.get(rule.getSeatId()) : null;
+                    return FacilityClosureRuleListRes.builder()
+                            .closureRuleId(rule.getId())
+                            .facilityId(rule.getFacilityId())
+                            .seatId(rule.getSeatId())
+                            .seatNo(seat != null ? seat.getSeatNo() : null)
+                            .seatName(seat != null ? seat.getSeatName() : null)
+                            .ruleType(rule.getRuleType())
+                            .ruleTypeLabel(rule.getRuleType().getLabel())
+                            .daysOfWeek(new java.util.ArrayList<>(rule.parseDaysOfWeek()))
+                            .weekOrdinals(new java.util.ArrayList<>(rule.parseWeekOrdinals()))
+                            .startTime(rule.getStartTime())
+                            .endTime(rule.getEndTime())
+                            .validFrom(rule.getValidFrom())
+                            .validUntil(rule.getValidUntil())
+                            .reason(rule.getReason())
+                            .isActive(rule.getIsActive())
+                            .build();
+                })
+                .toList();
+    }
+
+    // 정기 휴무 규칙을 수정한다.
+    @Transactional
+    public FacilityClosureRuleListRes updateClosureRule(Long complexId, Long facilityId,
+                                                         Long ruleId, FacilityClosureRulePatchReq req) {
+        // 시설 접근 및 소속 검증
+        validateAdminAccess(complexId);
+        getFacility(complexId, facilityId);
+
+        // 규칙 존재 및 시설 소속 검증
+        FacilityClosureRule rule = facilityClosureRuleRepository.findById(ruleId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+        if (!rule.getFacilityId().equals(facilityId)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 요청 값 유효성 — startTime/endTime 쌍 검증
+        boolean hasStart = req.getStartTime() != null;
+        boolean hasEnd = req.getEndTime() != null;
+        if (hasStart != hasEnd || (hasStart && !req.getStartTime().isBefore(req.getEndTime()))) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 규칙 내용 업데이트
+        rule.update(
+                req.getRuleType(),
+                joinDaysOfWeek(req.getDaysOfWeek()),
+                joinWeekOrdinals(req.getWeekOrdinals()),
+                req.getStartTime(),
+                req.getEndTime(),
+                req.getValidFrom(),
+                req.getValidUntil(),
+                req.getReason()
+        );
+
+        return FacilityClosureRuleListRes.builder()
+                .closureRuleId(rule.getId())
+                .facilityId(rule.getFacilityId())
+                .ruleType(rule.getRuleType())
+                .ruleTypeLabel(rule.getRuleType().getLabel())
+                .daysOfWeek(new java.util.ArrayList<>(rule.parseDaysOfWeek()))
+                .weekOrdinals(new java.util.ArrayList<>(rule.parseWeekOrdinals()))
+                .startTime(rule.getStartTime())
+                .endTime(rule.getEndTime())
+                .validFrom(rule.getValidFrom())
+                .validUntil(rule.getValidUntil())
+                .reason(rule.getReason())
+                .isActive(rule.getIsActive())
+                .build();
+    }
+
+    // 정기 휴무 규칙을 비활성화한다.
+    @Transactional
+    public FacilityClosureRuleDeactivateRes deactivateClosureRule(Long complexId, Long facilityId, Long ruleId) {
+        // 시설 접근 및 소속 검증
+        validateAdminAccess(complexId);
+        getFacility(complexId, facilityId);
+
+        // 규칙 존재 및 시설 소속 검증
+        FacilityClosureRule rule = facilityClosureRuleRepository.findById(ruleId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
+        if (!rule.getFacilityId().equals(facilityId)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        rule.deactivate();
+
+        return FacilityClosureRuleDeactivateRes.builder()
+                .closureRuleId(rule.getId())
+                .processedAt(LocalDateTime.now())
+                .build();
     }
 }
