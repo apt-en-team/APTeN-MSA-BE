@@ -12,6 +12,7 @@ import org.springframework.web.socket.WebSocketSession;
 public class NotificationWebSocketSessionRegistry {
 
     // 한 사용자가 여러 탭이나 기기에서 접속할 수 있으므로 userId별 세션 묶음을 관리한다
+    // 동일 세션 동시 전송 문제가 생기면 운영에서는 send lock 또는 ConcurrentWebSocketSessionDecorator를 검토한다
     private final ConcurrentHashMap<Long, Set<WebSocketSession>> sessionsByUserId = new ConcurrentHashMap<>();
     // 세션 종료 시 userId를 역조회해 빠르게 제거하기 위한 인덱스
     private final ConcurrentHashMap<String, Long> userIdBySessionId = new ConcurrentHashMap<>();

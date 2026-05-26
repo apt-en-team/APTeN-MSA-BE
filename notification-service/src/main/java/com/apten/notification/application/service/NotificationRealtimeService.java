@@ -54,6 +54,7 @@ public class NotificationRealtimeService {
 
     private String toPayload(Notification notification) {
         // 신규 알림과 함께 최신 미읽음 수를 보내 배지를 즉시 동기화한다
+        // afterCommit 이후 매번 count를 조회하므로 대량 발송 단계에서는 커넥션 풀 압박을 별도로 점검한다
         long unreadCount = notificationRepository.countByUserIdAndIsRead(notification.getUserId(), false);
         NotificationWebSocketRes response = NotificationWebSocketRes.builder()
                 .type(notification.getType().name())

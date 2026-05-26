@@ -13,6 +13,9 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 public class NotificationWebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
     public static final String USER_ID_ATTRIBUTE = "notificationUserId";
+    private static final String ROLE_USER = "USER";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_MANAGER = "MANAGER";
 
     @Override
     public boolean beforeHandshake(
@@ -29,8 +32,8 @@ public class NotificationWebSocketHandshakeInterceptor implements HandshakeInter
         }
 
         String role = request.getHeaders().getFirst(HeaderConstants.X_USER_ROLE);
-        // MASTER는 user_cache에 저장될 수 있지만 단지별 실시간 알림 수신 대상은 아니다
-        if ("MASTER".equalsIgnoreCase(role)) {
+        // MANAGER는 단지 운영자 알림 수신 대상이므로 허용하고, MASTER는 단지별 알림 대상이 아니므로 차단한다
+        if (!isAllowedRole(role)) {
             response.setStatusCode(HttpStatus.FORBIDDEN);
             return false;
         }
@@ -59,5 +62,14 @@ public class NotificationWebSocketHandshakeInterceptor implements HandshakeInter
         } catch (NumberFormatException exception) {
             return null;
         }
+    }
+
+    private boolean isAllowedRole(String role) {
+        if (role == null || role.isBlank()) {
+            return false;
+        }
+        return ROLE_USER.equalsIgnoreCase(role)
+                || ROLE_ADMIN.equalsIgnoreCase(role)
+                || ROLE_MANAGER.equalsIgnoreCase(role);
     }
 }
