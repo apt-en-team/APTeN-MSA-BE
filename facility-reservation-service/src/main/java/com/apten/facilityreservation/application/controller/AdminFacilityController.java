@@ -48,27 +48,19 @@ import com.apten.facilityreservation.application.service.FacilityRequestContextR
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // 관리자 시설과 좌석, 현황 관리 API 진입점이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/admin")
 public class AdminFacilityController {
 
     private final FacilityService facilityService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
     // 시설 등록
-    @PostMapping("/api/admin/facilities")
+    @PostMapping("/facilities")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilityPostRes> createFacility(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -82,7 +74,7 @@ public class AdminFacilityController {
     }
 
     // 관리자 시설 목록 조회
-    @GetMapping("/api/admin/facilities")
+    @GetMapping("/facilities")
     public ResultResponse<PageResponse<FacilityListRes>> getAdminFacilityList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -95,7 +87,7 @@ public class AdminFacilityController {
     }
 
     // API-603 관리자 시설 상세 조회
-    @GetMapping("/api/admin/facilities/{facilityId}")
+    @GetMapping("/facilities/{facilityId}")
     public ResultResponse<FacilityDetailRes> getAdminFacilityDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -108,7 +100,7 @@ public class AdminFacilityController {
     }
 
     // API-604 시설 수정
-    @PatchMapping("/api/admin/facilities/{facilityId}")
+    @PatchMapping("/facilities/{facilityId}")
     public ResultResponse<FacilityPatchRes> updateFacility(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -122,7 +114,7 @@ public class AdminFacilityController {
     }
 
     // API-605 시설 삭제
-    @DeleteMapping("/api/admin/facilities/{facilityId}")
+    @DeleteMapping("/facilities/{facilityId}")
     public ResultResponse<FacilityDeleteRes> deleteFacility(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -135,7 +127,7 @@ public class AdminFacilityController {
     }
 
     // API-606 시설 활성/비활성 변경
-    @PatchMapping("/api/admin/facilities/{facilityId}/active")
+    @PatchMapping("/facilities/{facilityId}/active")
     public ResultResponse<FacilityActivePatchRes> changeFacilityActive(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -163,7 +155,7 @@ public class AdminFacilityController {
 //    }
 
     // API-608 시설 타입 목록 조회
-    @GetMapping("/api/admin/facility-types")
+    @GetMapping("/facility-types")
     public ResultResponse<List<FacilityTypeListRes>> getFacilityTypeList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -190,7 +182,7 @@ public class AdminFacilityController {
 //    }
 
     // API-612 시설 차단 시간 등록
-    @PostMapping("/api/admin/facilities/{facilityId}/block-times")
+    @PostMapping("/facilities/{facilityId}/block-times")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilityBlockTimePostRes> createFacilityBlockTime(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -205,7 +197,7 @@ public class AdminFacilityController {
     }
 
     // API-613 시설 차단 시간 조회
-    @GetMapping("/api/admin/facilities/{facilityId}/block-times")
+    @GetMapping("/facilities/{facilityId}/block-times")
     public ResultResponse<List<FacilityBlockTimeListRes>> getFacilityBlockTimeList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -219,7 +211,7 @@ public class AdminFacilityController {
     }
 
     // 반복 차단 배치 등록 — 요일 선택 + 기간으로 여러 날짜에 걸친 차단을 한 번에 생성한다
-    @PostMapping("/api/admin/facilities/{facilityId}/block-times/batch")
+    @PostMapping("/facilities/{facilityId}/block-times/batch")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilityBlockTimeBatchPostRes> createFacilityBlockTimeBatch(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -234,7 +226,7 @@ public class AdminFacilityController {
     }
 
     // 반복 차단 그룹 비활성화 — batchId 기준 is_active=false 일괄 처리
-    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/batch/{batchId}/deactivate")
+    @PatchMapping("/facilities/{facilityId}/block-times/batch/{batchId}/deactivate")
     public ResultResponse<FacilityBlockTimeBatchDeactivateRes> deactivateFacilityBlockTimeBatch(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -248,7 +240,7 @@ public class AdminFacilityController {
     }
 
     // 시설 차단 시간 단건 비활성화
-    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/{blockTimeId}/deactivate")
+    @PatchMapping("/facilities/{facilityId}/block-times/{blockTimeId}/deactivate")
     public ResultResponse<FacilityBlockTimeDeactivateRes> deactivateFacilityBlockTime(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -262,7 +254,7 @@ public class AdminFacilityController {
     }
 
     // 시설 차단 시간 단건 수정 — blockDate·시작·종료 시각만 변경한다
-    @PatchMapping("/api/admin/facilities/{facilityId}/block-times/{blockTimeId}")
+    @PatchMapping("/facilities/{facilityId}/block-times/{blockTimeId}")
     public ResultResponse<FacilityBlockTimePatchRes> updateFacilityBlockTime(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -277,7 +269,7 @@ public class AdminFacilityController {
     }
 
     // 정기 휴무 규칙 등록
-    @PostMapping("/api/admin/facilities/{facilityId}/closure-rules")
+    @PostMapping("/facilities/{facilityId}/closure-rules")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<com.apten.facilityreservation.application.model.response.FacilityClosureRulePostRes> createClosureRule(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -292,7 +284,7 @@ public class AdminFacilityController {
     }
 
     // 정기 휴무 규칙 목록 조회
-    @GetMapping("/api/admin/facilities/{facilityId}/closure-rules")
+    @GetMapping("/facilities/{facilityId}/closure-rules")
     public ResultResponse<List<com.apten.facilityreservation.application.model.response.FacilityClosureRuleListRes>> getClosureRuleList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -305,7 +297,7 @@ public class AdminFacilityController {
     }
 
     // 정기 휴무 규칙 수정
-    @PatchMapping("/api/admin/facilities/{facilityId}/closure-rules/{ruleId}")
+    @PatchMapping("/facilities/{facilityId}/closure-rules/{ruleId}")
     public ResultResponse<com.apten.facilityreservation.application.model.response.FacilityClosureRuleListRes> updateClosureRule(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -320,7 +312,7 @@ public class AdminFacilityController {
     }
 
     // 정기 휴무 규칙 비활성화
-    @PatchMapping("/api/admin/facilities/{facilityId}/closure-rules/{ruleId}/deactivate")
+    @PatchMapping("/facilities/{facilityId}/closure-rules/{ruleId}/deactivate")
     public ResultResponse<com.apten.facilityreservation.application.model.response.FacilityClosureRuleDeactivateRes> deactivateClosureRule(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -334,7 +326,7 @@ public class AdminFacilityController {
     }
 
     // API-614 시설 좌석 등록
-    @PostMapping("/api/admin/facilities/{facilityId}/seats")
+    @PostMapping("/facilities/{facilityId}/seats")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilitySeatPostRes> createFacilitySeat(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -349,7 +341,7 @@ public class AdminFacilityController {
     }
 
     // 시설 좌석을 일괄 등록한다.
-    @PostMapping("/api/admin/facilities/{facilityId}/seats/bulk")
+    @PostMapping("/facilities/{facilityId}/seats/bulk")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilitySeatBulkPostRes> createFacilitySeatsBulk(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -364,7 +356,7 @@ public class AdminFacilityController {
     }
 
     // API-615 시설 좌석 목록 조회
-    @GetMapping("/api/admin/facilities/{facilityId}/seats")
+    @GetMapping("/facilities/{facilityId}/seats")
     public ResultResponse<List<FacilitySeatListRes>> getFacilitySeatList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -377,7 +369,7 @@ public class AdminFacilityController {
     }
 
     // API-616 시설 좌석 수정
-    @PatchMapping("/api/admin/facility-seats/{seatId}")
+    @PatchMapping("/facility-seats/{seatId}")
     public ResultResponse<FacilitySeatPatchRes> updateFacilitySeat(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -391,7 +383,7 @@ public class AdminFacilityController {
     }
 
     // API-644 시설 이용 현황 조회
-    @GetMapping("/api/admin/facility-usage/status")
+    @GetMapping("/facility-usage/status")
     public ResultResponse<FacilityUsageStatusRes> getFacilityUsageStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -404,7 +396,7 @@ public class AdminFacilityController {
     }
 
     // API-645 좌석 상태 조회
-    @GetMapping("/api/admin/facilities/{facilityId}/seat-status")
+    @GetMapping("/facilities/{facilityId}/seat-status")
     public ResultResponse<List<SeatStatusRes>> getSeatStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -418,7 +410,7 @@ public class AdminFacilityController {
     }
 
     // API-646 정원형 이용 현황 조회
-    @GetMapping("/api/admin/facilities/{facilityId}/count-status")
+    @GetMapping("/facilities/{facilityId}/count-status")
     public ResultResponse<CountStatusRes> getCountStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
