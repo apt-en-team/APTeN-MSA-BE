@@ -11,6 +11,9 @@ import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
 import com.google.firebase.messaging.SendResponse;
+import com.google.firebase.messaging.WebpushConfig;
+import com.google.firebase.messaging.WebpushFcmOptions;
+import com.google.firebase.messaging.WebpushNotification;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,12 +82,32 @@ public class NotificationPushService {
             log.debug("[FCM] 발송 가능한 토큰 문자열 없음 - notificationId={}", notification.getId());
             return false;
         }
+        tokenValues.forEach(tv ->
+                log.info("[FCM] 발송 대상 토큰 prefix={}, userId={}", tokenPrefix(tv), notification.getUserId()));
+
+        String linkPath = StringUtils.hasText(notification.getLinkPath()) ? notification.getLinkPath() : "/";
+        WebpushConfig webpushConfig = WebpushConfig.builder()
+                .setNotification(WebpushNotification.builder()
+                        .setTitle(notification.getTitle())
+                        .setBody(notification.getContent())
+                        .setIcon("/icons/icon-192.png")
+                        .build())
+                .setFcmOptions(WebpushFcmOptions.builder()
+                        .setLink(linkPath)
+                        .build())
+                .build();
+
+        log.info("[FCM] WebpushConfig. link={}, titleLen={}, bodyLen={}, icon=/icons/icon-192.png",
+                linkPath,
+                notification.getTitle() == null ? 0 : notification.getTitle().length(),
+                notification.getContent() == null ? 0 : notification.getContent().length());
 
         MulticastMessage message = MulticastMessage.builder()
                 .setNotification(com.google.firebase.messaging.Notification.builder()
                         .setTitle(notification.getTitle())
                         .setBody(notification.getContent())
                         .build())
+                .setWebpushConfig(webpushConfig)
                 .putAllData(buildDataPayload(notification))
                 .addAllTokens(tokenValues)
                 .build();
@@ -148,6 +171,11 @@ public class NotificationPushService {
                         activeTokens.get(i).getId(), exception.getMessage());
             }
         }
+    }
+
+    private String tokenPrefix(String token) {
+        if (token == null || token.isBlank()) return "(없음)";
+        return token.length() > 25 ? token.substring(0, 25) + "..." : token;
     }
 
     private boolean isInvalidToken(FirebaseMessagingException exception) {
