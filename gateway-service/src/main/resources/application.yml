@@ -92,3 +92,19 @@ server:
 constants:
   api:
     prefix: /api
+
+  cloud:
+    gateway:
+      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
+      server:
+        webmvc:
+          actuator:
+            enabled: true
+          cors: # cors 허용
+            configurations:
+              '[/**]':
+                allowed-origins: [ "https://ta.greenart.n-e.kr" ]
+                allowed-methods: [ "*" ]
+                allowed-headers: [ "*" ]
+                allow-credentials: true
+                max-age: 3600
