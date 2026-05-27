@@ -85,6 +85,10 @@ public class VisitorVehicle extends BaseEntity {
     @Column(name = "source_id")
     private Long sourceId;
 
+    // 관리자 등록 메모
+    @Column(name = "memo", length = 255)
+    private String memo;
+
     // 소프트 삭제 여부
     @Builder.Default
     @Column(name = "is_deleted", nullable = false)
