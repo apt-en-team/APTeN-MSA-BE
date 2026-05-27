@@ -7,6 +7,7 @@ import com.apten.notification.domain.enums.UserCacheStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,7 +16,15 @@ import lombok.NoArgsConstructor;
 
 // 알림 생성 대상 사용자를 식별하는 사용자 캐시 엔티티
 @Entity
-@Table(name = "user_cache")
+@Table(
+        name = "user_cache",
+        indexes = {
+                @Index(name = "idx_user_cache_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_user_cache_role", columnList = "role"),
+                @Index(name = "idx_user_cache_status", columnList = "status"),
+                @Index(name = "idx_user_cache_complex_role_status", columnList = "complex_id, role, status")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -45,14 +54,16 @@ public class UserCache extends BaseEntity {
 
     // 사용자 이벤트를 현재 캐시 엔티티에 반영한다.
     public void apply(UserEventPayload payload) {
+        // auth-service의 사용자 이벤트를 notification-service 로컬 캐시 형태로 맞춘다
         this.id = payload.getUserId();
+        // 이전 이벤트 필드명과 현재 필드명이 섞여 들어올 수 있어 둘 다 허용한다
         this.complexId = payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId();
         this.name = payload.getName();
         if (payload.getRole() != null) {
-            this.role = UserCacheRole.valueOf(payload.getRole());
+            this.role = UserCacheRole.from(payload.getRole());
         }
         if (payload.getStatus() != null) {
-            this.status = UserCacheStatus.valueOf(payload.getStatus());
+            this.status = UserCacheStatus.from(payload.getStatus());
         }
     }
 }

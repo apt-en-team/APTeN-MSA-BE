@@ -15,10 +15,15 @@ spring:
     url: ${NOTIFICATION_DB_URL}
     username: ${NOTIFICATION_DB_USERNAME}
     password: ${NOTIFICATION_DB_PASSWORD}
-  kafka:
-    consumer:
-#      group-id: notification-service-group
 
 constants:
   api:
     prefix: /api/notifications
+
+apten:
+  notification:
+    push:
+      fcm-enabled: ${APTEN_NOTIFICATION_PUSH_FCM_ENABLED:false}
+      firebase:
+        credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+        project-id: ${FIREBASE_PROJECT_ID:}

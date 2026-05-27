@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationUnreadCountRes {
-    private Integer unreadCount;
+    // 현재 로그인 사용자의 미읽음 알림 개수
+    private Long unreadCount;
 }

@@ -5,12 +5,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 내부 알림 생성 요청 DTO
+// 서비스 내부에서 알림 생성 흐름을 호출할 때 사용하는 command 객체
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class NotificationPostReq {
+public class NotificationCreateCommand {
     // 알림을 받을 사용자 ID
     private Long receiverUserId;
     // 수신 사용자 소속 단지 ID

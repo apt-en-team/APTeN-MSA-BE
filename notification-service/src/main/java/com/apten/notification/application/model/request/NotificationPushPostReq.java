@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationPushPostReq {
-    private String notificationUid;
+    // DB에 먼저 저장된 notification 원본 ID
+    private Long notificationId;
 }

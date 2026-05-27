@@ -38,6 +38,8 @@ public class TokenAuthenticationFilter implements WebFilter {
 
     private static final String ROLE_CLAIM = "role";
     private static final String COMPLEX_ID_CLAIM = "complexId";
+    private static final String NOTIFICATION_WS_PATH = "/ws/notifications";
+    private static final String QUERY_TOKEN = "token";
 
     private final GatewayAuthProperties gatewayAuthProperties;
     private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
@@ -52,10 +54,8 @@ public class TokenAuthenticationFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        // [토큰 추출] Authorization 헤더에서 Bearer 제거 후 순수 JWT 획득
-        String token = resolveToken(
-                exchange.getRequest().getHeaders().getFirst(SecurityConstants.AUTHORIZATION_HEADER)
-        );
+        // [토큰 추출] HTTP는 Authorization Bearer, WebSocket은 query token을 사용한다
+        String token = resolveToken(exchange, path);
 
         // [토큰 파싱] 공유 secret key로 서명 검증 후 claim 맵 추출
         Claims claims = parseClaims(token);
@@ -138,8 +138,21 @@ public class TokenAuthenticationFilter implements WebFilter {
                 .anyMatch(pattern -> antPathMatcher.match(pattern, path));
     }
 
-    // [Bearer 토큰 분리] 헤더 없거나 Bearer 아니면 즉시 인증 실패
-    private String resolveToken(String authorizationHeader) {
+    // [토큰 분리] WebSocket은 브라우저가 커스텀 헤더를 못 보내므로 query token을 임시로 허용한다
+    private String resolveToken(ServerWebExchange exchange, String path) {
+        if (isNotificationWebSocketPath(path)) {
+            String queryToken = exchange.getRequest().getQueryParams().getFirst(QUERY_TOKEN);
+            if (queryToken == null || queryToken.isBlank()) {
+                throw new AuthenticationCredentialsNotFoundException(
+                        GatewayErrorCode.UNAUTHORIZED.getMessage()
+                );
+            }
+            // 현재 JWT Bearer 기반 구조에서 WebSocket 연결을 위한 임시 방식이다.
+            // 운영에서는 HTTPS/WSS + HttpOnly Cookie 또는 별도 핸드셰이크 토큰 방식으로 개선 가능하다.
+            return queryToken;
+        }
+
+        String authorizationHeader = exchange.getRequest().getHeaders().getFirst(SecurityConstants.AUTHORIZATION_HEADER);
         if (authorizationHeader == null
                 || !authorizationHeader.startsWith(SecurityConstants.BEARER_PREFIX)) {
             throw new AuthenticationCredentialsNotFoundException(
@@ -147,6 +160,11 @@ public class TokenAuthenticationFilter implements WebFilter {
             );
         }
         return authorizationHeader.substring(SecurityConstants.BEARER_PREFIX.length());
+    }
+
+    // [WebSocket 경로 판별] /ws/notifications와 하위 경로만 query token 인증을 허용한다
+    private boolean isNotificationWebSocketPath(String path) {
+        return path.equals(NOTIFICATION_WS_PATH) || path.startsWith(NOTIFICATION_WS_PATH + "/");
     }
 
     // [JWT 파싱] 서명 검증 실패·만료 등 모든 JWT 예외를 BadCredentialsException으로 통일
