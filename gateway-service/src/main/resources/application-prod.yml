@@ -100,10 +100,11 @@ constants:
         webmvc:
           actuator:
             enabled: true
-          cors: # cors 허용
+          cors:
+            allowed-origins: ${CORS_ORIGINS:https://tc.greenart.n-e.kr}
             configurations:
               '[/**]':
-                allowed-origins: [ "https://ta.greenart.n-e.kr" ]
+                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
                 allowed-methods: [ "*" ]
                 allowed-headers: [ "*" ]
                 allow-credentials: true
