@@ -107,10 +107,10 @@ def shouldBuild(String serviceName) {
         'apartment-complex-service': 'apartment-complex',
         'auth-service': 'auth',
         'board-service': 'board',
-        'facility-reservation-service': 'facility-reservation'
-        'gateway-service': 'gateway'
-        'household-service': 'household'
-        'notification-service': 'notification'
+        'facility-reservation-service': 'facility-reservation',
+        'gateway-service': 'gateway',
+        'household-service': 'household',
+        'notification-service': 'notification',
         'parking-vehicle-service': 'parking-vehicle'
     ]
 
