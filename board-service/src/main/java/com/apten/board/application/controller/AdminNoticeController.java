@@ -33,14 +33,14 @@ public class AdminNoticeController {
     // 공지 서비스이다.
     private final NoticeService noticeService;
 
-    //공지 작성 API-510
+    //공지 작성
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<NoticeCreateRes> createNotice(@RequestBody NoticeCreateReq request) {
         return ResultResponse.success("공지 작성 성공", noticeService.createNotice(request));
     }
 
-    //공지 수정 API-513
+    //공지 수정
     @PatchMapping("/{noticeId}")
     public ResultResponse<NoticePatchRes> updateNotice(
             @PathVariable Long noticeId,
@@ -49,19 +49,19 @@ public class AdminNoticeController {
         return ResultResponse.success("공지 수정 성공", noticeService.updateNotice(noticeId, request));
     }
 
-    //공지 삭제 API-514
+    //공지 삭제
     @DeleteMapping("/{noticeId}")
     public ResultResponse<NoticeDeleteRes> deleteNotice(@PathVariable Long noticeId) {
         return ResultResponse.success("공지 삭제 성공", noticeService.deleteNotice(noticeId));
     }
 
-    //관리자 공지 목록 조회 API-528
+    //관리자 공지 목록 조회
     @GetMapping
     public ResultResponse<PageResponse<NoticeListRes>> getAdminNoticeList(@ModelAttribute NoticeListReq request) {
         return ResultResponse.success("관리자 공지 목록 조회 성공", noticeService.getAdminNoticeList(request));
     }
 
-    //관리자 공지 상세 조회 API-529
+    //관리자 공지 상세 조회
     @GetMapping("/{noticeId}")
     public ResultResponse<NoticeDetailRes> getAdminNoticeDetail(@PathVariable Long noticeId) {
         return ResultResponse.success("관리자 공지 상세 조회 성공", noticeService.getAdminNoticeDetail(noticeId));
