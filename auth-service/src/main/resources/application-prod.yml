@@ -10,6 +10,7 @@ spring:
       - optional:classpath:application-auth.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:classpath:application-redis-prod.yml
       - optional:file:../.env[.properties]
   datasource:
     driver-class-name: ${DB_DRIVER_CLASS_NAME}
@@ -23,10 +24,6 @@ spring:
   kafka:
     consumer:
 #      group-id: auth-service-group
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
   mail:
     host: smtp.gmail.com
     port: 587
