@@ -9,16 +9,13 @@ spring:
       - optional:classpath:application-common.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:classpath:application-redis.yml
       - optional:file:../.env[.properties]
   datasource:
     driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${PARKING_DB_URL}
     username: ${PARKING_DB_USERNAME}
     password: ${PARKING_DB_PASSWORD}
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
   kafka:
     consumer:
 #      group-id: parking-vehicle-service-group

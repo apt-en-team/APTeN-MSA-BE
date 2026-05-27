@@ -17,17 +17,12 @@ import com.apten.facilityreservation.application.service.AdminReservationStatsSe
 import com.apten.facilityreservation.application.service.ReservationService;
 import com.apten.facilityreservation.application.service.FacilityRequestContextResolver;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // 관리자 예약 관리 API 진입점이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/admin/reservations")
 public class AdminReservationController {
 
     private final ReservationService reservationService;
@@ -36,7 +31,7 @@ public class AdminReservationController {
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
     // API-626 관리자 예약 목록 조회
-    @GetMapping("/api/admin/reservations")
+    @GetMapping
     public ResultResponse<PageResponse<AdminReservationListRes>> getAdminReservationList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -49,7 +44,7 @@ public class AdminReservationController {
     }
 
     // 관리자 예약 통계 조회 (/{reservationId} 보다 먼저 선언해야 literal 경로가 정확히 매칭된다)
-    @GetMapping("/api/admin/reservations/stats")
+    @GetMapping("/stats")
     public ResultResponse<AdminReservationStatsRes> getAdminReservationStats(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -61,7 +56,7 @@ public class AdminReservationController {
     }
 
     // 관리자 예약 통합 개요 조회 — FACILITY/GX 통합 목록 (/{reservationId} 보다 먼저 선언해야 literal 경로가 정확히 매칭된다)
-    @GetMapping("/api/admin/reservations/overview")
+    @GetMapping("/overview")
     public ResultResponse<PageResponse<AdminReservationOverviewRes>> getAdminReservationOverview(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -74,7 +69,7 @@ public class AdminReservationController {
     }
 
     // API-627 관리자 예약 상세 조회
-    @GetMapping("/api/admin/reservations/{reservationId}")
+    @GetMapping("/{reservationId}")
     public ResultResponse<AdminReservationDetailRes> getAdminReservationDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -87,7 +82,7 @@ public class AdminReservationController {
     }
 
     // API-628 관리자 예약 강제 취소
-    @PatchMapping("/api/admin/reservations/{reservationId}/cancel")
+    @PatchMapping("/{reservationId}/cancel")
     public ResultResponse<AdminReservationCancelRes> cancelReservationByAdmin(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,

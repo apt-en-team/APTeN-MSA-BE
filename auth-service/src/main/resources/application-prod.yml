@@ -9,7 +9,7 @@ spring:
       - optional:classpath:application-common.yml
       - optional:classpath:application-auth.yml
       - optional:classpath:application-jpa.yml
-      - optional:classpath:application-kafka.yml
+      - optional:classpath:application-kafka-prod.yml
       - optional:classpath:application-redis-prod.yml
       - optional:file:../.env[.properties]
   datasource:

@@ -8,7 +8,7 @@ spring:
     import:
       - optional:classpath:application-common.yml
       - optional:classpath:application-jpa.yml
-      - optional:classpath:application-kafka.yml
+      - optional:classpath:application-kafka-prod.yml
       - optional:classpath:application-redis-prod.yml
       - optional:file:../.env[.properties]
   datasource:
@@ -27,6 +27,9 @@ constants:
 apten:
   outbox:
     enabled: true
+  internal:
+    notification:
+      service-url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}

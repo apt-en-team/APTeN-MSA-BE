@@ -23,7 +23,7 @@ logs/
 
 # Environment files
 .env
-.env.*
+.env.production
 !.env.example
 
 # Spring secret configs

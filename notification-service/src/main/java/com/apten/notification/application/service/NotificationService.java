@@ -23,6 +23,7 @@ import com.apten.notification.exception.NotificationErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,11 +35,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 // 앱 내 알림 조회와 읽음 처리, 내부 생성 흐름을 담당하는 응용 서비스
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationSettingService notificationSettingService;
     private final NotificationRealtimeService notificationRealtimeService;
+    private final NotificationPushService notificationPushService;
 
     @Transactional(readOnly = true)
     public NotificationGetPageRes getNotificationList(Long userId, NotificationSearchReq request) {
@@ -154,8 +157,8 @@ public class NotificationService {
                 .build();
 
         Notification saved = notificationRepository.save(notification);
-        // DB 저장이 원본이므로 commit 이후 접속 중인 사용자에게만 실시간 전송을 시도한다
-        sendRealtimeAfterCommit(saved);
+        // DB 저장이 원본이므로 commit 이후 WebSocket/FCM을 각각 best-effort로 시도한다
+        dispatchAfterCommit(saved);
         return NotificationPostRes.builder()
                 .notificationId(saved.getId())
                 .receiverUserId(saved.getUserId())
@@ -259,10 +262,11 @@ public class NotificationService {
         }
     }
 
-    private void sendRealtimeAfterCommit(Notification notification) {
+    private void dispatchAfterCommit(Notification notification) {
         // 테스트나 내부 호출처럼 트랜잭션 동기화가 없으면 즉시 best-effort 전송한다
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            notificationRealtimeService.sendNewNotification(notification);
+            sendRealtimeBestEffort(notification);
+            sendFcmBestEffort(notification);
             return;
         }
 
@@ -270,8 +274,27 @@ public class NotificationService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                notificationRealtimeService.sendNewNotification(notification);
+                sendRealtimeBestEffort(notification);
+                sendFcmBestEffort(notification);
             }
         });
+    }
+
+    private void sendRealtimeBestEffort(Notification notification) {
+        try {
+            notificationRealtimeService.sendNewNotification(notification);
+        } catch (RuntimeException exception) {
+            // WebSocket 실패는 DB 알림 저장과 FCM 발송을 막지 않는다
+            log.warn("[Notification] WebSocket 전송 실패 - notificationId={}", notification.getId(), exception);
+        }
+    }
+
+    private void sendFcmBestEffort(Notification notification) {
+        try {
+            notificationPushService.send(notification.getId());
+        } catch (RuntimeException exception) {
+            // FCM 실패는 DB 알림 저장과 WebSocket 전송을 막지 않는다
+            log.warn("[Notification] FCM 전송 실패 - notificationId={}", notification.getId(), exception);
+        }
     }
 }
