@@ -16,12 +16,14 @@ import com.apten.notification.domain.repository.UserCacheRepository;
 import com.apten.notification.exception.NotificationErrorCode;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 // FCM 토큰 등록과 해제, 갱신 흐름을 담당하는 응용 서비스
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationFcmService {
 
     private final FcmTokenRepository fcmTokenRepository;
@@ -58,6 +60,7 @@ public class NotificationFcmService {
                 now
         );
         fcmTokenRepository.save(token);
+        log.info("[FCM] 토큰 등록/갱신 완료. userId={}, prefix={}", userId, tokenPrefix(request.getToken()));
 
         return NotificationFcmTokenPostRes.builder()
                 .tokenRegistered(true)
@@ -73,6 +76,7 @@ public class NotificationFcmService {
         FcmToken token = fcmTokenRepository.findByUserIdAndTokenValue(userId, request.getToken())
                 .orElseThrow(() -> new BusinessException(NotificationErrorCode.FCM_TOKEN_NOT_FOUND));
         token.deactivate();
+        log.info("[FCM] 토큰 비활성화 완료. userId={}, prefix={}", userId, tokenPrefix(request.getToken()));
 
         return NotificationFcmTokenDeleteRes.builder()
                 .tokenDeleted(true)
@@ -111,6 +115,8 @@ public class NotificationFcmService {
                 null,
                 now
         );
+        log.info("[FCM] 토큰 갱신 완료. userId={}, oldPrefix={}, newPrefix={}",
+                userId, tokenPrefix(request.getOldToken()), tokenPrefix(request.getNewToken()));
 
         return NotificationFcmTokenPatchRes.builder()
                 .tokenUpdated(true)
@@ -140,6 +146,11 @@ public class NotificationFcmService {
         if (token == null || token.isBlank()) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
+    }
+
+    private String tokenPrefix(String token) {
+        if (token == null || token.isBlank()) return "(없음)";
+        return token.length() > 25 ? token.substring(0, 25) + "..." : token;
     }
 
     private FcmDeviceType parseDeviceType(String deviceType) {

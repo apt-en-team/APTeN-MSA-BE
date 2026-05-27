@@ -11,23 +11,19 @@ import com.apten.facilityreservation.application.model.response.GxReservationRej
 import com.apten.facilityreservation.application.service.GxReservationService;
 import com.apten.facilityreservation.application.service.FacilityRequestContextResolver;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // 관리자 GX 예약 승인 API 진입점이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/admin/gx-reservations")
 public class AdminGxReservationController {
 
     private final GxReservationService gxReservationService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
     // 관리자 GX 예약 단건 상세 조회
-    @GetMapping("/api/admin/gx-reservations/{gxReservationId}")
+    @GetMapping("/{gxReservationId}")
     public ResultResponse<AdminGxReservationDetailRes> getAdminGxReservationDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -40,7 +36,7 @@ public class AdminGxReservationController {
     }
 
     // API-640 GX 단건 승인 처리
-    @PatchMapping("/api/admin/gx-reservations/{gxReservationId}/approve")
+    @PatchMapping("/{gxReservationId}/approve")
     public ResultResponse<GxReservationApproveRes> approveGxReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -53,7 +49,7 @@ public class AdminGxReservationController {
     }
 
     // API-641 GX 단건 거절 처리
-    @PatchMapping("/api/admin/gx-reservations/{gxReservationId}/reject")
+    @PatchMapping("/{gxReservationId}/reject")
     public ResultResponse<GxReservationRejectRes> rejectGxReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -67,7 +63,7 @@ public class AdminGxReservationController {
     }
 
     // 관리자 GX 예약 강제 취소
-    @PatchMapping("/api/admin/gx-reservations/{gxReservationId}/cancel")
+    @PatchMapping("/{gxReservationId}/cancel")
     public ResultResponse<GxReservationCancelRes> cancelGxReservationByAdmin(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,

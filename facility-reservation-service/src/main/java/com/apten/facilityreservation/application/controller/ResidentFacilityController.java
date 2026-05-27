@@ -12,23 +12,20 @@ import com.apten.facilityreservation.application.service.FacilityService;
 import com.apten.facilityreservation.application.service.FacilityRequestContextResolver;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 
 // 입주민 시설 조회 API 진입점이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/facilities")
 public class ResidentFacilityController {
 
     private final FacilityService facilityService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
     // API-617 입주민 시설 목록 조회
-    @GetMapping("/api/facilities")
+    @GetMapping
     public ResultResponse<List<ResidentFacilityListRes>> getResidentFacilityList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -40,7 +37,7 @@ public class ResidentFacilityController {
     }
 
     // API-618 입주민 시설 상세 조회
-    @GetMapping("/api/facilities/{facilityId}")
+    @GetMapping("/{facilityId}")
     public ResultResponse<ResidentFacilityDetailRes> getResidentFacilityDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -52,7 +49,7 @@ public class ResidentFacilityController {
     }
 
     // 입주민 좌석 상태 조회 — 다른 입주민 개인정보는 응답에 포함하지 않는다.
-    @GetMapping("/api/facilities/{facilityId}/seat-status")
+    @GetMapping("/{facilityId}/seat-status")
     public ResultResponse<List<ResidentSeatStatusRes>> getResidentSeatStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,

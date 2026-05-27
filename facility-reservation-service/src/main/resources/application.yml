@@ -9,6 +9,7 @@ spring:
       - optional:classpath:application-common.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:classpath:application-redis.yml
       - optional:file:../.env[.properties]
   datasource:
     driver-class-name: ${DB_DRIVER_CLASS_NAME}
@@ -18,12 +19,6 @@ spring:
   kafka:
     consumer:
 #      group-id: facility-reservation-service-group
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-
 constants:
   api:
     prefix: /api
@@ -31,6 +26,9 @@ constants:
 apten:
   outbox:
     enabled: true
+  internal:
+    notification:
+      service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:9081}
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}

@@ -22,26 +22,19 @@ import com.apten.facilityreservation.application.service.FacilityRequestContextR
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // 일반 시설 예약 API 진입점이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/reservations")
 public class ReservationController {
 
     private final ReservationService reservationService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
     // API-619 예약 가능 시간 조회
-    @GetMapping("/api/reservations/available-times")
+    @GetMapping("/available-times")
     public ResultResponse<List<AvailableTimeListRes>> getAvailableTimeList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -53,7 +46,7 @@ public class ReservationController {
     }
 
     // API-620 좌석 임시 선점
-    @PostMapping("/api/reservations/seat-holds")
+    @PostMapping("/seat-holds")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<SeatHoldPostRes> createSeatHold(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -66,7 +59,7 @@ public class ReservationController {
     }
 
     // API-622 예약 생성
-    @PostMapping("/api/reservations")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ReservationPostRes> createReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -79,7 +72,7 @@ public class ReservationController {
     }
 
     // API-623 내 예약 통합 목록 조회 (일반 시설 + GX 통합, 페이지네이션)
-    @GetMapping("/api/reservations/my")
+    @GetMapping("/my")
     public ResultResponse<PageResponse<MyUnifiedReservationRes>> getMyUnifiedReservations(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -91,7 +84,7 @@ public class ReservationController {
     }
 
     // API-624 내 예약 상세 조회
-    @GetMapping("/api/reservations/{reservationId}")
+    @GetMapping("/{reservationId}")
     public ResultResponse<MyReservationDetailRes> getMyReservationDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -103,7 +96,7 @@ public class ReservationController {
     }
 
     // API-625 예약 취소
-    @PatchMapping("/api/reservations/{reservationId}/cancel")
+    @PatchMapping("/{reservationId}/cancel")
     public ResultResponse<ReservationCancelRes> cancelReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
