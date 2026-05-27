@@ -89,6 +89,10 @@ gateway:
 server:
   port: ${GATEWAY_SERVER_PORT}
 
+cors:
+  # WebSecurityConfiguration의 @Value가 읽는 최상위 CORS origin 목록이다.
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,https://tc.greenart.n-e.kr}
+
 constants:
   api:
     prefix: /api
@@ -101,7 +105,6 @@ constants:
           actuator:
             enabled: true
           cors:
-            allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173}
             configurations:
               '[/**]':
                 allowed-origins: [ "https://tc.greenart.n-e.kr" ]
