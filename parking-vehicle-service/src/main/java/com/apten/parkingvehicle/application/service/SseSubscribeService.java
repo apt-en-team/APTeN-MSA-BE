@@ -1,9 +1,8 @@
 package com.apten.parkingvehicle.application.service;
 
-import com.apten.common.exception.BusinessException;
-import com.apten.common.exception.CommonErrorCode;
 import com.apten.parkingvehicle.application.model.event.ParkingSpotChangedEvent;
 import com.apten.parkingvehicle.application.model.event.ZoneCounterChangedEvent;
+import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.infrastructure.sse.SseEmitterRegistry;
 import java.io.IOException;
 import java.util.Map;
@@ -28,7 +27,7 @@ public class SseSubscribeService {
 
     // 입주민 SSE 구독 시작
     public SseEmitter subscribe(String userRole, Long complexId) {
-        validateResidentContext(userRole, complexId);
+        RoleContextValidator.validateResidentContext(userRole, complexId);
         parkingSettingService.validateParkingEnabled(complexId);
 
         SseEmitter emitter = new SseEmitter(timeoutMs);
@@ -79,16 +78,4 @@ public class SseSubscribeService {
         }
     }
 
-    // 입주민 단지 컨텍스트 검증
-    private void validateResidentContext(String userRole, Long complexId) {
-        if (userRole == null || userRole.isBlank()) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-        if (!"USER".equals(userRole)) {
-            throw new BusinessException(CommonErrorCode.FORBIDDEN);
-        }
-        if (complexId == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-    }
 }
