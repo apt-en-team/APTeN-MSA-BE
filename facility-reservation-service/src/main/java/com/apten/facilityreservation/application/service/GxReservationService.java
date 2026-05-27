@@ -57,6 +57,7 @@ public class GxReservationService {
     private final UserCacheRepository userCacheRepository;
     private final HouseholdCacheRepository householdCacheRepository;
     private final FacilityRepository facilityRepository;
+    private final FacilityNotificationService facilityNotificationService;
 
     // 내 GX 예약 목록을 조회한다.
     @Transactional(readOnly = true)
@@ -152,6 +153,10 @@ public class GxReservationService {
                         .status(GxReservationStatus.WAITING)
                         .waitNo(waitNo)
                         .build()));
+
+        // 여기까지 왔으면 신규 신청 또는 재신청이 WAITING 상태로 확정된 상태다.
+        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        facilityNotificationService.notifyGxApplied(userId, complexId, reservation, program);
 
         return GxReservationPostRes.builder()
                 .gxReservationId(reservation.getId())
