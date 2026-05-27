@@ -31,6 +31,9 @@ constants:
 apten:
   outbox:
     enabled: true
+  internal:
+    notification:
+      service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:9081}
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}
