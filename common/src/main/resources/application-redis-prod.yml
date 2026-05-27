@@ -1,11 +1,12 @@
 spring:
   data:
     redis:
-      host: redis-master.infra.svc.cluster.local  # docker-compose의 서비스명
-      port: 6379
-      database: 0
+      host: ${REDIS_HOST:redis-master.infra.svc.cluster.local}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
 
 logging:
   level:
-    org.springframework.data.redis: DEBUG
-    org.springframework.cache: TRACE # 캐시 당첨/실패 여부를 아주 상세히 알려줍니다.
+    org.springframework.data.redis: ${REDIS_LOG_LEVEL:INFO}
+    org.springframework.cache: ${SPRING_CACHE_LOG_LEVEL:INFO}

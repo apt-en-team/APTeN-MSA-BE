@@ -12,11 +12,8 @@ spring:
     import:
       - optional:classpath:application-common.yml
       - optional:classpath:application-auth.yml
+      - optional:classpath:application-redis.yml
       - optional:file:../.env[.properties]
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
   cloud:
     gateway:
       routes:
