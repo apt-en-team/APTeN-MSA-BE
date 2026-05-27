@@ -26,6 +26,8 @@ public class FacilityNotificationService {
     private static final String TYPE_FACILITY_RESERVED = "FACILITY_RESERVED";
     private static final String TYPE_FACILITY_CANCELLED = "FACILITY_CANCELLED";
     private static final String TYPE_GX_APPLIED = "GX_APPLIED";
+    private static final String TYPE_GX_APPROVED = "GX_APPROVED";
+    private static final String TYPE_GX_REJECTED = "GX_REJECTED";
 
     // notification-service의 NotificationTargetType 문자열과 맞춰야 한다
     private static final String TARGET_FACILITY_RESERVATION = "FACILITY_RESERVATION";
@@ -98,6 +100,48 @@ public class FacilityNotificationService {
                 .build();
 
         sendAfterCommit("GX 신청 접수 알림", request);
+    }
+
+    public void notifyGxApproved(Long userId, Long complexId, GxReservation reservation, GxProgram program) {
+        // 관리자가 승인한 뒤 입주민에게 결과를 알려야 하므로 신청자 userId를 수신자로 사용한다
+        NotificationCreateReq request = NotificationCreateReq.builder()
+                .receiverUserId(userId)
+                .complexId(complexId)
+                .type(TYPE_GX_APPROVED)
+                .targetType(TARGET_GX_PROGRAM)
+                .targetId(program.getId())
+                .title("GX 신청이 승인되었습니다.")
+                .content(program.getName() + " 신청이 승인되었습니다.")
+                .linkPath(buildGxReservationLink(complexId, program.getId(), reservation.getId(), reservation.getStatus().name()))
+                .payloadJson(toPayloadJson(Map.of(
+                        "programId", program.getId(),
+                        "gxReservationId", reservation.getId(),
+                        "programName", program.getName()
+                )))
+                .build();
+
+        sendAfterCommit("GX 신청 승인 알림", request);
+    }
+
+    public void notifyGxRejected(Long userId, Long complexId, GxReservation reservation, GxProgram program) {
+        // 관리자 거절/취소는 입주민 관점에서 신청 반려 알림으로 동일하게 전달한다
+        NotificationCreateReq request = NotificationCreateReq.builder()
+                .receiverUserId(userId)
+                .complexId(complexId)
+                .type(TYPE_GX_REJECTED)
+                .targetType(TARGET_GX_PROGRAM)
+                .targetId(program.getId())
+                .title("GX 신청이 거절되었습니다.")
+                .content(program.getName() + " 신청이 거절되었습니다.")
+                .linkPath(buildGxReservationLink(complexId, program.getId(), reservation.getId(), reservation.getStatus().name()))
+                .payloadJson(toPayloadJson(Map.of(
+                        "programId", program.getId(),
+                        "gxReservationId", reservation.getId(),
+                        "programName", program.getName()
+                )))
+                .build();
+
+        sendAfterCommit("GX 신청 거절 알림", request);
     }
 
     private void sendAfterCommit(String operationName, NotificationCreateReq request) {
