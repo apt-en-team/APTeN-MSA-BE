@@ -1,0 +1,28 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: board-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka.yml
+      - optional:file:../.env[.properties]
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${BOARD_DB_URL}
+    username: ${BOARD_DB_USERNAME}
+    password: ${BOARD_DB_PASSWORD}
+  kafka:
+    consumer:
+#      group-id: board-service-group
+
+constants:
+  api:
+    prefix: /api/boards
+
+apten:
+  outbox:
+    enabled: true

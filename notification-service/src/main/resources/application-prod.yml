@@ -1,0 +1,29 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: notification-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka.yml
+      - optional:file:../.env[.properties]
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${NOTIFICATION_DB_URL}
+    username: ${NOTIFICATION_DB_USERNAME}
+    password: ${NOTIFICATION_DB_PASSWORD}
+
+constants:
+  api:
+    prefix: /api/notifications
+
+apten:
+  notification:
+    push:
+      fcm-enabled: ${APTEN_NOTIFICATION_PUSH_FCM_ENABLED:false}
+      firebase:
+        credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+        project-id: ${FIREBASE_PROJECT_ID:}
