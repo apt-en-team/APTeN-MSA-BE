@@ -1,20 +1,33 @@
 package com.apten.board.application.model.request;
 
+import com.apten.board.domain.enums.BoardCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 게시글 작성 요청이다.
+import java.util.List;
+
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PostCreateReq {
 
-    // 게시글 제목이다.
+    private BoardCategory category;
     private String title;
-
-    // 게시글 본문이다.
     private String content;
+    private List<FileItemReq> files;
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FileItemReq {
+        private String fileType;
+        private String originName;
+        private String savedName;
+        private String filePath;
+        private Long fileSize;
+        private Integer sortOrder;
+    }
 }

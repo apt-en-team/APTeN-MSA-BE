@@ -17,13 +17,16 @@ import com.apten.board.application.model.response.PostDetailRes;
 import com.apten.board.application.model.response.PostLikeToggleRes;
 import com.apten.board.application.model.response.PostListRes;
 import com.apten.board.application.model.response.PostPatchRes;
+import com.apten.board.domain.entity.BoardFile;
+import com.apten.board.domain.entity.BoardLike;
 import com.apten.board.domain.entity.BoardPost;
 import com.apten.board.domain.entity.UserCache;
+import com.apten.board.domain.enums.BoardFileType;
 import com.apten.board.domain.enums.UserCacheStatus;
+import com.apten.board.domain.repository.BoardCommentRepository;
 import com.apten.board.domain.repository.BoardFileRepository;
 import com.apten.board.domain.repository.BoardLikeRepository;
 import com.apten.board.domain.repository.BoardPostRepository;
-import com.apten.board.domain.repository.BoardCommentRepository;
 import com.apten.board.domain.repository.NoticeRepository;
 import com.apten.board.domain.repository.UserCacheRepository;
 import com.apten.board.domain.repository.VoteRepository;
@@ -40,36 +43,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 게시글 응용 서비스이다.
 @Service
 @RequiredArgsConstructor
 public class FreeBoardService {
 
-    // 게시글 저장소이다.
     private final BoardPostRepository boardPostRepository;
-
-    // 게시글 첨부파일 저장소이다.
     private final BoardFileRepository boardFileRepository;
-
-    // 좋아요 저장소이다.
     private final BoardLikeRepository boardLikeRepository;
-
-    // 사용자 캐시 저장소이다.
     private final UserCacheRepository userCacheRepository;
-
-    // 댓글 저장소이다.
     private final BoardCommentRepository boardCommentRepository;
-
-    // 공지 저장소이다.
     private final NoticeRepository noticeRepository;
-
-    // 투표 저장소이다.
     private final VoteRepository voteRepository;
-
-    // 게시판 outbox 서비스이다.
     private final BoardOutboxService boardOutboxService;
 
-    //게시글 작성
+    // 게시글 작성
     @Transactional
     public PostCreateRes createPost(PostCreateReq request) {
         UserCache writer = getCurrentActiveUser();
@@ -78,10 +65,26 @@ public class FreeBoardService {
                 BoardPost.builder()
                         .complexId(resolveCurrentComplexId(writer))
                         .userId(writer.getId())
+                        .category(request.getCategory())
                         .title(request.getTitle())
                         .content(request.getContent())
                         .build()
         );
+
+        if (request.getFiles() != null && !request.getFiles().isEmpty()) {
+            List<BoardFile> files = request.getFiles().stream()
+                    .map(f -> BoardFile.builder()
+                            .postId(post.getId())
+                            .originName(f.getOriginName())
+                            .savedName(f.getSavedName())
+                            .filePath(f.getFilePath())
+                            .fileType(BoardFileType.valueOf(f.getFileType()))
+                            .fileSize(f.getFileSize())
+                            .sortOrder(f.getSortOrder())
+                            .build())
+                    .toList();
+            boardFileRepository.saveAll(files);
+        }
 
         boardOutboxService.savePostCreatedEvent(post);
 
@@ -92,11 +95,27 @@ public class FreeBoardService {
                 .build();
     }
 
-    //게시글 목록 조회
+    // 게시글 목록 조회
     @Transactional(readOnly = true)
     public PageResponse<PostListRes> getPostList(PostListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<BoardPost> page = boardPostRepository.findByComplexIdAndIsDeletedFalse(currentComplexId(), pageable);
+        Page<BoardPost> page;
+
+        boolean hasKeyword = request.getKeyword() != null && !request.getKeyword().isBlank();
+
+        if (hasKeyword && request.getCategory() != null) {
+            page = boardPostRepository.searchByKeywordAndCategory(
+                    currentComplexId(), request.getCategory(), request.getKeyword(), pageable);
+        } else if (hasKeyword) {
+            page = boardPostRepository.searchByKeyword(
+                    currentComplexId(), request.getKeyword(), pageable);
+        } else if (request.getCategory() != null) {
+            page = boardPostRepository.findByComplexIdAndCategoryAndIsDeletedFalseOrderByCreatedAtDesc(
+                    currentComplexId(), request.getCategory(), pageable);
+        } else {
+            page = boardPostRepository.findByComplexIdAndIsDeletedFalseOrderByCreatedAtDesc(
+                    currentComplexId(), pageable);
+        }
 
         return PageResponse.<PostListRes>builder()
                 .content(page.getContent().stream().map(this::toPostListRes).toList())
@@ -114,14 +133,23 @@ public class FreeBoardService {
         BoardPost post = getPost(postId);
         post.increaseViewCount();
 
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
+        boolean liked = boardLikeRepository.existsByPostIdAndUserId(postId, currentUserId());
+
         return PostDetailRes.builder()
                 .postId(post.getId())
                 .complexId(post.getComplexId())
                 .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
                 .title(post.getTitle())
                 .content(post.getContent())
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
+                .liked(liked)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .files(boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId()).stream()
@@ -137,6 +165,7 @@ public class FreeBoardService {
                         .toList())
                 .build();
     }
+
 
     //게시글 수정
     @Transactional
@@ -165,6 +194,7 @@ public class FreeBoardService {
                 .deletedAt(post.getDeletedAt())
                 .build();
     }
+
 
     //좋아요 등록 또는 취소
     @Transactional
@@ -195,16 +225,28 @@ public class FreeBoardService {
     @Transactional(readOnly = true)
     public PageResponse<MyPostListRes> getMyPostList(MyPostListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<BoardPost> page = boardPostRepository.findByUserIdAndIsDeletedFalse(currentUserId(), pageable);
+        Page<BoardPost> page = boardPostRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(currentUserId(), pageable);
+
+        String writerName = userCacheRepository.findById(currentUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
 
         return PageResponse.<MyPostListRes>builder()
-                .content(page.getContent().stream().map(post -> MyPostListRes.builder()
-                        .postId(post.getId())
-                        .title(post.getTitle())
-                        .viewCount(post.getViewCount())
-                        .likeCount(post.getLikeCount())
-                        .createdAt(post.getCreatedAt())
-                        .build()).toList())
+                .content(page.getContent().stream().map(post -> {
+                    String rawContent = post.getContent() != null ? post.getContent() : "";
+                    String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
+                    String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
+                    return MyPostListRes.builder()
+                            .postId(post.getId())
+                            .writerName(writerName)
+                            .title(post.getTitle())
+                            .preview(preview)
+                            .viewCount(post.getViewCount())
+                            .likeCount(post.getLikeCount())
+                            .createdAt(post.getCreatedAt())
+                            .build();
+                }).toList())
                 .page(page.getNumber())
                 .size(page.getSize())
                 .totalElements(page.getTotalElements())
@@ -253,6 +295,44 @@ public class FreeBoardService {
                 .commentCount(boardCommentRepository.countByIsDeletedFalse())
                 .noticeCount(noticeRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .voteCount(voteRepository.countByComplexId(complexId))
+                .build();
+    }
+
+    @Transactional
+    public PostDetailRes getAdminPostDetail(Long postId) {
+        BoardPost post = boardPostRepository.findByIdAndComplexId(postId, currentComplexId())
+                .orElseThrow(() -> new BusinessException(BoardErrorCode.POST_NOT_FOUND));
+
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
+        boolean liked = boardLikeRepository.existsByPostIdAndUserId(postId, currentUserId());
+
+        return PostDetailRes.builder()
+                .postId(post.getId())
+                .complexId(post.getComplexId())
+                .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
+                .title(post.getTitle())
+                .content(post.getContent())
+                .viewCount(post.getViewCount())
+                .likeCount(post.getLikeCount())
+                .liked(liked)
+                .createdAt(post.getCreatedAt())
+                .updatedAt(post.getUpdatedAt())
+                .files(boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId()).stream()
+                        .map(file -> PostDetailRes.FileItem.builder()
+                                .fileId(file.getId())
+                                .originName(file.getOriginName())
+                                .savedName(file.getSavedName())
+                                .filePath(file.getFilePath())
+                                .fileType(file.getFileType())
+                                .fileSize(file.getFileSize())
+                                .sortOrder(file.getSortOrder())
+                                .build())
+                        .toList())
                 .build();
     }
 
@@ -311,13 +391,25 @@ public class FreeBoardService {
 
     //게시글 목록 응답으로 변환한다.
     private PostListRes toPostListRes(BoardPost post) {
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
+        // HTML 태그 제거 후 50자 미리보기
+        String rawContent = post.getContent() != null ? post.getContent() : "";
+        String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
+        String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
         return PostListRes.builder()
                 .postId(post.getId())
                 .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
                 .title(post.getTitle())
-                .content(post.getContent())
+                .preview(preview)
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
+                .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
                 .createdAt(post.getCreatedAt())
                 .build();
     }
