@@ -1,0 +1,172 @@
+pipeline {
+    agent {
+        kubernetes {
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: gradle
+    image: gradle:8.7-jdk21
+    command: ["sleep"]
+    args: ["infinity"]
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: ["sleep"]
+    args: ["infinity"]
+    volumeMounts:
+    - name: harbor-token
+      mountPath: /kaniko/.docker
+  volumes:
+  - name: harbor-token
+    secret:
+      secretName: harbor-secret
+      items:
+      - key: .dockerconfigjson
+        path: config.json
+'''
+        }
+    }
+
+    parameters {
+        booleanParam(name: 'FORCE_BUILD_ALL', defaultValue: false, description: '모든 서비스를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_APARTMENT_COMPLEX', defaultValue: false, description: 'Apartment-Complex-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_AUTH', defaultValue: false, description: 'Auth-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_BOARD', defaultValue: false, description: 'Board-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_FACILITY_RESERVATION', defaultValue: false, description: 'Facility-Reservation-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_GATEWAY', defaultValue: false, description: 'Gateway-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_HOUSEHOLD', defaultValue: false, description: 'Household-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_NOTIFICATION', defaultValue: false, description: 'Notification-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_PARKING_VEHICLE', defaultValue: false, description: 'Parking-Vehicle-Service를 강제로 빌드합니다.')
+    }
+
+    environment {
+        REGISTRY = "harbor.greenart.n-e.kr"
+        PROJECT  = "apten"
+        SERVICES = "apartment-complex-service,auth-service,board-service,facility-reservation-service,gateway-service,household-service,notification-service,parking-vehicle-service"
+    }
+
+    stages {
+        stage('Prepare Common') {
+            steps {
+                container('gradle') {
+                    sh "chmod +x gradlew"
+                    // common 모듈을 먼저 빌드하여 이후 병렬 빌드에서 참조할 수 있게 함
+                    sh "./gradlew :common:clean :common:build -x test"
+                }
+            }
+        }
+
+        stage('Parallel Gradle Build') {
+            steps {
+                script {
+                    def buildTasks = [:]
+                    def serviceList = env.SERVICES.split(',')
+
+                    serviceList.each { service ->
+                        def serviceName = service.trim()
+                        if (shouldBuild(serviceName)) {
+                            buildTasks[serviceName] = {
+                                container('gradle') {
+                                    sh "chmod +x gradlew"
+                                    sh "./gradlew :${serviceName}:build -x test"
+                                    echo "--- [${serviceName}] 빌드 결과물 확인 ---"
+                                    sh "ls -lh ${serviceName}/build/libs/"
+                                }
+                            }
+                        }
+                    }
+                    if (buildTasks) {
+                        parallel buildTasks
+                    } else {
+                        echo "빌드할 변경 사항이 없습니다."
+                    }
+                }
+            }
+        }
+
+        stage('Sequential Image Push') {
+            steps {
+                script {
+                    def serviceList = env.SERVICES.split(',')
+                    serviceList.each { service ->
+                        def serviceName = service.trim()
+                        if (shouldBuild(serviceName)) {
+                            pushImage(serviceName)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// [수정 포인트] 변경된 파일 경로를 정확히 감지하는 함수
+def shouldBuild(String serviceName) {
+    def tagMap = [
+        'apartment-complex-service': 'apartment-complex',
+        'auth-service': 'auth',
+        'board-service': 'board',
+        'facility-reservation-service': 'facility-reservation',
+        'gateway-service': 'gateway',
+        'household-service': 'household',
+        'notification-service': 'notification',
+        'parking-vehicle-service': 'parking-vehicle'
+    ]
+
+    // 1. 강제 빌드 파라미터 체크
+    def paramName = "FORCE_${tagMap[serviceName].toUpperCase()}"
+    if (params.FORCE_BUILD_ALL || params."${paramName}") {
+        return true
+    }
+
+    // 2. 커밋 메시지 태그 체크
+    if (hasCommitTag(tagMap[serviceName])) {
+        return true
+    }
+
+    // 3. [에러 해결] 변경 이력 기반 체크
+    def changeLogSets = currentBuild.changeSets
+    for (int i = 0; i < changeLogSets.size(); i++) {
+        def entries = changeLogSets[i].items
+        for (int j = 0; j < entries.length; j++) {
+            def entry = entries[j]
+            // affectedFiles를 사용하여 각 파일의 경로에 접근합니다.
+            def files = entry.affectedFiles
+            for (int k = 0; k < files.size(); k++) {
+                def file = files[k]
+                if (file.path.contains(serviceName) || file.path.contains("common/")) {
+                    return true
+                }
+            }
+        }
+    }
+    return false
+}
+
+def hasCommitTag(String tag) {
+    def changeLogSets = currentBuild.changeSets
+    for (int i = 0; i < changeLogSets.size(); i++) {
+        def entries = changeLogSets[i].items
+        for (int j = 0; j < entries.length; j++) {
+            def entry = entries[j]
+            def msg = entry.msg.toLowerCase()
+            if (msg.contains("[build-all]") || msg.contains("[${tag}]")) {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+def pushImage(String serviceName) {
+    container('kaniko') {
+        echo "Pushing image for ${serviceName}..."
+        sh """
+        /kaniko/executor --context ${WORKSPACE} \
+            --dockerfile ${WORKSPACE}/${serviceName}/Dockerfile \
+            --destination ${REGISTRY}/${PROJECT}/${serviceName}:${env.BUILD_NUMBER} \
+            --skip-tls-verify
+        """
+    }
+}

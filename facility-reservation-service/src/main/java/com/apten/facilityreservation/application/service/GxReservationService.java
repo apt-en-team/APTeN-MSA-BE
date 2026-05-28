@@ -57,6 +57,7 @@ public class GxReservationService {
     private final UserCacheRepository userCacheRepository;
     private final HouseholdCacheRepository householdCacheRepository;
     private final FacilityRepository facilityRepository;
+    private final FacilityNotificationService facilityNotificationService;
 
     // 내 GX 예약 목록을 조회한다.
     @Transactional(readOnly = true)
@@ -153,6 +154,10 @@ public class GxReservationService {
                         .waitNo(waitNo)
                         .build()));
 
+        // 여기까지 왔으면 신규 신청 또는 재신청이 WAITING 상태로 확정된 상태다.
+        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        facilityNotificationService.notifyGxApplied(userId, complexId, reservation, program);
+
         return GxReservationPostRes.builder()
                 .gxReservationId(reservation.getId())
                 .programId(reservation.getProgramId())
@@ -235,7 +240,8 @@ public class GxReservationService {
 
             reservation.approve();
 
-            // TODO: 승인 알림 발행 (가은 담당)
+            // 승인 상태 저장이 커밋된 뒤 입주민에게 best-effort로 결과 알림을 보낸다
+            facilityNotificationService.notifyGxApproved(reservation.getUserId(), complexId, reservation, program);
 
             // 승인 후 남은 WAITING 순번을 재정렬한다.
             resequenceWaitingNos(reservation.getProgramId());
@@ -265,13 +271,14 @@ public class GxReservationService {
         }
 
         try {
-            gxProgramRepository
+            GxProgram program = gxProgramRepository
                     .findByIdAndComplexIdWithOptimisticLock(reservation.getProgramId(), complexId)
                     .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
             reservation.reject(req.getRejectReason());
 
-            // TODO: 거절 알림 발행 (가은 담당)
+            // 거절 상태 저장이 커밋된 뒤 입주민에게 best-effort로 결과 알림을 보낸다
+            facilityNotificationService.notifyGxRejected(reservation.getUserId(), complexId, reservation, program);
 
             // 거절 후 남은 WAITING 순번을 재정렬한다.
             resequenceWaitingNos(reservation.getProgramId());
@@ -367,11 +374,14 @@ public class GxReservationService {
         }
 
         try {
-            gxProgramRepository
+            GxProgram program = gxProgramRepository
                     .findByIdAndComplexIdWithOptimisticLock(reservation.getProgramId(), complexId)
                     .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
             reservation.cancel(GxReservationCancelReason.ADMIN);
+
+            // 관리자 강제 취소도 입주민에게는 GX 신청 거절 결과로 안내한다
+            facilityNotificationService.notifyGxRejected(reservation.getUserId(), complexId, reservation, program);
 
             // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
             resequenceWaitingNos(reservation.getProgramId());

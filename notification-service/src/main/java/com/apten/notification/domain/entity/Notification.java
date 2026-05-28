@@ -6,9 +6,8 @@ import com.apten.notification.domain.enums.NotificationType;
 import io.hypersistence.utils.hibernate.id.Tsid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -18,7 +17,18 @@ import lombok.NoArgsConstructor;
 
 // 앱 내 알림 원본 데이터를 저장하는 엔티티
 @Entity
-@Table(name = "notification")
+@Table(
+        name = "notification",
+        indexes = {
+                @Index(name = "idx_notification_user_id", columnList = "user_id"),
+                @Index(name = "idx_notification_complex_id", columnList = "complex_id"),
+                @Index(name = "idx_notification_type", columnList = "type"),
+                @Index(name = "idx_notification_is_read", columnList = "is_read"),
+                @Index(name = "idx_notification_created_at", columnList = "created_at"),
+                @Index(name = "idx_notification_user_read", columnList = "user_id, is_read"),
+                @Index(name = "idx_notification_user_created", columnList = "user_id, created_at")
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor
@@ -40,13 +50,11 @@ public class Notification extends BaseEntity {
     private Long complexId;
 
     // 알림 유형
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 30)
+    @Column(name = "type", nullable = false, length = 40)
     private NotificationType type;
 
     // 관련 대상 유형
-    @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", nullable = false, length = 30)
+    @Column(name = "target_type", nullable = false, length = 40)
     private NotificationTargetType targetType;
 
     // 관련 대상 ID
@@ -61,6 +69,14 @@ public class Notification extends BaseEntity {
     @Column(name = "content", nullable = false, length = 500)
     private String content;
 
+    // 알림 클릭 시 이동할 프론트 경로
+    @Column(name = "link_path", length = 255)
+    private String linkPath;
+
+    // 도메인별 부가 정보를 문자열 JSON으로 보관한다
+    @Column(name = "payload_json", columnDefinition = "TEXT")
+    private String payloadJson;
+
     // 읽음 여부
     @Column(name = "is_read", nullable = false)
     private Boolean isRead;
@@ -71,6 +87,10 @@ public class Notification extends BaseEntity {
 
     // 알림을 읽음 상태로 바꾼다
     public void markRead(LocalDateTime readAt) {
+        // 이미 읽은 알림은 최초 readAt을 유지한다
+        if (Boolean.TRUE.equals(this.isRead)) {
+            return;
+        }
         this.isRead = true;
         this.readAt = readAt;
     }

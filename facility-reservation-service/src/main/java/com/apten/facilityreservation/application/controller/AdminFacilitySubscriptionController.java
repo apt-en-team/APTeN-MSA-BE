@@ -11,16 +11,12 @@ import com.apten.facilityreservation.application.service.FacilitySubscriptionSer
 import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 // 관리자 시설 구독 API 진입점이다.
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/admin/facility-subscriptions")
 public class AdminFacilitySubscriptionController {
 
     private final FacilitySubscriptionService facilitySubscriptionService;
@@ -28,7 +24,7 @@ public class AdminFacilitySubscriptionController {
 
     // API-653 관리자 구독 목록 조회
     // MASTER는 X-Selected-Complex-Id, ADMIN/MANAGER는 X-Complex-Id를 기준으로 단지를 해석한다.
-    @GetMapping("/api/admin/facility-subscriptions")
+    @GetMapping
     public ResultResponse<List<AdminFacilitySubscriptionListRes>> getAdminSubscriptionList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -43,7 +39,7 @@ public class AdminFacilitySubscriptionController {
     }
 
     // 관리자 세대별 구독 요약 목록 조회
-    @GetMapping("/api/admin/facility-subscriptions/households")
+    @GetMapping("/households")
     public ResultResponse<List<AdminHouseholdSubscriptionSummaryRes>> getHouseholdSubscriptionList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -56,7 +52,7 @@ public class AdminFacilitySubscriptionController {
     }
 
     // 관리자 세대별 구독 상세 조회
-    @GetMapping("/api/admin/facility-subscriptions/households/{householdId}")
+    @GetMapping("/households/{householdId}")
     public ResultResponse<AdminHouseholdSubscriptionDetailRes> getHouseholdSubscriptionDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -70,7 +66,7 @@ public class AdminFacilitySubscriptionController {
     }
 
     // 관리자 구독 강제 해지
-    @DeleteMapping("/api/admin/facility-subscriptions/{subscriptionId}")
+    @DeleteMapping("/{subscriptionId}")
     public ResultResponse<Void> adminCancelSubscription(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,

@@ -13,13 +13,10 @@ public class VisitorPolicyGetRes {
     // 단지 ID이다.
     private Long complexId;
 
-    // 무료 시간이다.
-    private Integer freeMinutes;
-
-    // 시간당 요금이다.
+    // 월 기본 제공 시간 초과 시 시간당 요금이다.
     private BigDecimal hourFee;
 
-    // 월 기준 시간이다.
+    // 월 기본 제공 시간이다.
     private Integer monthlyLimitHours;
 
     // 활성 여부이다.

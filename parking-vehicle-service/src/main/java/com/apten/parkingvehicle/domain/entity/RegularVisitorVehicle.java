@@ -89,4 +89,13 @@ public class RegularVisitorVehicle extends BaseEntity {
         this.deletedAt = deletedAt;
         this.isActive = false;
     }
+
+    // 고정 방문차량 기본 정보를 수정한다
+    public void update(String visitorName, String phone, LocalDate startDate, LocalDate endDate, Boolean isActive) {
+        this.visitorName = visitorName;
+        this.phone = phone;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.isActive = isActive;
+    }
 }

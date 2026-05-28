@@ -96,6 +96,7 @@ public class ReservationService {
     private final ReservationTempHoldRepository reservationTempHoldRepository;
     private final UserCacheRepository userCacheRepository;
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
+    private final FacilityNotificationService facilityNotificationService;
 
     // 예약 가능 시간 목록을 조회한다.
     @Transactional(readOnly = true)
@@ -442,7 +443,9 @@ public class ReservationService {
         // FLAT/PER_PERSON 시설은 첫 예약 시 구독 레코드를 자동 생성한다.
         autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
 
-        // TODO: 예약 생성 알림 / 이벤트 발행은 가은 담당과 연동 후 추가한다.
+        // 여기까지 왔으면 예약 row와 구독 보정이 모두 준비된 상태다.
+        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        facilityNotificationService.notifyFacilityReserved(userId, complexId, reservation, facility);
 
         return ReservationPostRes.builder()
                 .reservationId(reservation.getId())
@@ -593,7 +596,10 @@ public class ReservationService {
 
         reservation.cancel(ReservationCancelReason.USER);
 
-        // TODO: 예약 취소 알림 발행 (가은 담당)
+        // 취소 알림 문구에 시설명을 넣기 위해 조회하되, 실패해도 취소 자체는 성공해야 한다.
+        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId()).orElse(null);
+        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        facilityNotificationService.notifyFacilityCancelled(userId, complexId, reservation, facility);
 
         return ReservationCancelRes.builder()
                 .reservationId(reservation.getId())

@@ -1,5 +1,6 @@
 package com.apten.parkingvehicle.application.controller;
 
+import com.apten.common.constants.HeaderConstants;
 import com.apten.common.response.ResultResponse;
 import com.apten.parkingvehicle.application.model.request.AdminVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 // 관리자 차량 승인과 목록 조회 API 진입점
@@ -24,30 +26,48 @@ public class AdminVehicleController {
 
     private final VehicleService vehicleService;
 
-    //차량 승인 API-304
+    //차량 승인
     @PatchMapping("/api/admin/vehicles/{vehicleId}/approve")
-    public ResultResponse<VehicleApproveRes> approveVehicle(@PathVariable Long vehicleId) {
-        return ResultResponse.success("차량 승인 성공", vehicleService.approveVehicle(vehicleId));
+    public ResultResponse<VehicleApproveRes> approveVehicle(
+            @PathVariable Long vehicleId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success("차량 승인 성공", vehicleService.approveVehicle(vehicleId, userRole, complexId, selectedComplexId));
     }
 
-    //차량 거절 API-305
+    //차량 거절
     @PatchMapping("/api/admin/vehicles/{vehicleId}/reject")
     public ResultResponse<VehicleRejectRes> rejectVehicle(
             @PathVariable Long vehicleId,
-            @RequestBody VehicleRejectReq request
+            @RequestBody VehicleRejectReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
-        return ResultResponse.success("차량 거절 성공", vehicleService.rejectVehicle(vehicleId, request));
+        return ResultResponse.success("차량 거절 성공", vehicleService.rejectVehicle(vehicleId, request, userRole, complexId, selectedComplexId));
     }
 
-    //전체 차량 조회 API-307
+    //전체 차량 조회
     @GetMapping("/api/admin/vehicles")
-    public ResultResponse<PageResponse<AdminVehicleListRes>> getAdminVehicleList(@ModelAttribute AdminVehicleListReq request) {
-        return ResultResponse.success("전체 차량 목록 조회 성공", vehicleService.getAdminVehicleList(request));
+    public ResultResponse<PageResponse<AdminVehicleListRes>> getAdminVehicleList(
+            @ModelAttribute AdminVehicleListReq request,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success("전체 차량 목록 조회 성공", vehicleService.getAdminVehicleList(request, userRole, complexId, selectedComplexId));
     }
 
-    //관리자 차량 상세 조회 API-336
+    //관리자 차량 상세 조회
     @GetMapping("/api/admin/vehicles/{vehicleId}")
-    public ResultResponse<AdminVehicleDetailRes> getAdminVehicleDetail(@PathVariable Long vehicleId) {
-        return ResultResponse.success("관리자 차량 상세 조회 성공", vehicleService.getAdminVehicleDetail(vehicleId));
+    public ResultResponse<AdminVehicleDetailRes> getAdminVehicleDetail(
+            @PathVariable Long vehicleId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success("관리자 차량 상세 조회 성공", vehicleService.getAdminVehicleDetail(vehicleId, userRole, complexId, selectedComplexId));
     }
 }

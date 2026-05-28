@@ -1,0 +1,36 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: parking-vehicle-service
+  config:
+    import:
+      - optional:classpath:application-common.yml
+      - optional:classpath:application-jpa.yml
+      - optional:classpath:application-kafka-prod.yml
+      - optional:classpath:application-redis-prod.yml
+      - optional:file:../.env[.properties]
+  datasource:
+    driver-class-name: ${DB_DRIVER_CLASS_NAME}
+    url: ${PARKING_DB_URL}
+    username: ${PARKING_DB_USERNAME}
+    password: ${PARKING_DB_PASSWORD}
+  kafka:
+    consumer:
+#      group-id: parking-vehicle-service-group
+
+constants:
+  api:
+    prefix: /api
+
+apten:
+  outbox:
+    enabled: true
+  scheduler:
+    parking-mock:
+      enabled: ${APTEN_SCHEDULER_PARKING_MOCK_ENABLED:true}
+      fixed-delay-ms: ${APTEN_SCHEDULER_PARKING_MOCK_FIXED_DELAY_MS:7000}
+  sse:
+    timeout-ms: ${APTEN_SSE_TIMEOUT_MS:1800000}
+    heartbeat-interval-ms: ${APTEN_SSE_HEARTBEAT_INTERVAL_MS:30000}
