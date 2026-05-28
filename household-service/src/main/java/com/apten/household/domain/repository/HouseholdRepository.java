@@ -17,6 +17,8 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
     // 단지와 동호수 조합 중복 여부를 확인한다.
     boolean existsByComplexIdAndBuildingAndUnit(Long complexId, String building, String unit);
 
+    boolean existsByComplexIdAndBuildingAndUnitAndIdNot(Long complexId, String building, String unit, Long id);
+
     // 단지와 동호수 기준 세대를 조회한다.
     Optional<Household> findByComplexIdAndBuildingAndUnit(Long complexId, String building, String unit);
 
