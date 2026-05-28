@@ -3,6 +3,7 @@ package com.apten.household.application.controller;
 import com.apten.common.constants.HeaderConstants;
 import com.apten.common.response.ResultResponse;
 import com.apten.household.application.model.dto.HouseholdRequestContext;
+import com.apten.household.application.model.request.HouseholdBulkCreateReq;
 import com.apten.household.application.model.request.HouseholdCreateReq;
 import com.apten.household.application.model.request.HouseholdHeadPatchReq;
 import com.apten.household.application.model.request.HouseholdListReq;
@@ -10,6 +11,7 @@ import com.apten.household.application.model.request.HouseholdMemberPatchReq;
 import com.apten.household.application.model.request.HouseholdMemberPostReq;
 import com.apten.household.application.model.request.HouseholdPatchReq;
 import com.apten.household.application.model.request.HouseholdStatusPatchReq;
+import com.apten.household.application.model.response.HouseholdBulkCreateRes;
 import com.apten.household.application.model.response.HouseholdCreateRes;
 import com.apten.household.application.model.response.HouseholdDetailRes;
 import com.apten.household.application.model.response.HouseholdHeadPatchRes;
@@ -64,6 +66,19 @@ public class AdminHouseholdController {
         return ResultResponse.success("세대 등록 성공", householdService.createHousehold(context.getComplexId(), request));
     }
 
+    @PostMapping("/households/bulk")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<HouseholdBulkCreateRes> createHouseholdsBulk(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @RequestBody HouseholdBulkCreateReq request
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("세대 일괄 등록 성공", householdService.createHouseholdsBulk(context.getComplexId(), request));
+    }
+
     //세대 목록 조회 API-402
     @GetMapping("/households")
     public ResultResponse<HouseholdListRes> getHouseholdList(
@@ -102,6 +117,20 @@ public class AdminHouseholdController {
     ) {
         HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("세대 정보 수정 성공", householdService.updateHousehold(context.getComplexId(), householdId, request));
+    }
+
+    //세대 삭제 API
+    @DeleteMapping("/households/{householdId}")
+    public ResultResponse<String> deleteHousehold(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @PathVariable Long householdId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        householdService.deleteHousehold(context.getComplexId(), householdId);
+        return ResultResponse.success("세대 삭제 성공", null);
     }
 
     //세대 상태 변경 API-404

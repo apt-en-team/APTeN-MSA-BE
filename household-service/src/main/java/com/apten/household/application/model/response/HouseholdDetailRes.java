@@ -1,6 +1,7 @@
 package com.apten.household.application.model.response;
 
 import com.apten.household.domain.enums.HouseholdStatus;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,8 +26,20 @@ public class HouseholdDetailRes {
     // 세대 유형 ID이다.
     private Long typeId;
 
+    private String typeName;
+
     // 세대 상태이다.
     private HouseholdStatus status;
+
+    private String headName;
+
+    private Long memberCount;
+
+    private Long expectedResidentCount;
+
+    private Long carCount;
+
+    private LocalDate moveInDate;
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
