@@ -9,16 +9,13 @@ spring:
       - optional:classpath:application-common.yml
       - optional:classpath:application-jpa.yml
       - optional:classpath:application-kafka.yml
+      - optional:classpath:application-redis.yml
       - optional:file:../.env[.properties]
   datasource:
     driver-class-name: ${DB_DRIVER_CLASS_NAME}
     url: ${PARKING_DB_URL}
     username: ${PARKING_DB_USERNAME}
     password: ${PARKING_DB_PASSWORD}
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
   kafka:
     consumer:
 #      group-id: parking-vehicle-service-group
@@ -34,6 +31,12 @@ apten:
     parking-mock:
       enabled: ${APTEN_SCHEDULER_PARKING_MOCK_ENABLED:true}
       fixed-delay-ms: ${APTEN_SCHEDULER_PARKING_MOCK_FIXED_DELAY_MS:7000}
+    visitor-expire:
+      enabled: ${APTEN_SCHEDULER_VISITOR_EXPIRE_ENABLED:true}
+      cron: ${APTEN_SCHEDULER_VISITOR_EXPIRE_CRON:0 0 0 * * *}
+  policy:
+    visitor-vehicle:
+      expire-grace-days: ${APTEN_POLICY_VISITOR_VEHICLE_EXPIRE_GRACE_DAYS:3}
   sse:
     timeout-ms: ${APTEN_SSE_TIMEOUT_MS:1800000}
     heartbeat-interval-ms: ${APTEN_SSE_HEARTBEAT_INTERVAL_MS:30000}

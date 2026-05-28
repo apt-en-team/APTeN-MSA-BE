@@ -1,0 +1,12 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:redis-master.infra.svc.cluster.local}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+
+logging:
+  level:
+    org.springframework.data.redis: ${REDIS_LOG_LEVEL:INFO}
+    org.springframework.cache: ${SPRING_CACHE_LOG_LEVEL:INFO}

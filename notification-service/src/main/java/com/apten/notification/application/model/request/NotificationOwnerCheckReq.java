@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationOwnerCheckReq {
-    private String notificationUid;
-    private String loginUserUid;
+    // 접근하려는 알림 ID
+    private Long notificationId;
+    // 현재 로그인 사용자 ID
+    private Long loginUserId;
 }

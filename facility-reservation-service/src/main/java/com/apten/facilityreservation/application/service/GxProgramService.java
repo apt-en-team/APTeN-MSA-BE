@@ -64,6 +64,7 @@ public class GxProgramService {
     private final GxReservationRepository gxReservationRepository;
     private final UserCacheRepository userCacheRepository;
     private final HouseholdCacheRepository householdCacheRepository;
+    private final FacilityNotificationService facilityNotificationService;
 
     // GX 프로그램을 등록한다.
     @Transactional
@@ -238,11 +239,19 @@ public class GxProgramService {
         program.cancel();
 
         // 관련 WAITING/CONFIRMED 예약을 일괄 취소한다. 이미 CANCELLED/REJECTED인 예약은 제외된다.
-        gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.WAITING)
-                .forEach(r -> r.cancel(GxReservationCancelReason.ADMIN));
-        gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED)
-                .forEach(r -> r.cancel(GxReservationCancelReason.ADMIN));
-        // TODO: 일괄 취소 알림 발행 (가은 담당)
+        List<GxReservation> waitingReservations = gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.WAITING);
+        List<GxReservation> confirmedReservations = gxReservationRepository.findByProgramIdAndStatus(programId, GxReservationStatus.CONFIRMED);
+
+        waitingReservations.forEach(r -> {
+            r.cancel(GxReservationCancelReason.ADMIN);
+            // 프로그램 취소는 입주민 입장에서는 GX 신청 거절 결과이므로 같은 알림 타입으로 보낸다.
+            facilityNotificationService.notifyGxRejected(r.getUserId(), complexId, r, program);
+        });
+        confirmedReservations.forEach(r -> {
+            r.cancel(GxReservationCancelReason.ADMIN);
+            // 승인 후 프로그램이 취소된 신청자도 앱에서 결과를 바로 확인할 수 있게 알림을 남긴다.
+            facilityNotificationService.notifyGxRejected(r.getUserId(), complexId, r, program);
+        });
 
         return GxProgramCancelRes.builder()
                 .programId(program.getId())
@@ -398,10 +407,10 @@ public class GxProgramService {
         for (GxReservation waiting : waitingList) {
             if (approved >= toApprove) break;
             waiting.approve();
+            // bulk-approve가 실제 관리자 승인 경로이므로 승인된 각 신청자에게 개별 알림을 예약한다.
+            facilityNotificationService.notifyGxApproved(waiting.getUserId(), complexId, waiting, program);
             approved++;
         }
-
-        // TODO: 일괄 승인 알림 발행 (가은 담당)
 
         // 일괄 승인 후 남은 WAITING 순번을 재정렬한다.
         if (approved > 0) {
@@ -469,8 +478,11 @@ public class GxProgramService {
         // 잔여 WAITING 신청자를 일괄 거절한다.
         List<GxReservation> waitingList = gxReservationRepository
                 .findByProgramIdAndStatus(programId, GxReservationStatus.WAITING);
-        waitingList.forEach(r -> r.reject(rejectReason));
-        // TODO: 일괄 거절 알림 발행 (가은 담당)
+        waitingList.forEach(r -> {
+            r.reject(rejectReason);
+            // 모집 마감으로 거절된 신청자도 결과를 놓치지 않도록 afterCommit 알림을 예약한다.
+            facilityNotificationService.notifyGxRejected(r.getUserId(), complexId, r, program);
+        });
 
         program.closeWaiting();
 

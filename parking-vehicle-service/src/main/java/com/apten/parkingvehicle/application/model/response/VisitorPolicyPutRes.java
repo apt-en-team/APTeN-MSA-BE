@@ -14,13 +14,10 @@ public class VisitorPolicyPutRes {
     // 단지 ID이다.
     private final Long complexId;
 
-    // 무료 허용 시간이다.
-    private final Integer freeMinutes;
-
-    // 시간당 요금이다.
+    // 월 기본 제공 시간 초과 시 시간당 요금이다.
     private final BigDecimal hourFee;
 
-    // 월 기준 최대 허용 시간이다.
+    // 월 기본 제공 시간이다.
     private final Integer monthlyLimitHours;
 
     // 정책 활성 여부이다.

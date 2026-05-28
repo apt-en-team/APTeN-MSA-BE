@@ -17,7 +17,7 @@ public class InternalVisitorVehicleController {
     // 방문차량 응용 서비스이다.
     private final VisitorVehicleService visitorVehicleService;
 
-    //방문차량 자동 만료 API-319
+    //방문차량 자동 만료
     @PostMapping("/expire")
     public ResultResponse<VisitorVehicleExpireRes> expireVisitorVehicles() {
         return ResultResponse.success("방문차량 자동 만료 실행 성공", visitorVehicleService.expireVisitorVehicles());
