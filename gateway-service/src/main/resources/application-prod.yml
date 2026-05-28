@@ -83,7 +83,7 @@ spring:
             - Path=/api/notifications/**
 
         - id: notification-service-websocket
-          uri: wss://notification-service:80
+          uri: ws://notification-service:80
           predicates:
             - Path=/ws/notifications,/ws/notifications/**
 
