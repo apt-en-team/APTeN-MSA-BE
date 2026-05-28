@@ -1,121 +1,201 @@
 package com.apten.household.application.service;
 
+import com.apten.common.exception.BusinessException;
 import com.apten.household.application.model.request.AdminHouseholdBillListReq;
+import com.apten.household.application.model.request.BaseFeeReflectReq;
 import com.apten.household.application.model.request.FacilityFeeReflectReq;
 import com.apten.household.application.model.request.MyBillListReq;
 import com.apten.household.application.model.request.VehicleFeeReflectReq;
 import com.apten.household.application.model.request.VisitorFeeReflectReq;
 import com.apten.household.application.model.response.AdminHouseholdBillDetailRes;
 import com.apten.household.application.model.response.AdminHouseholdBillListRes;
+import com.apten.household.application.model.response.BaseFeeReflectRes;
 import com.apten.household.application.model.response.BillConfirmRes;
 import com.apten.household.application.model.response.BillUnconfirmRes;
 import com.apten.household.application.model.response.FacilityFeeReflectRes;
 import com.apten.household.application.model.response.MyBillListRes;
 import com.apten.household.application.model.response.VehicleFeeReflectRes;
 import com.apten.household.application.model.response.VisitorFeeReflectRes;
+import com.apten.household.domain.entity.ComplexPolicy;
+import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdBill;
+import com.apten.household.domain.entity.HouseholdBillItem;
+import com.apten.household.domain.entity.HouseholdMember;
+import com.apten.household.domain.entity.FacilityUsageSnapshot;
+import com.apten.household.domain.entity.VisitorUsageSnapshot;
+import com.apten.household.domain.entity.VehicleSnapshot;
+import com.apten.household.domain.enums.FacilityUsageStatus;
 import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
+import com.apten.household.domain.enums.HouseholdStatus;
+import com.apten.household.domain.enums.VehicleSnapshotStatus;
+import com.apten.household.domain.repository.ComplexPolicyRepository;
+import com.apten.household.domain.repository.FacilityUsageSnapshotRepository;
+import com.apten.household.domain.repository.HouseholdBillItemRepository;
 import com.apten.household.domain.repository.HouseholdBillRepository;
+import com.apten.household.domain.repository.HouseholdMemberRepository;
+import com.apten.household.domain.repository.HouseholdRepository;
+import com.apten.household.domain.repository.VisitorUsageSnapshotRepository;
+import com.apten.household.domain.repository.VehicleSnapshotRepository;
 import com.apten.household.exception.HouseholdErrorCode;
-import com.apten.common.exception.BusinessException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-// 세대 청구 반영과 확정, 조회 시그니처를 모아두는 서비스이다.
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class HouseholdBillService {
 
-    // 세대 월 청구 저장소이다.
     private final HouseholdBillRepository householdBillRepository;
+    private final HouseholdBillItemRepository householdBillItemRepository;
+    private final HouseholdRepository householdRepository;
+    private final HouseholdMemberRepository householdMemberRepository;
+    private final VisitorUsageSnapshotRepository visitorUsageSnapshotRepository;
+    private final FacilityUsageSnapshotRepository facilityUsageSnapshotRepository;
+    private final VehicleSnapshotRepository vehicleSnapshotRepository;
+    private final ComplexPolicyRepository complexPolicyRepository;
 
-    // 차량 비용 반영 서비스이다.
+    public BaseFeeReflectRes reflectBaseFee(Long complexId, BaseFeeReflectReq request) {
+        if (request == null) {
+            throw new BusinessException(HouseholdErrorCode.INVALID_BILL_AMOUNT);
+        }
+        validateReflectRequest(complexId, request.getBillYear(), request.getBillMonth());
+        ComplexPolicy policy = complexPolicyRepository.findByComplexId(complexId)
+                .filter(complexPolicy -> Boolean.TRUE.equals(complexPolicy.getIsActive()))
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.BILL_POLICY_NOT_FOUND));
+        BigDecimal baseFee = defaultAmount(policy.getBaseFee());
+
+        List<Household> households = householdRepository.findByComplexIdAndStatus(complexId, HouseholdStatus.OCCUPIED);
+        households.forEach(household -> {
+            HouseholdBill bill = getOrCreateBill(complexId, household.getId(), request.getBillYear(), request.getBillMonth());
+            validateBillEditable(bill);
+            updateBillAmounts(bill, baseFee, bill.getVehicleFee(), bill.getFacilityFee(), bill.getVisitorFee());
+            householdBillRepository.save(bill);
+            upsertBillItem(bill.getId(), HouseholdBillItemType.BASE_FEE, HouseholdBillItemType.BASE_FEE.getValue(), baseFee, "월별 기본 관리비 반영");
+        });
+
+        return BaseFeeReflectRes.builder()
+                .complexId(complexId)
+                .billYear(request.getBillYear())
+                .billMonth(request.getBillMonth())
+                .affectedHouseholdCount(households.size())
+                .reflectedAt(LocalDateTime.now())
+                .build();
+    }
+
     public VehicleFeeReflectRes reflectVehicleFee(VehicleFeeReflectReq request) {
-        //TODO 월 청구 데이터 조회
-        //TODO vehicle_snapshot 또는 외부 반영 결과 기준 차량 비용 계산
-        //TODO household_bill과 household_bill_item 반영
+        validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
+        List<VehicleSnapshot> snapshots = vehicleSnapshotRepository.findByComplexIdAndStatusAndIsDeletedFalse(
+                request.getComplexId(),
+                VehicleSnapshotStatus.APPROVED
+        );
+
+        snapshots.stream()
+                .map(VehicleSnapshot::getHouseholdId)
+                .distinct()
+                .forEach(householdId -> {
+                    HouseholdBill bill = getOrCreateBill(request.getComplexId(), householdId, request.getBillYear(), request.getBillMonth());
+                    validateBillEditable(bill);
+                });
+
         return VehicleFeeReflectRes.builder()
                 .complexId(request.getComplexId())
                 .billYear(request.getBillYear())
                 .billMonth(request.getBillMonth())
-                .affectedHouseholdCount(0)
+                .affectedHouseholdCount((int) snapshots.stream()
+                        .map(VehicleSnapshot::getHouseholdId)
+                        .distinct()
+                        .count())
                 .reflectedAt(LocalDateTime.now())
                 .build();
     }
 
-    // 시설 비용 반영 서비스이다.
     public FacilityFeeReflectRes reflectFacilityFee(FacilityFeeReflectReq request) {
-        //TODO facility_usage_snapshot.usage_fee 합산
-        //TODO household_bill과 household_bill_item 반영
+        validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
+        LocalDate fromDate = LocalDate.of(request.getBillYear(), request.getBillMonth(), 1);
+        LocalDate toDate = fromDate.withDayOfMonth(fromDate.lengthOfMonth());
+        Map<Long, BigDecimal> feeByHousehold = facilityUsageSnapshotRepository
+                .findByComplexIdAndUsageDateBetweenAndStatus(
+                        request.getComplexId(),
+                        fromDate,
+                        toDate,
+                        FacilityUsageStatus.COMPLETED
+                )
+                .stream()
+                .collect(Collectors.groupingBy(
+                        FacilityUsageSnapshot::getHouseholdId,
+                        Collectors.reducing(BigDecimal.ZERO, FacilityUsageSnapshot::getUsageFee, BigDecimal::add)
+                ));
+
+        feeByHousehold.forEach((householdId, facilityFee) -> {
+            getHouseholdForComplex(request.getComplexId(), householdId);
+            HouseholdBill bill = getOrCreateBill(request.getComplexId(), householdId, request.getBillYear(), request.getBillMonth());
+            validateBillEditable(bill);
+            BigDecimal amount = defaultAmount(facilityFee);
+            updateBillAmounts(bill, bill.getBaseFee(), bill.getVehicleFee(), amount, bill.getVisitorFee());
+            householdBillRepository.save(bill);
+            upsertBillItem(bill.getId(), HouseholdBillItemType.FACILITY_FEE, HouseholdBillItemType.FACILITY_FEE.getValue(), amount, "시설 이용 월별 반영");
+        });
+
         return FacilityFeeReflectRes.builder()
                 .complexId(request.getComplexId())
                 .billYear(request.getBillYear())
                 .billMonth(request.getBillMonth())
-                .affectedHouseholdCount(0)
+                .affectedHouseholdCount(feeByHousehold.size())
                 .reflectedAt(LocalDateTime.now())
                 .build();
     }
 
-    // 방문차량 비용 반영 서비스이다.
     public VisitorFeeReflectRes reflectVisitorFee(VisitorFeeReflectReq request) {
-        //TODO 방문차량 비용 반영 이벤트 또는 내부 API 요청 수신
-        //TODO Parking 서비스에서 산정한 방문차량 이용시간과 비용을 수신
-        //TODO complexId, billYear, billMonth 기준 유효성 검증
-        //TODO householdId별 visitor_usage_snapshot 기존 데이터 조회
-        //TODO 기존 데이터가 있으면 totalMinutes, totalHours, freeMinutes, extraMinutes, visitorFee 갱신
-        //TODO 기존 데이터가 없으면 visitor_usage_snapshot 신규 생성
-        //TODO visitor_usage_snapshot에 월별 방문차량 비용 결과 upsert
-        //TODO household_bill의 visitorFee와 totalFee에 반영
-        //TODO 처리 완료 건수와 반영 시간을 응답
+        validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
+
+        List<VisitorFeeReflectReq.Item> items = request.getItems() == null ? List.of() : request.getItems();
+        List<VisitorFeeReflectRes.Item> reflectedItems = items.stream()
+                .map(item -> reflectVisitorFeeItem(request, item))
+                .toList();
+
         return VisitorFeeReflectRes.builder()
                 .complexId(request.getComplexId())
                 .billYear(request.getBillYear())
                 .billMonth(request.getBillMonth())
-                .items(request.getItems() == null ? List.of() : request.getItems().stream()
-                        .map(item -> VisitorFeeReflectRes.Item.builder()
-                                .householdId(item.getHouseholdId())
-                                .totalMinutes(item.getTotalMinutes())
-                                .totalHours(item.getTotalHours())
-                                .freeMinutes(item.getFreeMinutes())
-                                .extraMinutes(item.getExtraMinutes())
-                                .visitorFee(item.getVisitorFee())
-                                .build())
-                        .toList())
-                .affectedHouseholdCount(request.getItems() == null ? 0 : request.getItems().size())
+                .items(reflectedItems)
+                .affectedHouseholdCount(reflectedItems.size())
                 .reflectedAt(LocalDateTime.now())
                 .build();
     }
 
-    // 월별 비용 확정 서비스이다.
     public BillConfirmRes confirmBill(Long complexId, Long billId) {
-        //TODO billId가 현재 complexId 소속 청구인지 검증
-        //TODO 청구 존재 여부 확인
-        //TODO 이미 확정된 청구인지 확인
-        //TODO household_bill 상태를 CONFIRMED로 변경
+        HouseholdBill bill = getBillForComplex(complexId, billId);
+        if (bill.getStatus() == HouseholdBillStatus.CONFIRMED) {
+            throw new BusinessException(HouseholdErrorCode.BILL_ALREADY_CONFIRMED);
+        }
+
+        LocalDateTime confirmedAt = LocalDateTime.now();
+        bill.confirm(confirmedAt);
+        householdBillRepository.save(bill);
+
         return BillConfirmRes.builder()
-                .billId(billId)
-                .status(HouseholdBillStatus.CONFIRMED)
-                .confirmedAt(LocalDateTime.now())
+                .billId(bill.getId())
+                .status(bill.getStatus())
+                .confirmedAt(confirmedAt)
                 .build();
     }
 
-    // 월별 비용 확정 취소 서비스이다 (FR-426)
     public BillUnconfirmRes unconfirmBill(Long complexId, Long billId) {
-        // billId가 현재 complexId 소속 청구인지 검증한다.
-        HouseholdBill bill = householdBillRepository.findById(billId)
-                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND));
-        if (!bill.getComplexId().equals(complexId)) {
-            throw new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND);
-        }
-        // CONFIRMED 상태인지 확인한다.
+        HouseholdBill bill = getBillForComplex(complexId, billId);
         if (bill.getStatus() != HouseholdBillStatus.CONFIRMED) {
             throw new BusinessException(HouseholdErrorCode.BILL_NOT_CONFIRMED);
         }
-        // DRAFT로 롤백하고 confirmedAt을 초기화한다.
+
         bill.unconfirm();
         householdBillRepository.save(bill);
 
@@ -126,58 +206,234 @@ public class HouseholdBillService {
                 .build();
     }
 
-    // 관리자 관리비 목록 조회 서비스이다.
+    @Transactional(readOnly = true)
     public AdminHouseholdBillListRes getAdminBills(Long complexId, AdminHouseholdBillListReq request) {
-        //TODO Header에서 해석한 complexId 기준으로 billYear, billMonth, status, building, unit 조건 조회
-        //TODO request.complexId는 더 이상 외부 관리자 조회 기준으로 사용하지 않는다.
-        //TODO 페이지 메타데이터 계산
+        int pageNumber = request.getPage() != null ? request.getPage() : 0;
+        int pageSize = request.getSize() != null ? request.getSize() : 20;
+
+        Page<HouseholdBill> page = householdBillRepository.findAdminBills(
+                complexId,
+                request.getBillYear(),
+                request.getBillMonth(),
+                request.getStatus(),
+                blankToNull(request.getBuilding()),
+                blankToNull(request.getUnit()),
+                PageRequest.of(pageNumber, pageSize)
+        );
+
         return AdminHouseholdBillListRes.builder()
-                .content(List.of())
-                .page(request.getPage())
-                .size(request.getSize())
-                .totalElements(0L)
-                .totalPages(0)
-                .hasNext(false)
+                .content(page.getContent().stream()
+                        .map(this::toAdminBillListItem)
+                        .toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
                 .build();
     }
 
-    // 관리자 관리비 상세 조회 서비스이다.
+    @Transactional(readOnly = true)
     public AdminHouseholdBillDetailRes getAdminBillDetail(Long complexId, Long billId) {
-        //TODO billId가 현재 complexId 소속 청구인지 검증
-        //TODO billId 기준 관리비 헤더 조회
-        //TODO 세대 동호수와 청구 항목 목록 조회
+        HouseholdBill bill = getBillForComplex(complexId, billId);
+        Household household = getHouseholdForComplex(complexId, bill.getHouseholdId());
+        List<HouseholdBillItem> items = householdBillItemRepository.findByBillId(bill.getId());
+
         return AdminHouseholdBillDetailRes.builder()
-                .billId(billId)
-                .baseFee(BigDecimal.ZERO)
-                .vehicleFee(BigDecimal.ZERO)
-                .facilityFee(BigDecimal.ZERO)
-                .visitorFee(BigDecimal.ZERO)
-                .totalFee(BigDecimal.ZERO)
-                .status(HouseholdBillStatus.DRAFT)
-                .items(List.of(
-                        AdminHouseholdBillDetailRes.Item.builder()
-                                .itemType(HouseholdBillItemType.BASE_FEE)
-                                .itemName("기본관리비")
-                                .amount(BigDecimal.ZERO)
-                                .calcMemo(null)
-                                .build()
-                ))
-                .confirmedAt(null)
+                .billId(bill.getId())
+                .householdId(bill.getHouseholdId())
+                .building(household.getBuilding())
+                .unit(household.getUnit())
+                .billYear(bill.getBillYear())
+                .billMonth(bill.getBillMonth())
+                .baseFee(bill.getBaseFee())
+                .vehicleFee(bill.getVehicleFee())
+                .facilityFee(bill.getFacilityFee())
+                .visitorFee(bill.getVisitorFee())
+                .totalFee(bill.getTotalFee())
+                .status(bill.getStatus())
+                .items(items.stream()
+                        .map(item -> AdminHouseholdBillDetailRes.Item.builder()
+                                .itemType(item.getItemType())
+                                .itemName(item.getItemName())
+                                .amount(item.getAmount())
+                                .calcMemo(item.getCalcMemo())
+                                .build())
+                        .toList())
+                .confirmedAt(bill.getConfirmedAt())
                 .build();
     }
 
-    // 세대 비용 조회 서비스이다.
+    @Transactional(readOnly = true)
     public MyBillListRes getMyBills(Long userId, Long complexId, MyBillListReq request) {
-        //TODO 로그인 사용자 기준 활성 세대원과 household를 조회한다.
-        //TODO household의 complexId와 Header에서 해석한 complexId가 일치하는지 검증한다.
-        //TODO 확정된 청구 목록 조회
+        HouseholdMember member = householdMemberRepository.findActiveByUserIdAndComplexId(userId, complexId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+        getHouseholdForComplex(complexId, member.getHouseholdId());
+
+        int pageNumber = request.getPage() != null ? request.getPage() : 0;
+        int pageSize = request.getSize() != null ? request.getSize() : 20;
+        Page<HouseholdBill> page = householdBillRepository.findMyBills(
+                member.getHouseholdId(),
+                complexId,
+                HouseholdBillStatus.CONFIRMED,
+                request.getBillYear(),
+                request.getBillMonth(),
+                PageRequest.of(pageNumber, pageSize)
+        );
+
         return MyBillListRes.builder()
-                .content(List.of())
-                .page(request.getPage())
-                .size(request.getSize())
-                .totalElements(0L)
-                .totalPages(0)
-                .hasNext(false)
+                .content(page.getContent().stream()
+                        .map(bill -> MyBillListRes.Item.builder()
+                                .billId(bill.getId())
+                                .billYear(bill.getBillYear())
+                                .billMonth(bill.getBillMonth())
+                                .totalFee(bill.getTotalFee())
+                                .status(bill.getStatus())
+                                .confirmedAt(bill.getConfirmedAt())
+                                .createdAt(bill.getCreatedAt())
+                                .build())
+                        .toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
                 .build();
+    }
+
+    private HouseholdBill getBillForComplex(Long complexId, Long billId) {
+        HouseholdBill bill = householdBillRepository.findById(billId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND));
+        if (!bill.getComplexId().equals(complexId)) {
+            throw new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND);
+        }
+        return bill;
+    }
+
+    private Household getHouseholdForComplex(Long complexId, Long householdId) {
+        return householdRepository.findByIdAndComplexId(householdId, complexId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND));
+    }
+
+    private AdminHouseholdBillListRes.Item toAdminBillListItem(HouseholdBill bill) {
+        Household household = getHouseholdForComplex(bill.getComplexId(), bill.getHouseholdId());
+        return AdminHouseholdBillListRes.Item.builder()
+                .billId(bill.getId())
+                .householdId(bill.getHouseholdId())
+                .building(household.getBuilding())
+                .unit(household.getUnit())
+                .billYear(bill.getBillYear())
+                .billMonth(bill.getBillMonth())
+                .totalFee(bill.getTotalFee())
+                .status(bill.getStatus())
+                .build();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private VisitorFeeReflectRes.Item reflectVisitorFeeItem(VisitorFeeReflectReq request, VisitorFeeReflectReq.Item item) {
+        if (item == null || item.getHouseholdId() == null) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);
+        }
+        getHouseholdForComplex(request.getComplexId(), item.getHouseholdId());
+
+        VisitorUsageSnapshot snapshot = visitorUsageSnapshotRepository
+                .findByHouseholdIdAndUsageYearAndUsageMonth(item.getHouseholdId(), request.getBillYear(), request.getBillMonth())
+                .orElseGet(() -> VisitorUsageSnapshot.builder()
+                        .householdId(item.getHouseholdId())
+                        .complexId(request.getComplexId())
+                        .usageYear(request.getBillYear())
+                        .usageMonth(request.getBillMonth())
+                        .build());
+
+        snapshot.apply(
+                item.getHouseholdId(),
+                request.getComplexId(),
+                request.getBillYear(),
+                request.getBillMonth(),
+                defaultInt(item.getTotalMinutes()),
+                defaultAmount(item.getTotalHours()),
+                defaultInt(item.getFreeMinutes()),
+                defaultInt(item.getExtraMinutes()),
+                defaultAmount(item.getVisitorFee())
+        );
+        visitorUsageSnapshotRepository.save(snapshot);
+
+        HouseholdBill bill = getOrCreateBill(request.getComplexId(), item.getHouseholdId(), request.getBillYear(), request.getBillMonth());
+        validateBillEditable(bill);
+        BigDecimal visitorFee = defaultAmount(item.getVisitorFee());
+        updateBillAmounts(bill, bill.getBaseFee(), bill.getVehicleFee(), bill.getFacilityFee(), visitorFee);
+        householdBillRepository.save(bill);
+        upsertBillItem(bill.getId(), HouseholdBillItemType.VISITOR_FEE, HouseholdBillItemType.VISITOR_FEE.getValue(), visitorFee, "방문차량 월별 반영");
+
+        return VisitorFeeReflectRes.Item.builder()
+                .householdId(item.getHouseholdId())
+                .totalMinutes(defaultInt(item.getTotalMinutes()))
+                .totalHours(defaultAmount(item.getTotalHours()))
+                .freeMinutes(defaultInt(item.getFreeMinutes()))
+                .extraMinutes(defaultInt(item.getExtraMinutes()))
+                .visitorFee(visitorFee)
+                .build();
+    }
+
+    private HouseholdBill getOrCreateBill(Long complexId, Long householdId, Integer billYear, Integer billMonth) {
+        return householdBillRepository.findByHouseholdIdAndBillYearAndBillMonth(householdId, billYear, billMonth)
+                .orElseGet(() -> householdBillRepository.save(HouseholdBill.builder()
+                        .complexId(complexId)
+                        .householdId(householdId)
+                        .billYear(billYear)
+                        .billMonth(billMonth)
+                        .build()));
+    }
+
+    private void validateBillEditable(HouseholdBill bill) {
+        if (bill.getStatus() == HouseholdBillStatus.CONFIRMED) {
+            throw new BusinessException(HouseholdErrorCode.BILL_ALREADY_CONFIRMED);
+        }
+    }
+
+    private void updateBillAmounts(
+            HouseholdBill bill,
+            BigDecimal baseFee,
+            BigDecimal vehicleFee,
+            BigDecimal facilityFee,
+            BigDecimal visitorFee
+    ) {
+        BigDecimal safeBaseFee = defaultAmount(baseFee);
+        BigDecimal safeVehicleFee = defaultAmount(vehicleFee);
+        BigDecimal safeFacilityFee = defaultAmount(facilityFee);
+        BigDecimal safeVisitorFee = defaultAmount(visitorFee);
+        bill.updateAmounts(
+                safeBaseFee,
+                safeVehicleFee,
+                safeFacilityFee,
+                safeVisitorFee,
+                safeBaseFee.add(safeVehicleFee).add(safeFacilityFee).add(safeVisitorFee)
+        );
+    }
+
+    private void upsertBillItem(Long billId, HouseholdBillItemType itemType, String itemName, BigDecimal amount, String calcMemo) {
+        HouseholdBillItem item = householdBillItemRepository.findByBillIdAndItemType(billId, itemType)
+                .orElseGet(() -> HouseholdBillItem.builder()
+                        .billId(billId)
+                        .build());
+        item.apply(itemType, itemName, amount, calcMemo);
+        householdBillItemRepository.save(item);
+    }
+
+    private void validateReflectRequest(Long complexId, Integer billYear, Integer billMonth) {
+        if (complexId == null || billYear == null || billMonth == null || billMonth < 1 || billMonth > 12) {
+            throw new BusinessException(HouseholdErrorCode.INVALID_BILL_AMOUNT);
+        }
+    }
+
+    private Integer defaultInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private BigDecimal defaultAmount(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }
