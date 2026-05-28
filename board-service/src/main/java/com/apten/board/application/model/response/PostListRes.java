@@ -17,5 +17,6 @@ public class PostListRes {
     private final Integer viewCount;
     private final Integer likeCount;
     private final Long commentCount;
+    private final Boolean isDeleted;
     private final LocalDateTime createdAt;
 }

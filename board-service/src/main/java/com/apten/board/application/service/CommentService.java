@@ -118,12 +118,19 @@ public class CommentService {
         Page<BoardComment> page = boardCommentRepository.findByUserIdAndIsDeletedFalse(currentUserId(), pageable);
 
         return PageResponse.<MyCommentListRes>builder()
-                .content(page.getContent().stream().map(comment -> MyCommentListRes.builder()
-                        .commentId(comment.getId())
-                        .postId(comment.getPostId())
-                        .content(comment.getContent())
-                        .createdAt(comment.getCreatedAt())
-                        .build()).toList())
+                .content(page.getContent().stream().map(comment -> {
+                    String postTitle = boardPostRepository.findById(comment.getPostId())
+                            .map(post -> post.getTitle())
+                            .orElse("삭제된 게시글");
+
+                    return MyCommentListRes.builder()
+                            .commentId(comment.getId())
+                            .postId(comment.getPostId())
+                            .postTitle(postTitle)
+                            .content(comment.getContent())
+                            .createdAt(comment.getCreatedAt())
+                            .build();
+                }).toList())
                 .page(page.getNumber())
                 .size(page.getSize())
                 .totalElements(page.getTotalElements())

@@ -258,17 +258,27 @@ public class FreeBoardService {
     //인기글 조회
     @Transactional(readOnly = true)
     public List<PopularPostListRes> getPopularPostList(PopularPostListReq request) {
-        //TODO 인기글 기준 기간과 정렬 조건을 QueryDSL 또는 Mapper로 최적화
-        return boardPostRepository.findTop10ByComplexIdAndIsDeletedFalseOrderByLikeCountDescCreatedAtDesc(currentComplexId())
+        return boardPostRepository
+                .findTop10ByComplexIdAndIsDeletedFalseAndLikeCountGreaterThanOrderByLikeCountDescCreatedAtDesc(currentComplexId(), 0)
                 .stream()
                 .limit(Math.max(1, request.getSize()))
-                .map(post -> PopularPostListRes.builder()
-                        .postId(post.getId())
-                        .title(post.getTitle())
-                        .likeCount(post.getLikeCount())
-                        .viewCount(post.getViewCount())
-                        .createdAt(post.getCreatedAt())
-                        .build())
+                .map(post -> {
+                    String writerName = userCacheRepository.findById(post.getUserId())
+                            .map(UserCache::getName)
+                            .orElse("알 수 없음");
+
+                    int commentCount = (int) boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId());
+
+                    return PopularPostListRes.builder()
+                            .postId(post.getId())
+                            .title(post.getTitle())
+                            .writerName(writerName)
+                            .commentCount(commentCount)
+                            .likeCount(post.getLikeCount())
+                            .viewCount(post.getViewCount())
+                            .createdAt(post.getCreatedAt())
+                            .build();
+                })
                 .toList();
     }
 
@@ -284,10 +294,49 @@ public class FreeBoardService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<PostListRes> getAdminPostList(PostListReq request) {
+        Pageable pageable = buildPageable(request.getPage(), request.getSize());
+        Page<BoardPost> page = boardPostRepository
+                .findByComplexIdOrderByCreatedAtDesc(currentComplexId(), pageable);
+
+        return PageResponse.<PostListRes>builder()
+                .content(page.getContent().stream().map(this::toAdminPostListRes).toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .build();
+    }
+
+    private PostListRes toAdminPostListRes(BoardPost post) {
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
+        String rawContent = post.getContent() != null ? post.getContent() : "";
+        String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
+        String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
+        return PostListRes.builder()
+                .postId(post.getId())
+                .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
+                .title(post.getTitle())
+                .preview(preview)
+                .viewCount(post.getViewCount())
+                .likeCount(post.getLikeCount())
+                .isDeleted(post.getIsDeleted())
+                .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
+                .createdAt(post.getCreatedAt())
+                .build();
+    }
+
     //게시판 통계 조회
     @Transactional(readOnly = true)
     public BoardStatisticsRes getBoardStatistics(BoardStatisticsReq request) {
-        //TODO 기간 조건이 필요하면 createdAt 범위와 복합 쿼리로 최적화
         Long complexId = currentComplexId();
 
         return BoardStatisticsRes.builder()
@@ -295,6 +344,7 @@ public class FreeBoardService {
                 .commentCount(boardCommentRepository.countByIsDeletedFalse())
                 .noticeCount(noticeRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .voteCount(voteRepository.countByComplexId(complexId))
+                .deletedPostCount(boardPostRepository.countByComplexIdAndIsDeletedTrue(complexId))  // ← 추가
                 .build();
     }
 
@@ -322,6 +372,7 @@ public class FreeBoardService {
                 .liked(liked)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
+                .isDeleted(post.getIsDeleted())
                 .files(boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId()).stream()
                         .map(file -> PostDetailRes.FileItem.builder()
                                 .fileId(file.getId())
