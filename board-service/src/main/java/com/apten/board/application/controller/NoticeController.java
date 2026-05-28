@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 // 공지 조회 API 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/notices")
+@RequestMapping("/api/notices")
 public class NoticeController {
 
     // 공지 서비스이다.

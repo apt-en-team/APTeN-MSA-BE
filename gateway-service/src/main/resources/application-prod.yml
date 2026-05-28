@@ -3,6 +3,8 @@ spring:
     web-application-type: reactive  # Gateway는 WebFlux 기반 — 리액티브 모드 강제 설정
   application:
     name: gateway-service
+  codec:
+    max-in-memory-size: 200MB
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -16,6 +18,8 @@ spring:
       - optional:file:../.env[.properties]
   cloud:
     gateway:
+      httpclient:
+        max-header-size: 65536
       routes:
         - id: auth-service-auth
           uri: http://auth-service-auth:80
@@ -60,9 +64,9 @@ spring:
             - Path=/api/facilities,/api/facilities/**,/api/reservations,/api/reservations/**,/api/gx-programs,/api/gx-programs/**,/api/gx-reservations,/api/gx-reservations/**,/facilities/**,/facility-reservations/**,/api/facility-subscriptions,/api/facility-subscriptions/**
 
         - id: board-service
-          uri: http://board-service:80
+          uri: http://localhost:${BOARD_SERVER_PORT}
           predicates:
-            - Path=/boards/**,/comments/**,/notices/**,/api/admin/notices/**,/api/admin/boards/**
+            - Path=/boards/**,/api/boards/**,/comments/**,/notices/**,/api/notices/**,/api/admin/notices/**,/api/admin/boards/**,/admin/boards/**,/admin/notices/**,/api/files/**
 
         - id: notification-service
           uri: http://notification-service:80
@@ -81,6 +85,11 @@ gateway:
       - /login/**
       - /oauth2/**
       - /api/apartment-complexes/**
+      - /api/auth/**
+      - /login/**
+      - /oauth2/**
+      - /api/apartment-complexes/**
+      - /api/files/serve/**
     jwt-secret: ${JWT_SECRET_KEY}
 
 server:

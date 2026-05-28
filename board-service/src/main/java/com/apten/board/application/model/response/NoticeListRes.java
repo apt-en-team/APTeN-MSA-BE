@@ -11,4 +11,6 @@ public class NoticeListRes {
     private final String title;
     private final String writerName;
     private final LocalDateTime createdAt;
+    private final String thumbSavedName;
+    private final Boolean hasFile;
 }

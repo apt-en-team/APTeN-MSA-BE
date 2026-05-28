@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: board-service
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 200MB
   config:
     import:
       - optional:classpath:application-common.yml
@@ -27,3 +31,6 @@ constants:
 apten:
   outbox:
     enabled: true
+
+file:
+  upload-dir: /home/download

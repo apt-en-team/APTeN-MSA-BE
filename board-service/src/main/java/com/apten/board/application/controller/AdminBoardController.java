@@ -1,6 +1,8 @@
 package com.apten.board.application.controller;
 
 import com.apten.board.application.model.request.BoardStatisticsReq;
+import com.apten.board.application.model.request.CommentCreateReq;
+import com.apten.board.application.model.request.CommentListReq;
 import com.apten.board.application.model.request.PostListReq;
 import com.apten.board.application.model.response.*;
 import com.apten.board.application.service.CommentService;
@@ -21,6 +23,25 @@ public class AdminBoardController {
 
     // 댓글 서비스이다.
     private final CommentService commentService;
+
+    // 관리자 댓글 목록 조회
+    @GetMapping("/posts/{postId}/comments")
+    public ResultResponse<PageResponse<CommentListRes>> getAdminComments(
+            @PathVariable Long postId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "100") Integer size) {
+        CommentListReq request = CommentListReq.builder()
+                .page(page).size(size).build();
+        return ResultResponse.success("댓글 목록 조회 성공", commentService.getCommentList(postId, request));
+    }
+
+    // 관리자 댓글 작성
+    @PostMapping("/posts/{postId}/comments")
+    public ResultResponse<CommentCreateRes> createAdminComment(
+            @PathVariable Long postId,
+            @RequestBody CommentCreateReq request) {
+        return ResultResponse.success("댓글 작성 성공", commentService.createComment(postId, request));
+    }
 
     //게시글 강제 삭제
     @DeleteMapping("/posts/{postId}")

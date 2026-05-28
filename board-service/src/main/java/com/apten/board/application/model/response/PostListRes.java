@@ -19,4 +19,6 @@ public class PostListRes {
     private final Long commentCount;
     private final Boolean isDeleted;
     private final LocalDateTime createdAt;
+    private final Boolean hasFile;
+    private final String thumbSavedName;
 }

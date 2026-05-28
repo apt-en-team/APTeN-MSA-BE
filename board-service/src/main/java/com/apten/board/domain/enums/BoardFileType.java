@@ -9,10 +9,10 @@ import lombok.Getter;
 public enum BoardFileType implements EnumMapperType {
 
     // 이미지 파일 유형이다.
-    IMAGE("01", "이미지 파일"),
+    IMAGE("01", "IMAGE"),
 
     // 일반 파일 유형이다.
-    FILE("02", "일반 파일");
+    FILE("02", "FILE");
 
     // DB에 저장하는 코드값이다.
     private final String code;

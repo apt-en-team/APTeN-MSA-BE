@@ -319,6 +319,14 @@ public class FreeBoardService {
         String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
         String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
 
+        List<BoardFile> files = boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+        String thumbSavedName = files.stream()
+                .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                .findFirst()
+                .map(BoardFile::getSavedName)
+                .orElse(null);
+        boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
+
         return PostListRes.builder()
                 .postId(post.getId())
                 .userId(post.getUserId())
@@ -331,6 +339,8 @@ public class FreeBoardService {
                 .isDeleted(post.getIsDeleted())
                 .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
                 .createdAt(post.getCreatedAt())
+                .thumbSavedName(thumbSavedName)
+                .hasFile(hasFile)
                 .build();
     }
 
@@ -446,10 +456,17 @@ public class FreeBoardService {
                 .map(UserCache::getName)
                 .orElse("알 수 없음");
 
-        // HTML 태그 제거 후 50자 미리보기
         String rawContent = post.getContent() != null ? post.getContent() : "";
         String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
         String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
+        List<BoardFile> files = boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+        String thumbSavedName = files.stream()
+                .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                .findFirst()
+                .map(BoardFile::getSavedName)
+                .orElse(null);
+        boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
 
         return PostListRes.builder()
                 .postId(post.getId())
@@ -462,6 +479,8 @@ public class FreeBoardService {
                 .likeCount(post.getLikeCount())
                 .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
                 .createdAt(post.getCreatedAt())
+                .thumbSavedName(thumbSavedName)
+                .hasFile(hasFile)
                 .build();
     }
 }
