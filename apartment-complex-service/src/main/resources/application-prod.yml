@@ -33,4 +33,4 @@ juso:
 
 services:
   auth:
-    url: ${AUTH_SERVICE_URL:http://localhost:9080}
+    url: ${AUTH_SERVICE_URL:http://auth-service:80}
