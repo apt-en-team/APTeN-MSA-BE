@@ -36,29 +36,40 @@ public class NotificationPushService {
 
     @Transactional
     public boolean send(Long notificationId) {
+        System.out.println("🔥 [DEBUG-FCM] NotificationPushService.send 진입 notificationId=" + notificationId);
+        System.out.println("🔥 [DEBUG-FCM] fcmEnabled=" + properties.isFcmEnabled());
         log.info("[FCM] 발송 처리 진입. notificationId={}", notificationId);
 
         // HTTP 개발 환경에서는 FCM 실제 발송을 막고 DB/WebSocket 알림만 사용한다
         if (!properties.isFcmEnabled()) {
+            System.out.println("🔥 [DEBUG-FCM] FCM 비활성화로 생략 notificationId=" + notificationId);
             log.info("[FCM] 발송 비활성화 상태라 생략합니다. notificationId={}, fcmEnabled={}",
                     notificationId, properties.isFcmEnabled());
             return false;
         }
 
         if (notificationId == null) {
+            System.out.println("🔥 [DEBUG-FCM] notificationId null");
             log.warn("[FCM] notificationId 없음 - 발송 생략");
             return false;
         }
 
         FirebaseMessaging firebaseMessaging = firebaseMessagingProvider.getIfAvailable();
+        System.out.println("🔥 [DEBUG-FCM] firebaseMessaging=" + firebaseMessaging);
         if (firebaseMessaging == null) {
+            System.out.println("🔥 [DEBUG-FCM] FirebaseMessaging bean 없음");
             log.warn("[FCM] FirebaseMessaging bean 없음 - 발송 생략");
             return false;
         }
 
         return notificationRepository.findById(notificationId)
-                .map(notification -> sendToActiveTokens(firebaseMessaging, notification))
+                .map(notification -> {
+                    System.out.println("🔥 [DEBUG-FCM] notification 조회 성공 userId="
+                            + notification.getUserId() + ", notificationId=" + notificationId);
+                    return sendToActiveTokens(firebaseMessaging, notification);
+                })
                 .orElseGet(() -> {
+                    System.out.println("🔥 [DEBUG-FCM] notification 조회 실패 notificationId=" + notificationId);
                     log.warn("[FCM] 알림 없음 - notificationId={}", notificationId);
                     return false;
                 });
@@ -66,6 +77,8 @@ public class NotificationPushService {
 
     private boolean sendToActiveTokens(FirebaseMessaging firebaseMessaging, Notification notification) {
         List<FcmToken> activeTokens = fcmTokenRepository.findByUserIdAndIsActive(notification.getUserId(), true);
+        System.out.println("🔥 [DEBUG-FCM] active token 조회 userId="
+                + notification.getUserId() + ", tokenCount=" + activeTokens.size());
         log.info("[FCM] 활성 토큰 조회. userId={}, tokenCount={}", notification.getUserId(), activeTokens.size());
 
         if (activeTokens.isEmpty()) {
@@ -84,6 +97,8 @@ public class NotificationPushService {
         }
         tokenValues.forEach(tv ->
                 log.info("[FCM] 발송 대상 토큰 prefix={}, userId={}", tokenPrefix(tv), notification.getUserId()));
+        tokenValues.forEach(tokenValue ->
+                System.out.println("🔥 [DEBUG-FCM] 발송 대상 token prefix=" + tokenPrefix(tokenValue)));
 
         String linkPath = StringUtils.hasText(notification.getLinkPath()) ? notification.getLinkPath() : "/";
         WebpushConfig webpushConfig = WebpushConfig.builder()
@@ -115,6 +130,8 @@ public class NotificationPushService {
         try {
             BatchResponse response = firebaseMessaging.sendEachForMulticast(message);
             deactivateInvalidTokens(activeTokens, response.getResponses());
+            System.out.println("🔥 [DEBUG-FCM] Firebase 발송 완료 success="
+                    + response.getSuccessCount() + ", failure=" + response.getFailureCount());
             log.info("[FCM] 발송 완료. success={}, failure={}",
                     response.getSuccessCount(), response.getFailureCount());
             if (response.getFailureCount() > 0) {
@@ -123,6 +140,8 @@ public class NotificationPushService {
             }
             return response.getSuccessCount() > 0;
         } catch (FirebaseMessagingException exception) {
+            System.out.println("🔥 [DEBUG-FCM] Firebase 발송 예외 message=" + exception.getMessage());
+            exception.printStackTrace();
             // FCM 장애가 원본 알림 저장이나 WebSocket 전송 결과를 되돌리면 안 된다
             log.warn("[FCM] Firebase 발송 실패 - notificationId={}, error={}", notification.getId(), exception.getMessage());
             return false;

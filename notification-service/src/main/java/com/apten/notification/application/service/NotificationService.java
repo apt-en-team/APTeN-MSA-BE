@@ -263,17 +263,25 @@ public class NotificationService {
     }
 
     private void dispatchAfterCommit(Notification notification) {
+        System.out.println("🔥 [DEBUG-FCM] dispatchAfterCommit 진입 notificationId=" + notification.getId());
+        boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
+        System.out.println("🔥 [DEBUG-FCM] 트랜잭션 동기화 활성 여부 notificationId="
+                + notification.getId() + ", active=" + synchronizationActive);
+
         // 테스트나 내부 호출처럼 트랜잭션 동기화가 없으면 즉시 best-effort 전송한다
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (!synchronizationActive) {
+            System.out.println("🔥 [DEBUG-FCM] 트랜잭션 동기화 없음 - 즉시 전송 notificationId=" + notification.getId());
             sendRealtimeBestEffort(notification);
             sendFcmBestEffort(notification);
             return;
         }
 
         // 커밋 전에 메시지가 먼저 나가면 클라이언트 재조회 시 데이터가 안 보일 수 있어 afterCommit으로 늦춘다
+        System.out.println("🔥 [DEBUG-FCM] afterCommit 등록 notificationId=" + notification.getId());
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                System.out.println("🔥 [DEBUG-FCM] afterCommit 실행 notificationId=" + notification.getId());
                 sendRealtimeBestEffort(notification);
                 sendFcmBestEffort(notification);
             }
@@ -291,8 +299,14 @@ public class NotificationService {
 
     private void sendFcmBestEffort(Notification notification) {
         try {
-            notificationPushService.send(notification.getId());
+            System.out.println("🔥 [DEBUG-FCM] sendFcmBestEffort 진입 notificationId=" + notification.getId());
+            boolean sent = notificationPushService.send(notification.getId());
+            System.out.println("🔥 [DEBUG-FCM] notificationPushService.send 호출 완료 notificationId="
+                    + notification.getId() + ", result=" + sent);
         } catch (RuntimeException exception) {
+            System.out.println("🔥 [DEBUG-FCM] FCM 전송 예외 notificationId="
+                    + notification.getId() + ", message=" + exception.getMessage());
+            exception.printStackTrace();
             // FCM 실패는 DB 알림 저장과 WebSocket 전송을 막지 않는다
             log.warn("[Notification] FCM 전송 실패 - notificationId={}", notification.getId(), exception);
         }
