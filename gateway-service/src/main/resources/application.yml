@@ -16,6 +16,19 @@ spring:
       - optional:file:../.env[.properties]
   cloud:
     gateway:
+      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
+      server:
+        webmvc:
+          actuator:
+            enabled: true
+          cors:
+            configurations:
+              '[/**]':
+                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
+                allowed-methods: [ "*" ]
+                allowed-headers: [ "*" ]
+                allow-credentials: true
+                max-age: 3600
       routes:
         - id: auth-service-auth
           uri: http://localhost:${AUTH_SERVER_PORT}
@@ -94,18 +107,3 @@ constants:
   api:
     prefix: /api
 
-  cloud:
-    gateway:
-      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
-      server:
-        webmvc:
-          actuator:
-            enabled: true
-          cors:
-            configurations:
-              '[/**]':
-                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
-                allowed-methods: [ "*" ]
-                allowed-headers: [ "*" ]
-                allow-credentials: true
-                max-age: 3600
