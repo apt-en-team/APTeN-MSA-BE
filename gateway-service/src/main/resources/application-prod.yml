@@ -75,7 +75,7 @@ spring:
         - id: board-service
           uri: http://board-service:80
           predicates:
-            - Path=/boards/**,/comments/**,/notices/**,/api/admin/notices/**,/api/admin/boards/**
+            - Path=/boards/**,/comments/**,/api/notices,/api/notices/**,/notices/**,/api/admin/notices/**,/api/admin/boards/**
 
         - id: notification-service
           uri: http://notification-service:80
