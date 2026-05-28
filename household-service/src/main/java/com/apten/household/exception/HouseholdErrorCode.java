@@ -15,6 +15,7 @@ public enum HouseholdErrorCode implements ErrorCode {
     DUPLICATE_HOUSEHOLD(HttpStatus.CONFLICT, "HHD_409_01", "이미 존재하는 세대입니다."),
     HOUSEHOLD_STATUS_INVALID(HttpStatus.BAD_REQUEST, "HHD_400_00", "유효하지 않은 세대 상태입니다."),
     HOUSEHOLD_HAS_MEMBER(HttpStatus.BAD_REQUEST, "HHD_400_01", "소속 회원이 있어 삭제할 수 없습니다."),
+    HOUSEHOLD_HAS_EXPECTED_RESIDENT(HttpStatus.BAD_REQUEST, "HHD_400_05", "등록된 입주민 명부가 있어 삭제할 수 없습니다."),
     HOUSEHOLD_ALREADY_LINKED(HttpStatus.BAD_REQUEST, "HHD_400_02", "이미 세대가 연동되어 있습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "HHD_404_10", "사용자를 찾을 수 없습니다."),
     HOUSEHOLD_HEAD_DUPLICATED(HttpStatus.BAD_REQUEST, "HHD_400_10", "이미 세대주가 존재합니다."),

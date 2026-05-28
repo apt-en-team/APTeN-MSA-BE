@@ -26,6 +26,8 @@ public class ExpectedResidentPatchReq {
     // 입주민 생년월일이다.
     private LocalDate birthDate;
 
+    private LocalDate moveInDate;
+
     // 세대주와의 관계이다.
     private String relationship;
 

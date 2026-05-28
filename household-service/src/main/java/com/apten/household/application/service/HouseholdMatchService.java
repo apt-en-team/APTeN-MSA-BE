@@ -91,7 +91,7 @@ public class HouseholdMatchService {
         int pageNumber = request.getPage() != null ? request.getPage() : 0;
         int pageSize = request.getSize() != null ? request.getSize() : 20;
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
-        Page<HouseholdMatchRequest> page = matchRequestRepository.findByFilters(
+        Page<HouseholdMatchRequest> page = findMatchRequests(
                 complexId,
                 request.getMatchStatus(),
                 request.getProcessType(),
@@ -109,8 +109,8 @@ public class HouseholdMatchService {
                         .inputBuilding(matchRequest.getInputBuilding())
                         .inputUnit(matchRequest.getInputUnit())
                         .matchedHouseholdId(matchRequest.getMatchedHouseholdId())
-                        .processType(matchRequest.getProcessType())
-                        .matchStatus(matchRequest.getMatchStatus())
+                        .processType(matchRequest.getProcessType().getCode())
+                        .matchStatus(matchRequest.getMatchStatus().getCode())
                         .processedAt(matchRequest.getProcessedAt())
                         .createdAt(matchRequest.getCreatedAt())
                         .build())
@@ -201,6 +201,29 @@ public class HouseholdMatchService {
         householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, household.getId()));
 
         return matchRequest;
+    }
+
+    private Page<HouseholdMatchRequest> findMatchRequests(
+            Long complexId,
+            HouseholdMatchStatus matchStatus,
+            HouseholdMatchProcessType processType,
+            Pageable pageable
+    ) {
+        if (matchStatus != null && processType != null) {
+            return matchRequestRepository.findByComplexIdAndMatchStatusAndProcessType(
+                    complexId,
+                    matchStatus,
+                    processType,
+                    pageable
+            );
+        }
+        if (matchStatus != null) {
+            return matchRequestRepository.findByComplexIdAndMatchStatus(complexId, matchStatus, pageable);
+        }
+        if (processType != null) {
+            return matchRequestRepository.findByComplexIdAndProcessType(complexId, processType, pageable);
+        }
+        return matchRequestRepository.findByComplexId(complexId, pageable);
     }
 
     // 자동승인 기준에 맞지 않으면 관리자 수동 승인 대기로 저장한다.
