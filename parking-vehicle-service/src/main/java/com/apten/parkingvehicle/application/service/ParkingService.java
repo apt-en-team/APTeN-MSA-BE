@@ -437,24 +437,27 @@ public class ParkingService {
         // 단지 주차 운영 타입 조회 (NONE이면 차단)
         ParkingSetting setting = parkingSettingRepository.findByComplexId(targetComplexId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.PARKING_SETTING_NOT_FOUND));
-        if (setting.getParkingType() == ParkingType.NONE) {
+        ParkingType parkingType = setting.getParkingType();
+        if (parkingType == ParkingType.NONE) {
             throw new BusinessException(ParkingVehicleErrorCode.PARKING_TYPE_NONE);
         }
 
         // 활성 구역만 조회
         List<ParkingZone> activeZones = parkingZoneRepository.findByComplexIdAndIsActiveTrue(targetComplexId);
 
-        // 활성 구역이 없으면 면수/구역/유형별 집계와 주차장 개수를 모두 0과 빈 목록으로 즉시 반환
+        // 활성 구역이 없으면 면수/구역/주차장 개수는 0과 빈 목록, 유형별 집계는 null로 즉시 반환
         if (activeZones.isEmpty()) {
             return ParkingStatusRes.builder()
                     .totalSlots(0)
                     .currentParkedCount(0)
                     .remainingSlots(0)
                     .occupancyRate(BigDecimal.ZERO)
-                    .residentCount(0)
-                    .visitorCount(0)
-                    .regularVisitorCount(0)
-                    .unregisteredCount(0)
+                    .parkingTypeCode(parkingType.getCode())
+                    .parkingTypeValue(parkingType.getValue())
+                    .residentCount(null)
+                    .visitorCount(null)
+                    .regularVisitorCount(null)
+                    .unregisteredCount(null)
                     .areaCount(0)
                     .zones(Collections.emptyList())
                     .updatedAt(LocalDateTime.now())
@@ -472,22 +475,23 @@ public class ParkingService {
                 .map(ParkingZone::getId)
                 .toList();
 
-        // 현재 주차 중 차량을 유형별로 집계 (활성 구역 한정, 도넛 차트 합계 정합성 유지)
-        int residentCount = (int) parkingLogRepository.countCurrentResidentParkedInActiveZones(targetComplexId, zoneIds);
-        int visitorCount = (int) parkingLogRepository.countCurrentVisitorParkedInActiveZones(targetComplexId, zoneIds);
-        int regularVisitorCount = (int) parkingLogRepository.countCurrentRegularVisitorParkedInActiveZones(targetComplexId, zoneIds);
-        int unregisteredCount = (int) parkingLogRepository.countCurrentUnregisteredInActiveZones(targetComplexId, zoneIds);
-
-        // 구역별 현재 입차 차량 수 집계 (parking_log NOT EXISTS, SENSOR/BASIC 공통 소스)
-        // 한 번 조회한 결과를 zoneId → count 맵으로 만들어 전체 합계와 구역별 목록에 함께 쓴다.
-        List<Object[]> rawCounts = parkingLogRepository.countCurrentParkedByZone(targetComplexId, zoneIds);
-        Map<Long, Integer> parkedCountByZone = new HashMap<>();
-        for (Object[] row : rawCounts) {
-            parkedCountByZone.put((Long) row[0], ((Number) row[1]).intValue());
+        // 유형별 카운트는 BASIC 단지만 parking_log 기준으로 집계한다 (활성 구역 한정, 도넛 차트 합계 정합성 유지).
+        // SENSOR 단지는 Redis 카운터에 유형 정보가 없어 합 정합성을 보장할 수 없으므로 null로 내린다.
+        Integer residentCount = null;
+        Integer visitorCount = null;
+        Integer regularVisitorCount = null;
+        Integer unregisteredCount = null;
+        if (parkingType == ParkingType.BASIC) {
+            residentCount = (int) parkingLogRepository.countCurrentResidentParkedInActiveZones(targetComplexId, zoneIds);
+            visitorCount = (int) parkingLogRepository.countCurrentVisitorParkedInActiveZones(targetComplexId, zoneIds);
+            regularVisitorCount = (int) parkingLogRepository.countCurrentRegularVisitorParkedInActiveZones(targetComplexId, zoneIds);
+            unregisteredCount = (int) parkingLogRepository.countCurrentUnregisteredInActiveZones(targetComplexId, zoneIds);
         }
 
+        // 운영 타입별 zone별 현재 주차 대수 집계 (BASIC=parking_log NOT EXISTS, SENSOR=Redis 카운터)
+        Map<Long, Integer> parkedCountByZone = resolveParkedCountByZone(parkingType, targetComplexId, zoneIds);
+
         // 구역별 응답 항목 생성 + 단지 전체 면수/주차 대수 누적
-        ParkingType parkingType = setting.getParkingType();
         int totalSlots = 0;
         int totalParked = 0;
         List<ParkingZoneStatusRes> zoneStatuses = new ArrayList<>();
@@ -525,6 +529,8 @@ public class ParkingService {
                 .currentParkedCount(totalParked)
                 .remainingSlots(totalRemaining)
                 .occupancyRate(occupancyRate)
+                .parkingTypeCode(parkingType.getCode())
+                .parkingTypeValue(parkingType.getValue())
                 .residentCount(residentCount)
                 .visitorCount(visitorCount)
                 .regularVisitorCount(regularVisitorCount)
