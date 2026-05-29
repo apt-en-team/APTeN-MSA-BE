@@ -29,6 +29,8 @@ public class HouseholdListRes {
     // 다음 페이지 존재 여부이다.
     private Boolean hasNext;
 
+    private Summary summary;
+
     // 세대 목록 한 건이다.
     @Getter
     @Builder
@@ -37,7 +39,21 @@ public class HouseholdListRes {
         private Long complexId;
         private String building;
         private String unit;
+        private Long typeId;
+        private String typeName;
         private HouseholdStatus status;
+        private String headName;
+        private Long memberCount;
+        private Long carCount;
         private LocalDateTime createdAt;
+    }
+
+    @Getter
+    @Builder
+    public static class Summary {
+        private Long totalHouseholds;
+        private Long occupiedHouseholds;
+        private Long vacantHouseholds;
+        private Long currentMonthMoveIns;
     }
 }

@@ -14,6 +14,8 @@ public interface HouseholdMemberRepository extends JpaRepository<HouseholdMember
     List<HouseholdMember> findByHouseholdId(Long householdId);
 
     // 세대와 사용자 조합으로 세대원 존재 여부를 확인한다.
+    long countByHouseholdIdAndIsActiveTrue(Long householdId);
+
     boolean existsByHouseholdIdAndUserId(Long householdId, Long userId);
 
     // 세대와 사용자 조합으로 세대원을 조회한다.

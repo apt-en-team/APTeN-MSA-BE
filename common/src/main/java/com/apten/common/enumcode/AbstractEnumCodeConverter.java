@@ -27,7 +27,7 @@ public abstract class AbstractEnumCodeConverter<E extends Enum<E> & EnumMapperTy
     @Override
     public String convertToDatabaseColumn(E attribute) {
         if (attribute == null) {
-            return handleNull();
+            return null;
         }
         return EnumConvertUtils.toCode(attribute);
     }

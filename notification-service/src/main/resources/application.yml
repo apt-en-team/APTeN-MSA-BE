@@ -25,6 +25,7 @@ apten:
   notification:
     push:
       fcm-enabled: ${APTEN_NOTIFICATION_PUSH_FCM_ENABLED:false}
+      web-base-url: ${APTEN_NOTIFICATION_PUSH_WEB_BASE_URL:https://tc.greenart.n-e.kr}
       firebase:
         credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
         project-id: ${FIREBASE_PROJECT_ID:}

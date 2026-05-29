@@ -1,6 +1,7 @@
 package com.apten.household.application.model.response;
 
 import com.apten.household.domain.enums.HouseholdMemberRole;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,6 +19,12 @@ public class HouseholdMemberListRes {
 
     // 세대원 역할이다.
     private HouseholdMemberRole role;
+
+    private String name;
+
+    private String phone;
+
+    private LocalDate birthDate;
 
     // 활성 여부이다.
     private Boolean isActive;
