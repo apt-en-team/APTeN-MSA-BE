@@ -193,4 +193,20 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
             @Param("fromDateTime") LocalDateTime fromDateTime,
             @Param("toDateTime") LocalDateTime toDateTime
     );
+
+    // 단지+기간 안에서 방문차량과 고정 방문차량 입출차 로그만 시간순으로 조회한다.
+    // 월 방문차량 비용 산정 시 메모리에서 visitor_vehicle_id 또는 regular_visitor_vehicle_id 단위로 IN/OUT 짝짓기에 사용한다.
+    @Query("""
+            SELECT pl FROM ParkingLog pl
+            WHERE pl.complexId = :complexId
+              AND pl.loggedAt >= :fromDateTime
+              AND pl.loggedAt < :toDateTime
+              AND (pl.visitorVehicleId IS NOT NULL OR pl.regularVisitorVehicleId IS NOT NULL)
+            ORDER BY pl.licensePlate ASC, pl.loggedAt ASC
+            """)
+    List<ParkingLog> findVisitorLogsForFeeCalculation(
+            @Param("complexId") Long complexId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime
+    );
 }
