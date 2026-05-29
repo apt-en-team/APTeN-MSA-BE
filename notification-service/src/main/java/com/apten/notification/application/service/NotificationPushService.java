@@ -94,7 +94,7 @@ public class NotificationPushService {
         tokenValues.forEach(tv ->
                 log.info("[FCM] 발송 대상 토큰 prefix={}, userId={}", tokenPrefix(tv), notification.getUserId()));
 
-        String linkPath = StringUtils.hasText(notification.getLinkPath()) ? notification.getLinkPath() : "/";
+        String linkPath = toAbsoluteLink(notification.getLinkPath());
         WebpushConfig webpushConfig = WebpushConfig.builder()
                 .setNotification(WebpushNotification.builder()
                         .setTitle(notification.getTitle())
@@ -185,6 +185,19 @@ public class NotificationPushService {
     private String tokenPrefix(String token) {
         if (token == null || token.isBlank()) return "(없음)";
         return token.length() > 25 ? token.substring(0, 25) + "..." : token;
+    }
+
+    // WebpushConfig.link는 절대 URL이어야 Chrome push service가 정상 처리한다
+    private String toAbsoluteLink(String linkPath) {
+        if (!StringUtils.hasText(linkPath)) {
+            return properties.getWebBaseUrl();
+        }
+        if (linkPath.startsWith("http://") || linkPath.startsWith("https://")) {
+            return linkPath;
+        }
+        String base = properties.getWebBaseUrl().replaceAll("/$", "");
+        String path = linkPath.startsWith("/") ? linkPath : "/" + linkPath;
+        return base + path;
     }
 
     private boolean isInvalidToken(FirebaseMessagingException exception) {
