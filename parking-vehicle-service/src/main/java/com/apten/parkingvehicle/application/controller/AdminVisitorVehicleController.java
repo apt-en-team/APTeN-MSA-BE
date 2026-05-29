@@ -32,11 +32,12 @@ public class AdminVisitorVehicleController {
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<AdminVisitorVehicleCreateRes> createAdminVisitorVehicle(
             @RequestBody AdminVisitorVehicleCreateReq request,
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
-        return ResultResponse.success("관리자 방문차량 등록 성공", visitorVehicleService.createAdminVisitorVehicle(request, userRole, complexId, selectedComplexId));
+        return ResultResponse.success("관리자 방문차량 등록 성공", visitorVehicleService.createAdminVisitorVehicle(request, userId, userRole, complexId, selectedComplexId));
     }
 
     //방문 예정 차량 목록 조회
