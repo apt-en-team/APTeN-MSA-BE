@@ -37,6 +37,9 @@ apten:
     monthly-visitor-fee:
       enabled: ${APTEN_SCHEDULER_MONTHLY_VISITOR_FEE_ENABLED:true}
       cron: ${APTEN_SCHEDULER_MONTHLY_VISITOR_FEE_CRON:0 0 2 2 * *}
+    monthly-vehicle-fee:
+      enabled: ${APTEN_SCHEDULER_MONTHLY_VEHICLE_FEE_ENABLED:true}
+      cron: ${APTEN_SCHEDULER_MONTHLY_VEHICLE_FEE_CRON:0 0 2 2 * *}
   policy:
     visitor-vehicle:
       expire-grace-days: ${APTEN_POLICY_VISITOR_VEHICLE_EXPIRE_GRACE_DAYS:3}

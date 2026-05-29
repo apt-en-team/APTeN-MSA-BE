@@ -4,23 +4,32 @@ import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
 import com.apten.parkingvehicle.application.model.request.VehicleFeeCalculateReq;
 import com.apten.parkingvehicle.application.model.request.VisitorFeeCalculateReq;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleFeeMonthlyListRes;
 import com.apten.parkingvehicle.application.model.response.AdminVisitorUsageMonthlyListRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleFeeCalculateRes;
+import com.apten.parkingvehicle.application.model.response.VehicleFeeMonthlyGetRes;
 import com.apten.parkingvehicle.application.model.response.VisitorFeeCalculateRes;
 import com.apten.parkingvehicle.application.model.response.VisitorUsageMonthlyGetRes;
 import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
 import com.apten.parkingvehicle.domain.entity.ParkingLog;
+import com.apten.parkingvehicle.domain.entity.VehicleFeeMonthly;
+import com.apten.parkingvehicle.domain.entity.VehiclePolicy;
 import com.apten.parkingvehicle.domain.entity.VisitorPolicy;
 import com.apten.parkingvehicle.domain.entity.VisitorUsageMonthly;
 import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
+import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
 import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
+import com.apten.parkingvehicle.domain.repository.VehicleFeeMonthlyRepository;
+import com.apten.parkingvehicle.domain.repository.VehiclePolicyRepository;
+import com.apten.parkingvehicle.domain.repository.VehicleRepository;
 import com.apten.parkingvehicle.domain.repository.VisitorPolicyRepository;
 import com.apten.parkingvehicle.domain.repository.VisitorUsageMonthlyRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
+import com.apten.parkingvehicle.infrastructure.kafka.payload.VehicleFeeCalculatedEventPayload;
 import com.apten.parkingvehicle.infrastructure.kafka.payload.VisitorFeeCalculatedEventPayload;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,11 +60,20 @@ public class ParkingFeeCalculationService {
     // 방문차량 정책 저장소
     private final VisitorPolicyRepository visitorPolicyRepository;
 
+    // 차량 정책 저장소
+    private final VehiclePolicyRepository vehiclePolicyRepository;
+
     // 입출차 로그 저장소
     private final ParkingLogRepository parkingLogRepository;
 
+    // 입주민 차량 저장소
+    private final VehicleRepository vehicleRepository;
+
     // 방문차량 월별 이용시간/비용 저장소
     private final VisitorUsageMonthlyRepository visitorUsageMonthlyRepository;
+
+    // 차량 월별 비용 저장소
+    private final VehicleFeeMonthlyRepository vehicleFeeMonthlyRepository;
 
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
@@ -62,21 +81,83 @@ public class ParkingFeeCalculationService {
     // outbox 적재 서비스
     private final ParkingVehicleOutboxService parkingVehicleOutboxService;
 
-    // 차량 비용을 월 기준으로 산정한다. (입주민 차량 정액 — 별도 라운드)
+    // 차량 비용을 월 기준으로 산정한다.
+    // 단지 활성 차량 정책 row의 carCount 오름차순 단가표를 룩업해 세대별 승인 차량 수에 매칭되는 월 요금을 정액 산정한다.
+    @Transactional
     public VehicleFeeCalculateRes calculateVehicleFees(VehicleFeeCalculateReq request) {
-        //TODO complexId별 활성 차량 정책 조회
-        //TODO 세대별 APPROVED 차량 수 집계
-        //TODO carCount 기준 monthlyFee 계산
-        //TODO vehicle_fee_monthly upsert
-        //TODO Household Service로 차량 비용 이벤트 발행 outbox 적재
-        //TODO isPublished/publishedAt 처리
+        // 요청 기본 필드 검증
+        if (request == null
+                || request.getComplexId() == null
+                || request.getBillYear() == null
+                || request.getBillMonth() == null) {
+            throw new BusinessException(ParkingVehicleErrorCode.INVALID_PARAMETER);
+        }
+
+        Long complexId = request.getComplexId();
+        int billYear = request.getBillYear();
+        int billMonth = request.getBillMonth();
+
+        // 단지 활성 차량 정책 row 전수 조회 + carCount 오름차순 정렬, 없으면 산정 불가
+        List<VehiclePolicy> sortedPolicies = vehiclePolicyRepository.findByComplexIdAndIsActiveTrue(complexId).stream()
+                .sorted(Comparator.comparingInt(VehiclePolicy::getCarCount))
+                .toList();
+        if (sortedPolicies.isEmpty()) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_POLICY_NOT_FOUND);
+        }
+
+        // 단지 세대 목록 조회 — 세대마다 카운트 후 산정
+        List<HouseholdCache> households = householdCacheRepository.findByComplexId(complexId);
+        LocalDateTime publishedAt = LocalDateTime.now();
+
+        // 세대별 row upsert + payload/응답 Item 빌드
+        List<VehicleFeeCalculatedEventPayload.Item> payloadItems = new ArrayList<>();
+        List<VehicleFeeCalculateRes.Item> responseItems = new ArrayList<>();
+        for (HouseholdCache household : households) {
+            Long householdId = household.getId();
+            int approvedCount = (int) vehicleRepository
+                    .countByHouseholdIdAndStatusAndIsDeletedFalse(householdId, VehicleStatus.APPROVED);
+
+            // 0대 세대는 row 안 만듦 (조회 시 404 정책과 일관)
+            if (approvedCount <= 0) {
+                continue;
+            }
+
+            // 정책 매칭으로 월 요금 도출
+            BigDecimal monthlyFee = matchVehicleFee(sortedPolicies, approvedCount, householdId);
+
+            upsertVehicleFeeMonthly(
+                    complexId, householdId, billYear, billMonth,
+                    approvedCount, monthlyFee, publishedAt
+            );
+
+            payloadItems.add(VehicleFeeCalculatedEventPayload.Item.builder()
+                    .householdId(householdId)
+                    .vehicleFee(monthlyFee)
+                    .build());
+            responseItems.add(VehicleFeeCalculateRes.Item.builder()
+                    .householdId(householdId)
+                    .approvedVehicleCount(approvedCount)
+                    .vehicleFee(monthlyFee)
+                    .build());
+        }
+
+        // outbox 발행 — 같은 트랜잭션 안이라 직렬화/저장 실패 시 함께 롤백
+        VehicleFeeCalculatedEventPayload payload = VehicleFeeCalculatedEventPayload.builder()
+                .complexId(complexId)
+                .billYear(billYear)
+                .billMonth(billMonth)
+                .items(payloadItems)
+                .occurredAt(publishedAt)
+                .build();
+        parkingVehicleOutboxService.saveVehicleFeeCalculatedEvent(complexId, payload);
+
         return VehicleFeeCalculateRes.builder()
-                .complexId(request.getComplexId())
-                .billYear(request.getBillYear())
-                .billMonth(request.getBillMonth())
-                .items(List.of())
-                .published(false)
-                .executedAt(LocalDateTime.now())
+                .complexId(complexId)
+                .billYear(billYear)
+                .billMonth(billMonth)
+                .items(responseItems)
+                .published(true)
+                .executedAt(publishedAt)
                 .build();
     }
 
@@ -171,6 +252,105 @@ public class ParkingFeeCalculationService {
                 .items(responseItems)
                 .published(true)
                 .executedAt(publishedAt)
+                .build();
+    }
+
+    // 입주민 본인 세대 차량 월 과금 단건 조회
+    @Transactional(readOnly = true)
+    public VehicleFeeMonthlyGetRes getResidentVehicleMonthlyFee(
+            String yearMonthStr, Long userId, String userRole, Long complexId
+    ) {
+        // 입주민 헤더 컨텍스트 검증
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
+
+        // yearMonth 파싱 (YYYY-MM)
+        YearMonth yearMonth = parseYearMonth(yearMonthStr);
+
+        // 세대주 기준 세대 역추적 — 세대원은 차단
+        HouseholdCache household = householdCacheRepository.findByHeadUserId(userId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
+
+        // 세대-단지 정합성 검증
+        if (!household.getComplexId().equals(complexId)) {
+            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        }
+
+        // 산정 결과 조회 — 없으면 404 (산정 안 됨과 0원 산정은 구분)
+        VehicleFeeMonthly entity = vehicleFeeMonthlyRepository
+                .findByHouseholdIdAndBillYearAndBillMonth(
+                        household.getId(), yearMonth.getYear(), yearMonth.getMonthValue()
+                )
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_FEE_MONTHLY_NOT_FOUND));
+
+        return VehicleFeeMonthlyGetRes.builder()
+                .complexId(entity.getComplexId())
+                .householdId(entity.getHouseholdId())
+                .billYear(entity.getBillYear())
+                .billMonth(entity.getBillMonth())
+                .approvedVehicleCount(entity.getApprovedVehicleCount())
+                .vehicleFee(entity.getVehicleFee())
+                .publishedAt(entity.getPublishedAt())
+                .build();
+    }
+
+    // 관리자 단지 차량 월 과금 페이지 조회
+    @Transactional(readOnly = true)
+    public PageResponse<AdminVehicleFeeMonthlyListRes> listAdminVehicleMonthlyFees(
+            String yearMonthStr, int page, int size,
+            String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석 (MASTER는 selectedComplexId, 일반 관리자는 X-COMPLEX-ID)
+        Long targetComplexId = RoleContextValidator
+                .resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // yearMonth 파싱과 페이징 파라미터 정규화
+        YearMonth yearMonth = parseYearMonth(yearMonthStr);
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = size > 0 ? size : 20;
+
+        // 단지+연월 페이지 조회
+        Page<VehicleFeeMonthly> resultPage = vehicleFeeMonthlyRepository
+                .findByComplexIdAndBillYearAndBillMonth(
+                        targetComplexId, yearMonth.getYear(), yearMonth.getMonthValue(),
+                        PageRequest.of(normalizedPage, normalizedSize)
+                );
+
+        if (resultPage.isEmpty()) {
+            return PageResponse.empty(normalizedPage, normalizedSize);
+        }
+
+        // 동/호 매핑용 세대 캐시 일괄 조회
+        List<Long> householdIds = resultPage.getContent().stream()
+                .map(VehicleFeeMonthly::getHouseholdId)
+                .toList();
+        Map<Long, HouseholdCache> householdMap = householdCacheRepository.findAllById(householdIds).stream()
+                .collect(Collectors.toMap(HouseholdCache::getId, h -> h));
+
+        // 응답 항목 빌드 — 세대 캐시에서 building/unit 채움
+        List<AdminVehicleFeeMonthlyListRes> content = resultPage.getContent().stream()
+                .map(entity -> {
+                    HouseholdCache household = householdMap.get(entity.getHouseholdId());
+                    return AdminVehicleFeeMonthlyListRes.builder()
+                            .complexId(entity.getComplexId())
+                            .householdId(entity.getHouseholdId())
+                            .building(household != null ? household.getBuilding() : null)
+                            .unit(household != null ? household.getUnit() : null)
+                            .billYear(entity.getBillYear())
+                            .billMonth(entity.getBillMonth())
+                            .approvedVehicleCount(entity.getApprovedVehicleCount())
+                            .vehicleFee(entity.getVehicleFee())
+                            .publishedAt(entity.getPublishedAt())
+                            .build();
+                })
+                .toList();
+
+        return PageResponse.<AdminVehicleFeeMonthlyListRes>builder()
+                .content(content)
+                .page(resultPage.getNumber())
+                .size(resultPage.getSize())
+                .totalElements(resultPage.getTotalElements())
+                .totalPages(resultPage.getTotalPages())
+                .hasNext(resultPage.hasNext())
                 .build();
     }
 
@@ -278,6 +458,50 @@ public class ParkingFeeCalculationService {
                 .totalPages(resultPage.getTotalPages())
                 .hasNext(resultPage.hasNext())
                 .build();
+    }
+
+    // 차량 정책 단가표(carCount 오름차순)에서 보유 대수 이하 중 carCount 최댓값 row의 monthlyFee를 반환한다.
+    private BigDecimal matchVehicleFee(List<VehiclePolicy> sortedPolicies, int approvedCount, Long householdId) {
+        BigDecimal matched = null;
+        for (VehiclePolicy policy : sortedPolicies) {
+            if (policy.getCarCount() <= approvedCount) {
+                matched = policy.getMonthlyFee();
+            } else {
+                break;
+            }
+        }
+        // 정책 최소 carCount보다 보유 대수가 작은 비정상 케이스 방어 — 0원 처리 + 로그
+        if (matched == null) {
+            log.warn("[vehicle-fee] no matching policy for approvedCount={}, householdId={}",
+                    approvedCount, householdId);
+            return BigDecimal.ZERO;
+        }
+        return matched;
+    }
+
+    // 세대 월 차량 비용 row를 upsert한다. 기존이면 apply, 없으면 신규 생성 후 save.
+    private void upsertVehicleFeeMonthly(
+            Long complexId, Long householdId, int billYear, int billMonth,
+            int approvedVehicleCount, BigDecimal vehicleFee, LocalDateTime publishedAt
+    ) {
+        VehicleFeeMonthly entity = vehicleFeeMonthlyRepository
+                .findByHouseholdIdAndBillYearAndBillMonth(householdId, billYear, billMonth)
+                .orElse(null);
+        if (entity != null) {
+            entity.apply(approvedVehicleCount, vehicleFee, true, publishedAt);
+            return;
+        }
+        VehicleFeeMonthly created = VehicleFeeMonthly.builder()
+                .complexId(complexId)
+                .householdId(householdId)
+                .billYear(billYear)
+                .billMonth(billMonth)
+                .approvedVehicleCount(approvedVehicleCount)
+                .vehicleFee(vehicleFee)
+                .isPublished(true)
+                .publishedAt(publishedAt)
+                .build();
+        vehicleFeeMonthlyRepository.save(created);
     }
 
     // 입출차 로그를 visitor_vehicle_id 또는 regular_visitor_vehicle_id 단위로 묶어 세대별 체류 분 합계를 산출한다.

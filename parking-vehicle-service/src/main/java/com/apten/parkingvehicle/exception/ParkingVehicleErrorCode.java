@@ -17,6 +17,7 @@ public enum ParkingVehicleErrorCode implements ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_00", "사용자를 찾을 수 없습니다."),
     HOUSEHOLD_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_10", "세대를 찾을 수 없습니다."),
     VISITOR_USAGE_MONTHLY_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_09", "산정된 방문차량 월 과금이 없습니다."),
+    VEHICLE_FEE_MONTHLY_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_11", "산정된 차량 월 과금이 없습니다."),
     DUPLICATE_LICENSE_PLATE(HttpStatus.CONFLICT, "PVH_409_01", "이미 등록된 차량번호입니다."),
     VEHICLE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "PVH_400_01", "세대당 차량 등록 한도를 초과했습니다."),
     VEHICLE_NOT_FOUND(HttpStatus.NOT_FOUND, "PVH_404_01", "차량을 찾을 수 없습니다."),

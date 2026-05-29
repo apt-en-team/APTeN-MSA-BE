@@ -3,6 +3,8 @@ package com.apten.parkingvehicle.domain.repository;
 import com.apten.parkingvehicle.domain.entity.VehicleFeeMonthly;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 // 차량 월별 비용 집계 저장소이다.
@@ -13,4 +15,7 @@ public interface VehicleFeeMonthlyRepository extends JpaRepository<VehicleFeeMon
 
     // 단지와 청구 연월 기준 차량 비용 월집계 목록을 조회한다.
     List<VehicleFeeMonthly> findByComplexIdAndBillYearAndBillMonth(Long complexId, Integer billYear, Integer billMonth);
+
+    // 단지와 청구 연월 기준 차량 비용 월집계 페이지를 조회한다.
+    Page<VehicleFeeMonthly> findByComplexIdAndBillYearAndBillMonth(Long complexId, Integer billYear, Integer billMonth, Pageable pageable);
 }
