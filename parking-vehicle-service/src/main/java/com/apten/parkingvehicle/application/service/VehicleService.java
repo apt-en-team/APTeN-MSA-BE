@@ -93,8 +93,9 @@ public class VehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 세대주 기준 세대 조회 — 세대원이면 여기서 차단
-        HouseholdCache household = householdCacheRepository.findByHeadUserId(userId)
+        // 세대 구성원 기준 세대 해석 — 세대주와 세대원 모두 본인 세대로 등록 가능
+        Long householdId = resolveHouseholdId(userId);
+        HouseholdCache household = householdCacheRepository.findById(householdId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
 
         // 헤더 단지와 세대 단지 일치 검증, 불일치는 세대 미존재와 동일하게 처리
@@ -227,16 +228,21 @@ public class VehicleService {
                 .build();
     }
 
+    // 요청자 userId로 활성 세대 매핑을 해석해 householdId를 반환한다. 미동기화면 세대 미존재로 처리.
+    private Long resolveHouseholdId(Long userId) {
+        return householdMemberCacheRepository.findByUserIdAndIsActiveTrue(userId)
+                .map(HouseholdMemberCache::getHouseholdId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
+    }
+
     // 내 세대 차량 목록을 조회한다.
     @Transactional(readOnly = true)
     public PageResponse<VehicleListRes> getMyVehicleList(VehicleListReq request, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
         RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
-        // 요청자 userId로 활성 세대 매핑 해석 — 미동기화 세대원은 세대 미존재로 처리
-        HouseholdMemberCache memberCache = householdMemberCacheRepository.findByUserIdAndIsActiveTrue(userId)
-                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
-        Long householdId = memberCache.getHouseholdId();
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
 
         // 페이지 파라미터 디폴트 방어
         int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
@@ -300,16 +306,15 @@ public class VehicleService {
         // 입주민 컨텍스트 검증
         RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
-        // 요청자 userId로 활성 세대 매핑 해석 — 미동기화 세대원은 세대 미존재로 처리
-        HouseholdMemberCache memberCache = householdMemberCacheRepository.findByUserIdAndIsActiveTrue(userId)
-                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
 
         // 차량 단건 조회, 미존재 시 404
         Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND));
 
         // 같은 세대 차량이 아니면 존재를 노출하지 않고 404로 차단
-        if (!vehicle.getHouseholdId().equals(memberCache.getHouseholdId())) {
+        if (!vehicle.getHouseholdId().equals(householdId)) {
             throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND);
         }
 
