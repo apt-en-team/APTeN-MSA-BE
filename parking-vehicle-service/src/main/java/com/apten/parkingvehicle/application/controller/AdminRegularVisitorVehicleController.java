@@ -21,6 +21,7 @@ public class AdminRegularVisitorVehicleController {
     @DeleteMapping("/api/admin/regular-visitor-vehicles/{regularVisitorVehicleId}")
     public ResultResponse<AdminRegularVisitorVehicleDeleteRes> deleteRegularVisitorVehicleByAdmin(
             @PathVariable Long regularVisitorVehicleId,
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
@@ -28,7 +29,7 @@ public class AdminRegularVisitorVehicleController {
         return ResultResponse.success(
                 "고정 방문차량 강제 삭제 성공",
                 regularVisitorVehicleService.deleteRegularVisitorVehicleByAdmin(
-                        regularVisitorVehicleId, userRole, complexId, selectedComplexId)
+                        regularVisitorVehicleId, userId, userRole, complexId, selectedComplexId)
         );
     }
 }

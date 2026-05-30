@@ -414,7 +414,7 @@ public class VisitorVehicleService {
 
     // 관리자가 방문차량을 등록한다.
     @Transactional
-    public AdminVisitorVehicleCreateRes createAdminVisitorVehicle(AdminVisitorVehicleCreateReq request, String userRole, Long complexId, Long selectedComplexId) {
+    public AdminVisitorVehicleCreateRes createAdminVisitorVehicle(AdminVisitorVehicleCreateReq request, Long actorUserId, String userRole, Long complexId, Long selectedComplexId) {
         // 관리자 컨텍스트 해석
         Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
 
@@ -477,12 +477,12 @@ public class VisitorVehicleService {
 
         VisitorVehicle saved = visitorVehicleRepository.save(entity);
 
-        // 관리자 대리 등록 알림 outbox 적재 — 세대 대상, 관리자 컨트롤러가 X-User-Id 미전달이라 actorUserId는 null
+        // 관리자 대리 등록 알림 outbox 적재 — 세대 대상, actorUserId는 컨트롤러가 전달한 관리자 식별자
         parkingVehicleOutboxService.saveVisitorVehicleNotificationEvent(
                 saved,
                 ParkingVehicleOutboxService.VISITOR_VEHICLE_CREATED_BY_ADMIN,
                 ParkingVehicleOutboxService.TARGET_HOUSEHOLD,
-                null);
+                actorUserId);
 
         return AdminVisitorVehicleCreateRes.builder()
                 .visitorVehicleId(saved.getId())

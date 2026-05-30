@@ -1,6 +1,7 @@
 package com.apten.parkingvehicle.domain.repository;
 
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -9,4 +10,7 @@ public interface HouseholdCacheRepository extends JpaRepository<HouseholdCache, 
 
     // 세대주 사용자 식별자로 세대 캐시를 조회한다.
     Optional<HouseholdCache> findByHeadUserId(Long headUserId);
+
+    // 단지 식별자로 세대 캐시 목록을 조회한다.
+    List<HouseholdCache> findByComplexId(Long complexId);
 }

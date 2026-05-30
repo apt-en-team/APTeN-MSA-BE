@@ -251,6 +251,7 @@ public class RegularVisitorVehicleService {
     @Transactional
     public AdminRegularVisitorVehicleDeleteRes deleteRegularVisitorVehicleByAdmin(
             Long regularVisitorVehicleId,
+            Long actorUserId,
             String userRole, Long complexId, Long selectedComplexId
     ) {
         // 관리자 컨텍스트 해석으로 대상 단지 확정
@@ -271,12 +272,12 @@ public class RegularVisitorVehicleService {
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         RegularVisitorVehicle saved = regularVisitorVehicleRepository.save(entity);
 
-        // 관리자 강제 삭제 알림 outbox 적재 — 세대 대상, 관리자 컨트롤러가 X-User-Id 미전달이라 actorUserId는 null
+        // 관리자 강제 삭제 알림 outbox 적재 — 세대 대상, actorUserId는 컨트롤러가 전달한 관리자 식별자
         parkingVehicleOutboxService.saveRegularVisitorVehicleNotificationEvent(
                 saved,
                 ParkingVehicleOutboxService.REGULAR_VISITOR_VEHICLE_FORCE_DELETED_BY_ADMIN,
                 ParkingVehicleOutboxService.TARGET_HOUSEHOLD,
-                null);
+                actorUserId);
 
         return AdminRegularVisitorVehicleDeleteRes.builder()
                 .message("고정 방문차량 강제 삭제 완료")
