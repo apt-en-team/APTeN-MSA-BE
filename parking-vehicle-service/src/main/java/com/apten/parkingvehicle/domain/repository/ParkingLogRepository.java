@@ -17,6 +17,22 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
     // 단지와 차량번호 기준 가장 최근 로그를 조회한다.
     Optional<ParkingLog> findTopByComplexIdAndLicensePlateOrderByLoggedAtDesc(Long complexId, String licensePlate);
 
+    // 차량 ID 기준 가장 최근 입출차 로그 한 건을 조회한다.
+    Optional<ParkingLog> findTopByVehicleIdOrderByLoggedAtDesc(Long vehicleId);
+
+    // 차량 ID 목록 기준 각 차량의 가장 최근 입출차 로그를 한 번에 조회한다.
+    // 같은 차량의 더 최신 로그가 없는 행만 남겨 vehicleId당 한 건을 보장한다.
+    @Query("""
+            SELECT pl FROM ParkingLog pl
+            WHERE pl.vehicleId IN :vehicleIds
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog pl2
+                WHERE pl2.vehicleId = pl.vehicleId
+                  AND pl2.loggedAt > pl.loggedAt
+              )
+            """)
+    List<ParkingLog> findLatestLogsByVehicleIds(@Param("vehicleIds") List<Long> vehicleIds);
+
     // 단지와 연월 기준 로그 목록을 조회한다.
     List<ParkingLog> findByComplexId(Long complexId);
 

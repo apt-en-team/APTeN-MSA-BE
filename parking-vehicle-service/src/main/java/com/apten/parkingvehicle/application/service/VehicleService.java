@@ -21,12 +21,14 @@ import com.apten.parkingvehicle.application.model.response.VehicleRejectRes;
 import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
 import com.apten.parkingvehicle.domain.entity.HouseholdMemberCache;
+import com.apten.parkingvehicle.domain.entity.ParkingLog;
 import com.apten.parkingvehicle.domain.entity.UserCache;
 import com.apten.parkingvehicle.domain.entity.Vehicle;
 import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import com.apten.parkingvehicle.domain.enums.VehicleType;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
 import com.apten.parkingvehicle.domain.repository.HouseholdMemberCacheRepository;
+import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
 import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRegistrationPolicyRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRepository;
@@ -60,6 +62,9 @@ public class VehicleService {
 
     // 세대 구성원 캐시 저장소
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+
+    // 입출차 로그 저장소
+    private final ParkingLogRepository parkingLogRepository;
 
     // 차량 등록 한도 정책 저장소
     private final VehicleRegistrationPolicyRepository vehicleRegistrationPolicyRepository;
@@ -251,10 +256,17 @@ public class VehicleService {
                 userCacheRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
 
+        // 마지막 입출차 로그 batch 조회로 N+1 회피, 동률 로그는 먼저 들어온 한 건만 유지
+        List<Long> vehicleIds = vehicles.stream().map(Vehicle::getId).toList();
+        Map<Long, ParkingLog> latestLogMap = vehicleIds.isEmpty() ? Map.of() :
+                parkingLogRepository.findLatestLogsByVehicleIds(vehicleIds).stream()
+                        .collect(Collectors.toMap(ParkingLog::getVehicleId, log -> log, (existing, ignored) -> existing));
+
         // 응답 DTO 매핑
         List<VehicleListRes> content = vehicles.stream()
                 .map(v -> {
                     UserCache userCache = userCacheMap.get(v.getUserId());
+                    ParkingLog latestLog = latestLogMap.get(v.getId());
                     return VehicleListRes.builder()
                             .vehicleId(v.getId())
                             .userId(v.getUserId())
@@ -266,6 +278,8 @@ public class VehicleService {
                             .isPrimary(v.getIsPrimary())
                             .approvedAt(v.getApprovedAt())
                             .createdAt(v.getCreatedAt())
+                            .lastLoggedAt(latestLog != null ? latestLog.getLoggedAt() : null)
+                            .lastEntryType(latestLog != null ? latestLog.getEntryType() : null)
                             .build();
                 })
                 .toList();
@@ -307,6 +321,9 @@ public class VehicleService {
         // 등록자 이름 조회, 캐시 누락 시 null 허용
         UserCache userCache = userCacheRepository.findById(vehicle.getUserId()).orElse(null);
 
+        // 마지막 입출차 로그 한 건 조회, 기록 없으면 null 허용
+        ParkingLog latestLog = parkingLogRepository.findTopByVehicleIdOrderByLoggedAtDesc(vehicle.getId()).orElse(null);
+
         return VehicleDetailRes.builder()
                 .vehicleId(vehicle.getId())
                 .userId(vehicle.getUserId())
@@ -320,6 +337,8 @@ public class VehicleService {
                 .rejectReason(vehicle.getRejectReason())
                 .createdAt(vehicle.getCreatedAt())
                 .updatedAt(vehicle.getUpdatedAt())
+                .lastLoggedAt(latestLog != null ? latestLog.getLoggedAt() : null)
+                .lastEntryType(latestLog != null ? latestLog.getEntryType() : null)
                 .build();
     }
 
