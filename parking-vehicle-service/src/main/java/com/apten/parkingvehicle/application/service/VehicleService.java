@@ -9,6 +9,8 @@ import com.apten.parkingvehicle.application.model.request.VehiclePatchReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleLocationRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleStatsRes;
 import com.apten.parkingvehicle.application.model.response.LicensePlateCheckRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleApproveRes;
@@ -35,8 +37,11 @@ import com.apten.parkingvehicle.domain.repository.VehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -556,6 +561,80 @@ public class VehicleService {
                 .createdAt(vehicle.getCreatedAt())
                 .updatedAt(vehicle.getUpdatedAt())
                 .build();
+    }
+
+    // 관리자 차량 상태별 통계를 조회한다.
+    @Transactional(readOnly = true)
+    public AdminVehicleStatsRes getAdminVehicleStats(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 상태별 건수 집계, 소프트 삭제 차량은 제외
+        long total = vehicleRepository.countByComplexIdAndIsDeletedFalse(targetComplexId);
+        long pending = vehicleRepository.countByComplexIdAndStatusAndIsDeletedFalse(targetComplexId, VehicleStatus.PENDING);
+        long approved = vehicleRepository.countByComplexIdAndStatusAndIsDeletedFalse(targetComplexId, VehicleStatus.APPROVED);
+        long rejected = vehicleRepository.countByComplexIdAndStatusAndIsDeletedFalse(targetComplexId, VehicleStatus.REJECTED);
+
+        return AdminVehicleStatsRes.builder()
+                .total(total)
+                .pending(pending)
+                .approved(approved)
+                .rejected(rejected)
+                .build();
+    }
+
+    // 관리자 차량 화면 동/호 옵션을 조회한다.
+    @Transactional(readOnly = true)
+    public AdminVehicleLocationRes getAdminVehicleLocations(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 단지 세대 캐시를 동 기준으로 묶어 호 목록을 중복 없이 수집
+        Map<String, Set<String>> unitsByBuilding = new HashMap<>();
+        for (HouseholdCache household : householdCacheRepository.findByComplexId(targetComplexId)) {
+            if (household.getBuilding() == null || household.getUnit() == null) {
+                continue;
+            }
+            unitsByBuilding.computeIfAbsent(household.getBuilding(), key -> new HashSet<>()).add(household.getUnit());
+        }
+
+        // 동/호를 자연 정렬해 응답 항목 구성
+        List<AdminVehicleLocationRes.Building> buildings = unitsByBuilding.entrySet().stream()
+                .sorted((a, b) -> compareNatural(a.getKey(), b.getKey()))
+                .map(entry -> AdminVehicleLocationRes.Building.builder()
+                        .building(entry.getKey())
+                        .units(entry.getValue().stream().sorted(this::compareNatural).toList())
+                        .build())
+                .toList();
+
+        return AdminVehicleLocationRes.builder()
+                .buildings(buildings)
+                .build();
+    }
+
+    // 동/호 문자열을 자연 정렬한다. 숫자는 수치로 비교하고 숫자를 문자보다 앞에 둔다.
+    private int compareNatural(String a, String b) {
+        Integer numberA = parseIntOrNull(a);
+        Integer numberB = parseIntOrNull(b);
+        if (numberA != null && numberB != null) {
+            return Integer.compare(numberA, numberB);
+        }
+        if (numberA != null) {
+            return -1;
+        }
+        if (numberB != null) {
+            return 1;
+        }
+        return a.compareTo(b);
+    }
+
+    // 정수 변환을 시도하고 실패하면 null을 반환한다.
+    private Integer parseIntOrNull(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
 }
