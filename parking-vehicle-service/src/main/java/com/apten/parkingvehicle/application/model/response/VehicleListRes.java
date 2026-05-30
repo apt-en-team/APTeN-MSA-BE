@@ -14,6 +14,12 @@ public class VehicleListRes {
     // 차량 ID이다.
     private Long vehicleId;
 
+    // 등록자 사용자 ID이다.
+    private Long userId;
+
+    // 등록자 이름이다.
+    private String residentName;
+
     // 차량 번호이다.
     private String licensePlate;
 
