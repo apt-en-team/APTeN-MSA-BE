@@ -21,6 +21,7 @@ import com.apten.household.application.model.response.HouseholdMemberDeleteRes;
 import com.apten.household.application.model.response.HouseholdMemberListRes;
 import com.apten.household.application.model.response.HouseholdMemberPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberPostRes;
+import com.apten.household.application.model.response.HouseholdMemberRepublishRes;
 import com.apten.household.application.model.response.HouseholdStatusPatchRes;
 import com.apten.household.application.model.response.MyHouseholdRes;
 import com.apten.household.domain.entity.ExpectedResident;
@@ -376,6 +377,21 @@ public class HouseholdService {
                             .build();
                 })
                 .toList();
+    }
+
+    // 전 세대원 이벤트 재발행 서비스이다.
+    // parking-vehicle-service의 household_member_cache 초기 백필을 위해 관리자가 1회 호출한다.
+    public HouseholdMemberRepublishRes republishAllHouseholdMembers() {
+        // 전 세대원을 한 번에 조회한다. 데이터 규모가 커지면 페이징 기반 재발행으로 전환이 필요하다.
+        List<HouseholdMember> members = householdMemberRepository.findAll();
+
+        // 각 세대원을 기존 생성 이벤트로 outbox에 적재한다. consumer가 upsert라 created/updated 구분이 불필요하다.
+        members.forEach(householdOutboxService::saveHouseholdMemberCreatedEvent);
+
+        return HouseholdMemberRepublishRes.builder()
+                .republishedCount(members.size())
+                .message("전 세대원 이벤트 재발행 완료")
+                .build();
     }
 
     // 세대원 수정 서비스이다.
