@@ -6,6 +6,8 @@ import com.apten.parkingvehicle.application.model.request.AdminVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleLocationRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleStatsRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleApproveRes;
 import com.apten.parkingvehicle.application.model.response.VehicleRejectRes;
@@ -58,6 +60,26 @@ public class AdminVehicleController {
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
         return ResultResponse.success("전체 차량 목록 조회 성공", vehicleService.getAdminVehicleList(request, userRole, complexId, selectedComplexId));
+    }
+
+    //차량 상태별 통계 조회
+    @GetMapping("/api/admin/vehicle-stats")
+    public ResultResponse<AdminVehicleStatsRes> getAdminVehicleStats(
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success("차량 상태별 통계 조회 성공", vehicleService.getAdminVehicleStats(userRole, complexId, selectedComplexId));
+    }
+
+    //차량 동/호 옵션 조회
+    @GetMapping("/api/admin/vehicle-locations")
+    public ResultResponse<AdminVehicleLocationRes> getAdminVehicleLocations(
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success("차량 동/호 옵션 조회 성공", vehicleService.getAdminVehicleLocations(userRole, complexId, selectedComplexId));
     }
 
     //관리자 차량 상세 조회

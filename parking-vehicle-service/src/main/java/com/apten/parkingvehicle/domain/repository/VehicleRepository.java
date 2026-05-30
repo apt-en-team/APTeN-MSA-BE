@@ -19,6 +19,12 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     // 세대 기준 승인 차량 수를 조회한다.
     long countByHouseholdIdAndStatusAndIsDeletedFalse(Long householdId, VehicleStatus status);
 
+    // 단지 기준 전체 차량 수를 조회한다 (소프트 삭제 제외).
+    long countByComplexIdAndIsDeletedFalse(Long complexId);
+
+    // 단지 기준 상태별 차량 수를 조회한다 (소프트 삭제 제외).
+    long countByComplexIdAndStatusAndIsDeletedFalse(Long complexId, VehicleStatus status);
+
     // 세대 기준 여러 상태의 차량 수를 한 번에 조회한다.
     long countByHouseholdIdAndStatusInAndIsDeletedFalse(Long householdId, Collection<VehicleStatus> statuses);
 
