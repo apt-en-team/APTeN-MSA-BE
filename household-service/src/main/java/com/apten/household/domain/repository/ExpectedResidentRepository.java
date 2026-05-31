@@ -31,6 +31,8 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
 
     List<ExpectedResident> findByHouseholdIdAndStatusNot(Long householdId, ExpectedResidentStatus status);
 
+    List<ExpectedResident> findByHouseholdIdInAndStatusNot(List<Long> householdIds, ExpectedResidentStatus status);
+
     List<ExpectedResident> findByHouseholdId(Long householdId);
 
     Page<ExpectedResident> findByComplexId(Long complexId, Pageable pageable);
@@ -65,6 +67,20 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             Long householdId,
             ExpectedResidentStatus status,
             Pageable pageable
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT e.householdId) FROM ExpectedResident e
+            WHERE e.complexId = :complexId
+              AND e.status <> :excludedStatus
+              AND e.moveInDate >= :from
+              AND e.moveInDate < :to
+            """)
+    long countDistinctHouseholdsByMoveInDateBetween(
+            @Param("complexId") Long complexId,
+            @Param("excludedStatus") ExpectedResidentStatus excludedStatus,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to
     );
 
     @Query("""

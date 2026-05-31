@@ -29,6 +29,7 @@ import com.apten.household.domain.entity.ExpectedResident;
 import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdHistory;
 import com.apten.household.domain.entity.HouseholdMember;
+import com.apten.household.domain.entity.HouseholdType;
 import com.apten.household.domain.entity.UserCache;
 import com.apten.household.domain.enums.ComplexCacheStatus;
 import com.apten.household.domain.enums.ExpectedResidentStatus;
@@ -37,6 +38,7 @@ import com.apten.household.domain.enums.HouseholdStatus;
 import com.apten.household.domain.repository.ComplexCacheRepository;
 import com.apten.household.domain.repository.ExpectedResidentRepository;
 import com.apten.household.domain.repository.HouseholdHistoryRepository;
+import com.apten.household.domain.repository.HouseholdMemberCountProjection;
 import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.HouseholdRepository;
 import com.apten.household.domain.repository.HouseholdTypeRepository;
@@ -180,10 +182,56 @@ public class HouseholdService {
         Page<Household> page = request.getStatus() == null
                 ? householdRepository.findByFilters(complexId, building, unit, pageable)
                 : householdRepository.findByFiltersAndStatus(complexId, building, unit, request.getStatus(), pageable);
+        List<Household> households = page.getContent();
+        List<Long> householdIds = households.stream()
+                .map(Household::getId)
+                .toList();
+
+        Map<Long, List<ExpectedResident>> expectedResidentsByHouseholdId = householdIds.isEmpty()
+                ? Map.of()
+                : expectedResidentRepository.findByHouseholdIdInAndStatusNot(householdIds, ExpectedResidentStatus.DISABLED)
+                .stream()
+                .collect(Collectors.groupingBy(ExpectedResident::getHouseholdId));
+
+        Map<Long, Long> activeMemberCountByHouseholdId = householdIds.isEmpty()
+                ? Map.of()
+                : householdMemberRepository.countActiveMembersByHouseholdIds(householdIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        HouseholdMemberCountProjection::getHouseholdId,
+                        HouseholdMemberCountProjection::getMemberCount
+                ));
+
+        Map<Long, UserCache> userCacheMap = userCacheRepository.findAllById(
+                        households.stream()
+                                .map(Household::getHeadUserId)
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .toList()
+                )
+                .stream()
+                .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+
+        Map<Long, String> typeNameMap = householdTypeRepository.findAllById(
+                        households.stream()
+                                .map(Household::getTypeId)
+                                .filter(java.util.Objects::nonNull)
+                                .distinct()
+                                .toList()
+                )
+                .stream()
+                .filter(type -> Boolean.TRUE.equals(type.getIsActive()))
+                .collect(Collectors.toMap(HouseholdType::getId, HouseholdType::getTypeName));
 
         return HouseholdListRes.builder()
-                .content(page.getContent().stream()
-                        .map(this::toHouseholdListItem)
+                .content(households.stream()
+                        .map(household -> toHouseholdListItem(
+                                household,
+                                expectedResidentsByHouseholdId.getOrDefault(household.getId(), List.of()),
+                                activeMemberCountByHouseholdId.getOrDefault(household.getId(), 0L),
+                                userCacheMap,
+                                typeNameMap
+                        ))
                         .toList())
                 .page(page.getNumber())
                 .size(page.getSize())
@@ -537,20 +585,18 @@ public class HouseholdService {
         householdRepository.delete(household);
     }
 
-    private HouseholdListRes.Item toHouseholdListItem(Household household) {
+    private HouseholdListRes.Item toHouseholdListItem(
+            Household household,
+            List<ExpectedResident> expectedResidents,
+            long activeMemberCount,
+            Map<Long, UserCache> userCacheMap,
+            Map<Long, String> typeNameMap
+    ) {
         String headName = null;
         if (household.getHeadUserId() != null) {
-            try {
-                headName = userCacheRepository.findById(household.getHeadUserId())
-                        .map(UserCache::getName)
-                        .orElse(null);
-            } catch (Exception ignored) {
-            }
+            UserCache userCache = userCacheMap.get(household.getHeadUserId());
+            headName = userCache == null ? null : userCache.getName();
         }
-        List<ExpectedResident> expectedResidents = expectedResidentRepository.findByHouseholdIdAndStatusNot(
-                household.getId(),
-                ExpectedResidentStatus.DISABLED
-        );
         if (headName == null) {
             headName = expectedResidents.stream()
                     .filter(expectedResident -> expectedResident.getHouseholdRole() == HouseholdMemberRole.HEAD)
@@ -559,7 +605,7 @@ public class HouseholdService {
                     .orElse(null);
         }
         long memberCount = expectedResidents.isEmpty()
-                ? householdMemberRepository.countByHouseholdIdAndIsActiveTrue(household.getId())
+                ? activeMemberCount
                 : expectedResidents.size();
 
         return HouseholdListRes.Item.builder()
@@ -568,7 +614,7 @@ public class HouseholdService {
                 .building(household.getBuilding())
                 .unit(household.getUnit())
                 .typeId(household.getTypeId())
-                .typeName(resolveTypeName(household.getTypeId()))
+                .typeName(typeNameMap.get(household.getTypeId()))
                 .status(household.getStatus())
                 .headName(headName)
                 .memberCount(memberCount)
@@ -579,14 +625,19 @@ public class HouseholdService {
 
     private HouseholdListRes.Summary buildHouseholdSummary(Long complexId) {
         LocalDate now = LocalDate.now();
-        LocalDateTime from = now.withDayOfMonth(1).atStartOfDay();
-        LocalDateTime to = now.plusMonths(1).withDayOfMonth(1).atStartOfDay();
+        LocalDate from = now.withDayOfMonth(1);
+        LocalDate to = now.plusMonths(1).withDayOfMonth(1);
 
         return HouseholdListRes.Summary.builder()
                 .totalHouseholds(householdRepository.countByComplexId(complexId))
                 .occupiedHouseholds(householdRepository.countByComplexIdAndStatus(complexId, HouseholdStatus.OCCUPIED))
                 .vacantHouseholds(householdRepository.countByComplexIdAndStatus(complexId, HouseholdStatus.VACANT))
-                .currentMonthMoveIns(householdRepository.countByComplexIdAndStatusAndUpdatedAtBetween(complexId, HouseholdStatus.OCCUPIED, from, to))
+                .currentMonthMoveIns(expectedResidentRepository.countDistinctHouseholdsByMoveInDateBetween(
+                        complexId,
+                        ExpectedResidentStatus.DISABLED,
+                        from,
+                        to
+                ))
                 .build();
     }
 
