@@ -83,6 +83,7 @@ public class ExpectedResident extends BaseEntity {
 
     // 명부가 실제 회원가입 사용자와 매칭되면 연결 정보만 기록한다.
     public void markMatched(Long userId) {
+        this.status = ExpectedResidentStatus.MATCHED;
         this.matchedUserId = userId;
         this.matchedAt = LocalDateTime.now();
     }

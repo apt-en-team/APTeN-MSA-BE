@@ -24,14 +24,17 @@ import com.apten.household.application.model.response.HouseholdMemberPostRes;
 import com.apten.household.application.model.response.HouseholdMemberRepublishRes;
 import com.apten.household.application.model.response.HouseholdStatusPatchRes;
 import com.apten.household.application.model.response.MyHouseholdRes;
+import com.apten.household.domain.entity.ComplexCache;
 import com.apten.household.domain.entity.ExpectedResident;
 import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdHistory;
 import com.apten.household.domain.entity.HouseholdMember;
 import com.apten.household.domain.entity.UserCache;
+import com.apten.household.domain.enums.ComplexCacheStatus;
 import com.apten.household.domain.enums.ExpectedResidentStatus;
 import com.apten.household.domain.enums.HouseholdMemberRole;
 import com.apten.household.domain.enums.HouseholdStatus;
+import com.apten.household.domain.repository.ComplexCacheRepository;
 import com.apten.household.domain.repository.ExpectedResidentRepository;
 import com.apten.household.domain.repository.HouseholdHistoryRepository;
 import com.apten.household.domain.repository.HouseholdMemberRepository;
@@ -61,6 +64,9 @@ public class HouseholdService {
     // 세대 저장소이다.
     private final HouseholdRepository householdRepository;
 
+    // 단지 캐시 저장소이다.
+    private final ComplexCacheRepository complexCacheRepository;
+
     // 세대원 저장소이다.
     private final HouseholdMemberRepository householdMemberRepository;
 
@@ -81,9 +87,8 @@ public class HouseholdService {
 
     // 세대 마스터 등록 서비스이다.
     public HouseholdCreateRes createHousehold(Long complexId, HouseholdCreateReq request) {
-        // TODO Gateway Header에서 해석한 complexId를 기준으로 권한과 단지 범위를 최종 검증한다.
-        // TODO request.complexId 필드는 하위 호환용으로만 남겨두고 더 이상 신뢰하지 않는다.
-        // TODO complex_cache에서 단지 활성 상태를 확인한다.
+        // Gateway Header에서 해석한 complexId만 신뢰하고, 요청 본문의 complexId는 사용하지 않는다.
+        validateActiveComplex(complexId);
         if (householdRepository.existsByComplexIdAndBuildingAndUnit(complexId, request.getBuilding(), request.getUnit())) {
             throw new BusinessException(HouseholdErrorCode.DUPLICATE_HOUSEHOLD);
         }
@@ -113,6 +118,7 @@ public class HouseholdService {
 
     public HouseholdBulkCreateRes createHouseholdsBulk(Long complexId, HouseholdBulkCreateReq request) {
         validateBulkCreateRequest(request);
+        validateActiveComplex(complexId);
 
         String building = request.getBuilding().trim();
         int floorStart = request.getFloorStart() == null ? 1 : request.getFloorStart();
@@ -191,9 +197,7 @@ public class HouseholdService {
     // 세대 상세 조회 서비스이다.
     public HouseholdDetailRes getHouseholdDetail(Long complexId, Long householdId) {
         Household household = getHouseholdForComplex(complexId, householdId);
-        //TODO 세대 기본 정보 조회
-        //TODO 세대원 목록 조회
-        //TODO 최근 청구 요약 조회
+        // 세대 기본 정보와 등록입주민 명부 기준 요약 정보를 조회한다.
         List<ExpectedResident> expectedResidents = expectedResidentRepository.findByHouseholdIdAndStatusNot(
                 household.getId(),
                 ExpectedResidentStatus.DISABLED
@@ -228,6 +232,7 @@ public class HouseholdService {
 
     // 세대 정보 수정 서비스이다.
     public HouseholdPatchRes updateHousehold(Long complexId, Long householdId, HouseholdPatchReq request) {
+        validateActiveComplex(complexId);
         Household household = getHouseholdForComplex(complexId, householdId);
         String nextBuilding = request.getBuilding() != null ? request.getBuilding() : household.getBuilding();
         String nextUnit = request.getUnit() != null ? request.getUnit() : household.getUnit();
@@ -242,7 +247,7 @@ public class HouseholdService {
             throw new BusinessException(HouseholdErrorCode.DUPLICATE_HOUSEHOLD);
         }
 
-        // TODO request의 단지 식별자 값이 있더라도 Header에서 해석한 complexId를 우선 사용한다.
+        // 요청 본문의 단지 식별자 값이 있더라도 Header에서 해석한 complexId를 우선 사용한다.
         household.update(
                 complexId,
                 nextBuilding,
@@ -267,14 +272,17 @@ public class HouseholdService {
 
     // 세대 상태 변경 서비스이다.
     public HouseholdStatusPatchRes changeHouseholdStatus(Long complexId, Long householdId, HouseholdStatusPatchReq request) {
+        validateActiveComplex(complexId);
         Household household = getHouseholdForComplex(complexId, householdId);
 
-        // TODO 상태 변경에 따른 세대원/정산 연쇄 처리 정책은 담당자가 후속 구현한다.
         if (request.getStatus() == null) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_STATUS_INVALID);
         }
         HouseholdStatus fromStatus = household.getStatus();
         household.changeStatus(request.getStatus());
+        if (request.getStatus() == HouseholdStatus.MOVED_OUT) {
+            applyMoveOutCascade(household);
+        }
         Household savedHousehold = householdRepository.save(household);
 
         saveHouseholdHistory(
@@ -584,6 +592,37 @@ public class HouseholdService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    // 단지 캐시 기준으로 존재 여부와 활성 상태를 검증한다.
+    private void validateActiveComplex(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        ComplexCache complexCache = complexCacheRepository.findById(complexId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.COMPLEX_NOT_FOUND));
+        if (complexCache.getStatus() != ComplexCacheStatus.ACTIVE) {
+            throw new BusinessException(HouseholdErrorCode.COMPLEX_NOT_FOUND);
+        }
+    }
+
+    // 퇴거 처리 시 활성 세대원과 등록입주민 명부를 비활성화한다.
+    private void applyMoveOutCascade(Household household) {
+        household.changeHeadUserId(null);
+
+        List<HouseholdMember> activeMembers = householdMemberRepository.findByHouseholdId(household.getId()).stream()
+                .filter(member -> Boolean.TRUE.equals(member.getIsActive()))
+                .toList();
+        activeMembers.forEach(member -> member.changeActive(false));
+        householdMemberRepository.saveAll(activeMembers);
+        activeMembers.forEach(householdOutboxService::saveHouseholdMemberRemovedEvent);
+
+        List<ExpectedResident> activeExpectedResidents = expectedResidentRepository.findByHouseholdIdAndStatusNot(
+                household.getId(),
+                ExpectedResidentStatus.DISABLED
+        );
+        activeExpectedResidents.forEach(ExpectedResident::disable);
+        expectedResidentRepository.saveAll(activeExpectedResidents);
     }
 
     private String resolveTypeName(Long typeId) {

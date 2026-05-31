@@ -20,6 +20,13 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             ExpectedResidentStatus status
     );
 
+    List<ExpectedResident> findByComplexIdAndBuildingAndUnitAndStatusNot(
+            Long complexId,
+            String building,
+            String unit,
+            ExpectedResidentStatus status
+    );
+
     List<ExpectedResident> findByHouseholdIdAndStatus(Long householdId, ExpectedResidentStatus status);
 
     List<ExpectedResident> findByHouseholdIdAndStatusNot(Long householdId, ExpectedResidentStatus status);
