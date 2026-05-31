@@ -24,6 +24,9 @@ public class VisitorVehicleDetailRes {
     // 연락처이다.
     private String phone;
 
+    // 방문 목적이다.
+    private String visitPurpose;
+
     // 방문 예정일이다.
     private LocalDate visitDate;
 
@@ -44,4 +47,7 @@ public class VisitorVehicleDetailRes {
 
     // 수정 시각이다.
     private LocalDateTime updatedAt;
+
+    // 요청자 본인 등록 여부이다.
+    private Boolean isMine;
 }

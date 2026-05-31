@@ -11,6 +11,7 @@ import com.apten.parkingvehicle.application.model.request.VisitorVehicleReRegist
 import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleStatsRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VisitorVehicleCancelRes;
 import com.apten.parkingvehicle.application.model.response.VisitorVehicleCreateRes;
@@ -22,18 +23,19 @@ import com.apten.parkingvehicle.application.model.response.VisitorVehiclePatchRe
 import com.apten.parkingvehicle.application.model.response.VisitorVehicleReRegisterRes;
 import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
+import com.apten.parkingvehicle.domain.entity.HouseholdMemberCache;
 import com.apten.parkingvehicle.domain.entity.UserCache;
 import com.apten.parkingvehicle.domain.entity.VisitorVehicle;
 import com.apten.parkingvehicle.domain.enums.ParkingTargetDateType;
 import com.apten.parkingvehicle.domain.enums.VisitorVehicleStatus;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
+import com.apten.parkingvehicle.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
 import com.apten.parkingvehicle.domain.repository.VisitorVehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -59,6 +61,9 @@ public class VisitorVehicleService {
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
 
+    // 세대 구성원 캐시 저장소
+    private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+
     // 방문차량 알림 outbox 적재 서비스
     private final ParkingVehicleOutboxService parkingVehicleOutboxService;
 
@@ -83,19 +88,15 @@ public class VisitorVehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 방문 시간대 필수값 검증
-        if (request.getStartTime() == null || request.getEndTime() == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
         // 방문 예정일 유효성 검증 — null과 과거 날짜 거부, 같은 날은 허용
         LocalDate visitDate = request.getVisitDate();
         if (visitDate == null || visitDate.isBefore(LocalDate.now())) {
             throw new BusinessException(ParkingVehicleErrorCode.VISIT_DATE_INVALID);
         }
 
-        // 세대주 기준 세대 조회 — 세대원이면 여기서 차단
-        HouseholdCache household = householdCacheRepository.findByHeadUserId(userId)
+        // 세대 구성원 기준 세대 해석 — 세대주와 세대원 모두 본인 세대로 등록 가능
+        Long householdId = resolveHouseholdId(userId);
+        HouseholdCache household = householdCacheRepository.findById(householdId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
 
         // 헤더 단지와 세대 단지 일치 검증, 불일치는 세대 미존재와 동일하게 처리
@@ -112,8 +113,7 @@ public class VisitorVehicleService {
                 .visitorName(request.getVisitorName())
                 .phone(request.getPhone())
                 .visitDate(visitDate)
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
+                .visitPurpose(request.getVisitPurpose())
                 .build();
 
         VisitorVehicle saved = visitorVehicleRepository.save(entity);
@@ -147,13 +147,16 @@ public class VisitorVehicleService {
         int size = request.getSize() != null && request.getSize() > 0 ? request.getSize() : 20;
         Pageable pageable = PageRequest.of(page, size);
 
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
         // 상태 필터 유무로 쿼리 메서드 분기 — enum null 비교 회피, 기간 조건은 양쪽 모두 동적 처리
         Page<VisitorVehicle> resultPage = request.getStatus() != null
-                ? visitorVehicleRepository.findMyVisitorVehiclesByStatus(
-                        userId, complexId, request.getStatus(),
+                ? visitorVehicleRepository.findHouseholdVisitorVehiclesByStatus(
+                        householdId, complexId, request.getStatus(),
                         request.getFromDate(), request.getToDate(), pageable)
-                : visitorVehicleRepository.findMyVisitorVehicles(
-                        userId, complexId,
+                : visitorVehicleRepository.findHouseholdVisitorVehicles(
+                        householdId, complexId,
                         request.getFromDate(), request.getToDate(), pageable);
 
         // 응답 DTO 매핑
@@ -163,11 +166,13 @@ public class VisitorVehicleService {
                         .licensePlate(v.getLicensePlate())
                         .visitorName(v.getVisitorName())
                         .phone(v.getPhone())
+                        .visitPurpose(v.getVisitPurpose())
                         .visitDate(v.getVisitDate())
                         .startTime(v.getStartTime())
                         .endTime(v.getEndTime())
                         .status(v.getStatus())
                         .createdAt(v.getCreatedAt())
+                        .isMine(v.getUserId().equals(userId))
                         .build())
                 .toList();
 
@@ -187,9 +192,17 @@ public class VisitorVehicleService {
         // 입주민 컨텍스트 검증
         RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
-        // 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
-        VisitorVehicle visitorVehicle = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
+        // 방문차량 단건 조회, 미존재 시 404
+        VisitorVehicle visitorVehicle = visitorVehicleRepository.findByIdAndIsDeletedFalse(visitorVehicleId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 같은 세대 방문차량이 아니면 존재를 노출하지 않고 404로 차단
+        if (!visitorVehicle.getHouseholdId().equals(householdId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND);
+        }
 
         // 방문차량 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
         if (!visitorVehicle.getComplexId().equals(complexId)) {
@@ -201,6 +214,7 @@ public class VisitorVehicleService {
                 .licensePlate(visitorVehicle.getLicensePlate())
                 .visitorName(visitorVehicle.getVisitorName())
                 .phone(visitorVehicle.getPhone())
+                .visitPurpose(visitorVehicle.getVisitPurpose())
                 .visitDate(visitorVehicle.getVisitDate())
                 .startTime(visitorVehicle.getStartTime())
                 .endTime(visitorVehicle.getEndTime())
@@ -208,6 +222,7 @@ public class VisitorVehicleService {
                 .sourceId(visitorVehicle.getSourceId())
                 .createdAt(visitorVehicle.getCreatedAt())
                 .updatedAt(visitorVehicle.getUpdatedAt())
+                .isMine(visitorVehicle.getUserId().equals(userId))
                 .build();
     }
 
@@ -236,12 +251,8 @@ public class VisitorVehicleService {
             throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_STATUS_INVALID);
         }
 
-        // 기존 방문 시작 일시가 이미 지났으면 수정 불가 (startTime null이면 visitDate 자정으로 폴백)
-        LocalTime existingStartTime = visitorVehicle.getStartTime();
-        LocalDateTime visitStart = existingStartTime != null
-                ? LocalDateTime.of(visitorVehicle.getVisitDate(), existingStartTime)
-                : visitorVehicle.getVisitDate().atStartOfDay();
-        if (!visitStart.isAfter(LocalDateTime.now())) {
+        // 기존 방문 예정일이 이미 지났으면 수정 불가
+        if (visitorVehicle.getVisitDate().isBefore(LocalDate.now())) {
             throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_STATUS_INVALID);
         }
 
@@ -254,11 +265,10 @@ public class VisitorVehicleService {
         // 부분 갱신값 계산 — visitDate 외 null 필드는 기존값 유지
         String visitorName = request.getVisitorName() != null ? request.getVisitorName() : visitorVehicle.getVisitorName();
         String phone = request.getPhone() != null ? request.getPhone() : visitorVehicle.getPhone();
-        LocalTime startTime = request.getStartTime() != null ? request.getStartTime() : visitorVehicle.getStartTime();
-        LocalTime endTime = request.getEndTime() != null ? request.getEndTime() : visitorVehicle.getEndTime();
+        String visitPurpose = request.getVisitPurpose() != null ? request.getVisitPurpose() : visitorVehicle.getVisitPurpose();
 
-        // 엔티티 부분 갱신 적용
-        visitorVehicle.update(visitorName, phone, visitDate, startTime, endTime);
+        // 엔티티 부분 갱신 적용, 시간은 기존값 그대로 전달
+        visitorVehicle.update(visitorName, phone, visitDate, visitorVehicle.getStartTime(), visitorVehicle.getEndTime(), visitPurpose);
 
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         VisitorVehicle saved = visitorVehicleRepository.save(visitorVehicle);
@@ -357,18 +367,21 @@ public class VisitorVehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 원본 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
-        VisitorVehicle source = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
+        // 원본 방문차량 단건 조회, 미존재 시 404
+        VisitorVehicle source = visitorVehicleRepository.findByIdAndIsDeletedFalse(visitorVehicleId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 같은 세대 방문차량이 아니면 존재를 노출하지 않고 404로 차단
+        if (!source.getHouseholdId().equals(householdId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND);
+        }
 
         // 원본 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
         if (!source.getComplexId().equals(complexId)) {
             throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_COMPLEX_MISMATCH);
-        }
-
-        // 방문 시간대 필수값 검증
-        if (request.getStartTime() == null || request.getEndTime() == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
         // 방문 예정일 유효성 검증 — null과 과거 날짜 거부, 같은 날은 허용
@@ -377,17 +390,16 @@ public class VisitorVehicleService {
             throw new BusinessException(ParkingVehicleErrorCode.VISIT_DATE_INVALID);
         }
 
-        // 신규 방문차량 엔티티 — 식별/연락 정보는 원본 승계, 일정은 요청값, sourceId는 원본 ID
+        // 신규 방문차량 엔티티 — userId는 재등록 실행자, 식별/연락 정보는 원본 승계, 일정은 요청값, sourceId는 원본 ID
         VisitorVehicle entity = VisitorVehicle.builder()
-                .userId(source.getUserId())
+                .userId(userId)
                 .householdId(source.getHouseholdId())
                 .complexId(source.getComplexId())
                 .licensePlate(source.getLicensePlate())
                 .visitorName(source.getVisitorName())
                 .phone(source.getPhone())
                 .visitDate(visitDate)
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
+                .visitPurpose(source.getVisitPurpose())
                 .sourceId(source.getId())
                 .build();
 
@@ -435,11 +447,6 @@ public class VisitorVehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 방문 시간대 필수값 검증
-        if (request.getStartTime() == null || request.getEndTime() == null) {
-            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
-        }
-
         // 방문 예정일 유효성 검증 — null과 과거 날짜 거부, 같은 날은 허용
         LocalDate visitDate = request.getVisitDate();
         if (visitDate == null || visitDate.isBefore(LocalDate.now())) {
@@ -470,8 +477,7 @@ public class VisitorVehicleService {
                 .visitorName(request.getVisitorName())
                 .phone(request.getPhone())
                 .visitDate(visitDate)
-                .startTime(request.getStartTime())
-                .endTime(request.getEndTime())
+                .visitPurpose(request.getVisitPurpose())
                 .memo(request.getMemo())
                 .build();
 
@@ -539,6 +545,7 @@ public class VisitorVehicleService {
                             .licensePlate(v.getLicensePlate())
                             .visitorName(v.getVisitorName())
                             .phone(v.getPhone())
+                            .visitPurpose(v.getVisitPurpose())
                             .visitDate(v.getVisitDate())
                             .startTime(v.getStartTime())
                             .endTime(v.getEndTime())
@@ -589,6 +596,7 @@ public class VisitorVehicleService {
                 .licensePlate(visitorVehicle.getLicensePlate())
                 .visitorName(visitorVehicle.getVisitorName())
                 .phone(visitorVehicle.getPhone())
+                .visitPurpose(visitorVehicle.getVisitPurpose())
                 .visitDate(visitorVehicle.getVisitDate())
                 .startTime(visitorVehicle.getStartTime())
                 .endTime(visitorVehicle.getEndTime())
@@ -620,6 +628,43 @@ public class VisitorVehicleService {
                 .expiredCount(targets.size())
                 .executedAt(LocalDateTime.now())
                 .build();
+    }
+
+    // 관리자 방문차량 통계를 조회한다.
+    @Transactional(readOnly = true)
+    public AdminVisitorVehicleStatsRes getAdminVisitorVehicleStats(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 기준 날짜와 이번 달 범위 계산
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate monthEnd = today.withDayOfMonth(today.lengthOfMonth());
+
+        // 오늘 방문 예정 건수 집계, 등록완료 상태만
+        long todayScheduled = visitorVehicleRepository
+                .countByComplexIdAndVisitDateAndStatusAndIsDeletedFalse(targetComplexId, today, VisitorVehicleStatus.APPROVED);
+
+        // 앞으로 올 방문 건수 집계, 오늘 포함 이후 등록완료 상태만
+        long upcoming = visitorVehicleRepository
+                .countByComplexIdAndVisitDateGreaterThanEqualAndStatusAndIsDeletedFalse(targetComplexId, today, VisitorVehicleStatus.APPROVED);
+
+        // 이번 달 전체 건수 집계, 상태 무관 미삭제만
+        long monthTotal = visitorVehicleRepository
+                .countByComplexIdAndVisitDateBetweenAndIsDeletedFalse(targetComplexId, monthStart, monthEnd);
+
+        return AdminVisitorVehicleStatsRes.builder()
+                .todayScheduled(todayScheduled)
+                .upcoming(upcoming)
+                .monthTotal(monthTotal)
+                .build();
+    }
+
+    // 요청자 userId로 활성 세대 매핑을 해석해 householdId를 반환한다. 미동기화면 세대 미존재로 처리.
+    private Long resolveHouseholdId(Long userId) {
+        return householdMemberCacheRepository.findByUserIdAndIsActiveTrue(userId)
+                .map(HouseholdMemberCache::getHouseholdId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
     }
 
 }

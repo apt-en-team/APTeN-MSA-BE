@@ -6,12 +6,15 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 고정 방문차량 등록 요청 DTO이다.
+// 관리자 고정 방문차량 등록 요청 DTO이다.
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegularVisitorVehicleCreateReq {
+public class AdminRegularVisitorVehicleCreateReq {
+
+    // 세대 ID이다.
+    private Long householdId;
 
     // 차량 번호이다.
     private String licensePlate;

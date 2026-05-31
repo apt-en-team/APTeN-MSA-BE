@@ -5,22 +5,19 @@ import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
-// 고정 방문차량 목록 항목 응답 DTO이다.
+// 관리자 고정 방문차량 등록 응답 DTO이다.
 @Getter
 @Builder
-public class RegularVisitorVehicleListRes {
+public class AdminRegularVisitorVehicleCreateRes {
 
     // 고정 방문차량 ID이다.
     private Long regularVisitorVehicleId;
 
+    // 세대 ID이다.
+    private Long householdId;
+
     // 차량 번호이다.
     private String licensePlate;
-
-    // 방문자 이름이다.
-    private String visitorName;
-
-    // 연락처이다.
-    private String phone;
 
     // 방문 목적이다.
     private String visitPurpose;
@@ -36,7 +33,4 @@ public class RegularVisitorVehicleListRes {
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
-
-    // 요청자 본인 등록 여부이다.
-    private Boolean isMine;
 }

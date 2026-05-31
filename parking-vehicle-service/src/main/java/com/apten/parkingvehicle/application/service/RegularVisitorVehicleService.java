@@ -2,25 +2,36 @@ package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.parkingvehicle.application.model.request.AdminRegularVisitorVehicleCreateReq;
+import com.apten.parkingvehicle.application.model.request.AdminRegularVisitorVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.RegularVisitorVehicleCreateReq;
 import com.apten.parkingvehicle.application.model.request.RegularVisitorVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.RegularVisitorVehiclePatchReq;
+import com.apten.parkingvehicle.application.model.response.AdminRegularVisitorVehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.AdminRegularVisitorVehicleDeleteRes;
+import com.apten.parkingvehicle.application.model.response.AdminRegularVisitorVehicleListRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleDeleteRes;
+import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleListRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehiclePatchRes;
 import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
+import com.apten.parkingvehicle.domain.entity.HouseholdMemberCache;
 import com.apten.parkingvehicle.domain.entity.RegularVisitorVehicle;
+import com.apten.parkingvehicle.domain.entity.UserCache;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
+import com.apten.parkingvehicle.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.parkingvehicle.domain.repository.RegularVisitorVehicleRepository;
+import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,6 +49,12 @@ public class RegularVisitorVehicleService {
 
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
+
+    // 세대 구성원 캐시 저장소
+    private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+
+    // 사용자 캐시 저장소
+    private final UserCacheRepository userCacheRepository;
 
     // 고정 방문차량 알림 outbox 적재 서비스
     private final ParkingVehicleOutboxService parkingVehicleOutboxService;
@@ -73,8 +90,9 @@ public class RegularVisitorVehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 세대주 기준 세대 조회, 세대원이면 여기서 차단
-        HouseholdCache household = householdCacheRepository.findByHeadUserId(userId)
+        // 세대 구성원 기준 세대 해석 — 세대주와 세대원 모두 본인 세대로 등록 가능
+        Long householdId = resolveHouseholdId(userId);
+        HouseholdCache household = householdCacheRepository.findById(householdId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
 
         // 헤더 단지와 세대 단지 일치 검증, 불일치는 세대 미존재와 동일하게 처리
@@ -90,6 +108,7 @@ public class RegularVisitorVehicleService {
                 .licensePlate(licensePlate)
                 .visitorName(request.getVisitorName())
                 .phone(request.getPhone())
+                .visitPurpose(request.getVisitPurpose())
                 .startDate(startDate)
                 .endDate(endDate)
                 .build();
@@ -108,6 +127,7 @@ public class RegularVisitorVehicleService {
                 .licensePlate(saved.getLicensePlate())
                 .visitorName(saved.getVisitorName())
                 .phone(saved.getPhone())
+                .visitPurpose(saved.getVisitPurpose())
                 .startDate(saved.getStartDate())
                 .endDate(saved.getEndDate())
                 .isActive(saved.getIsActive())
@@ -128,10 +148,13 @@ public class RegularVisitorVehicleService {
         int size = request.getSize() != null && request.getSize() > 0 ? request.getSize() : 20;
         Pageable pageable = PageRequest.of(page, size);
 
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
         // 활성 필터 유무로 쿼리 메서드 분기, Boolean null 비교 회피
         Page<RegularVisitorVehicle> resultPage = request.getIsActive() != null
-                ? regularVisitorVehicleRepository.findByUserIdAndIsActiveAndIsDeletedFalse(userId, request.getIsActive(), pageable)
-                : regularVisitorVehicleRepository.findByUserIdAndIsDeletedFalse(userId, pageable);
+                ? regularVisitorVehicleRepository.findByHouseholdIdAndIsActiveAndIsDeletedFalse(householdId, request.getIsActive(), pageable)
+                : regularVisitorVehicleRepository.findByHouseholdIdAndIsDeletedFalse(householdId, pageable);
 
         // 응답 DTO 매핑
         List<RegularVisitorVehicleListRes> content = resultPage.getContent().stream()
@@ -140,10 +163,12 @@ public class RegularVisitorVehicleService {
                         .licensePlate(r.getLicensePlate())
                         .visitorName(r.getVisitorName())
                         .phone(r.getPhone())
+                        .visitPurpose(r.getVisitPurpose())
                         .startDate(r.getStartDate())
                         .endDate(r.getEndDate())
                         .isActive(r.getIsActive())
                         .createdAt(r.getCreatedAt())
+                        .isMine(r.getUserId().equals(userId))
                         .build())
                 .toList();
 
@@ -154,6 +179,44 @@ public class RegularVisitorVehicleService {
                 .totalElements(resultPage.getTotalElements())
                 .totalPages(resultPage.getTotalPages())
                 .hasNext(resultPage.hasNext())
+                .build();
+    }
+
+    // 내 고정 방문차량 상세를 조회한다.
+    @Transactional(readOnly = true)
+    public RegularVisitorVehicleDetailRes getMyRegularVisitorVehicleDetail(Long regularVisitorVehicleId, Long userId, String userRole, Long complexId) {
+        // 입주민 컨텍스트 검증
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
+
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
+        // 고정 방문차량 단건 조회, 미존재 시 404
+        RegularVisitorVehicle entity = regularVisitorVehicleRepository.findByIdAndIsDeletedFalse(regularVisitorVehicleId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.REGULAR_VISITOR_NOT_FOUND));
+
+        // 같은 세대 고정 방문차량이 아니면 존재를 노출하지 않고 404로 차단
+        if (!entity.getHouseholdId().equals(householdId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.REGULAR_VISITOR_NOT_FOUND);
+        }
+
+        // 고정 방문차량 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
+        if (!entity.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.REGULAR_VISITOR_COMPLEX_MISMATCH);
+        }
+
+        return RegularVisitorVehicleDetailRes.builder()
+                .regularVisitorVehicleId(entity.getId())
+                .licensePlate(entity.getLicensePlate())
+                .visitorName(entity.getVisitorName())
+                .phone(entity.getPhone())
+                .visitPurpose(entity.getVisitPurpose())
+                .startDate(entity.getStartDate())
+                .endDate(entity.getEndDate())
+                .isActive(entity.getIsActive())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .isMine(entity.getUserId().equals(userId))
                 .build();
     }
 
@@ -187,6 +250,7 @@ public class RegularVisitorVehicleService {
         LocalDate startDate = request.getStartDate() != null ? request.getStartDate() : entity.getStartDate();
         LocalDate endDate = request.getEndDate() != null ? request.getEndDate() : entity.getEndDate();
         Boolean isActive = request.getIsActive() != null ? request.getIsActive() : entity.getIsActive();
+        String visitPurpose = request.getVisitPurpose() != null ? request.getVisitPurpose() : entity.getVisitPurpose();
 
         // 기간 일관성 검증, endDate가 있을 때 startDate 이전이면 거부
         if (endDate != null && endDate.isBefore(startDate)) {
@@ -194,7 +258,7 @@ public class RegularVisitorVehicleService {
         }
 
         // 엔티티 부분 갱신 적용
-        entity.update(visitorName, phone, startDate, endDate, isActive);
+        entity.update(visitorName, phone, startDate, endDate, isActive, visitPurpose);
 
         // dirty checking 명시화, 다른 메서드와 패턴 통일
         RegularVisitorVehicle saved = regularVisitorVehicleRepository.save(entity);
@@ -210,6 +274,7 @@ public class RegularVisitorVehicleService {
                 .regularVisitorVehicleId(saved.getId())
                 .visitorName(saved.getVisitorName())
                 .phone(saved.getPhone())
+                .visitPurpose(saved.getVisitPurpose())
                 .startDate(saved.getStartDate())
                 .endDate(saved.getEndDate())
                 .isActive(saved.getIsActive())
@@ -283,6 +348,163 @@ public class RegularVisitorVehicleService {
                 .message("고정 방문차량 강제 삭제 완료")
                 .deletedAt(saved.getDeletedAt())
                 .build();
+    }
+
+    // 관리자 고정 방문차량 목록을 조회한다.
+    @Transactional(readOnly = true)
+    public PageResponse<AdminRegularVisitorVehicleListRes> getAdminRegularVisitorVehicleList(
+            AdminRegularVisitorVehicleListReq request, String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 페이지 파라미터 디폴트 방어
+        int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
+        int size = request.getSize() != null && request.getSize() > 0 ? request.getSize() : 20;
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 활성 필터 유무로 쿼리 메서드 분기, Boolean null 비교 회피
+        Page<RegularVisitorVehicle> resultPage = request.getIsActive() != null
+                ? regularVisitorVehicleRepository.findByComplexIdAndIsActiveAndIsDeletedFalse(targetComplexId, request.getIsActive(), pageable)
+                : regularVisitorVehicleRepository.findByComplexIdAndIsDeletedFalse(targetComplexId, pageable);
+
+        List<RegularVisitorVehicle> vehicles = resultPage.getContent();
+
+        // 세대 캐시 batch 조회로 N+1 회피
+        List<Long> householdIds = vehicles.stream().map(RegularVisitorVehicle::getHouseholdId).distinct().toList();
+        Map<Long, HouseholdCache> householdCacheMap = householdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(householdIds).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getId, h -> h));
+
+        // 사용자 캐시 batch 조회로 N+1 회피
+        List<Long> userIds = vehicles.stream().map(RegularVisitorVehicle::getUserId).distinct().toList();
+        Map<Long, UserCache> userCacheMap = userIds.isEmpty() ? Map.of() :
+                userCacheRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserCache::getId, u -> u));
+
+        // 응답 DTO 매핑, 캐시 누락 시 해당 필드 null
+        List<AdminRegularVisitorVehicleListRes> content = vehicles.stream()
+                .map(r -> {
+                    HouseholdCache householdCache = householdCacheMap.get(r.getHouseholdId());
+                    UserCache userCache = userCacheMap.get(r.getUserId());
+                    return AdminRegularVisitorVehicleListRes.builder()
+                            .regularVisitorVehicleId(r.getId())
+                            .licensePlate(r.getLicensePlate())
+                            .visitorName(r.getVisitorName())
+                            .phone(r.getPhone())
+                            .visitPurpose(r.getVisitPurpose())
+                            .startDate(r.getStartDate())
+                            .endDate(r.getEndDate())
+                            .building(householdCache != null ? householdCache.getBuilding() : null)
+                            .unit(householdCache != null ? householdCache.getUnit() : null)
+                            .residentName(userCache != null ? userCache.getName() : null)
+                            .isActive(r.getIsActive())
+                            .createdAt(r.getCreatedAt())
+                            .build();
+                })
+                .toList();
+
+        return PageResponse.<AdminRegularVisitorVehicleListRes>builder()
+                .content(content)
+                .page(resultPage.getNumber())
+                .size(resultPage.getSize())
+                .totalElements(resultPage.getTotalElements())
+                .totalPages(resultPage.getTotalPages())
+                .hasNext(resultPage.hasNext())
+                .build();
+    }
+
+    // 관리자가 고정 방문차량을 등록한다.
+    @Transactional
+    public AdminRegularVisitorVehicleCreateRes createAdminRegularVisitorVehicle(
+            AdminRegularVisitorVehicleCreateReq request, Long actorUserId, String userRole, Long complexId, Long selectedComplexId
+    ) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 요청 본문 null 검증
+        if (request == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 차량번호 필수값 검증
+        String licensePlate = request.getLicensePlate();
+        if (licensePlate == null || licensePlate.isBlank()) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 세대 식별자 필수값 검증
+        Long householdId = request.getHouseholdId();
+        if (householdId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 시작일 필수값 검증, 종료일은 미설정 허용
+        LocalDate startDate = request.getStartDate();
+        if (startDate == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 기간 일관성 검증, endDate가 있을 때 startDate 이전이면 거부
+        LocalDate endDate = request.getEndDate();
+        if (endDate != null && endDate.isBefore(startDate)) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+
+        // 요청 세대 조회
+        HouseholdCache household = householdCacheRepository.findById(householdId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
+
+        // 세대 단지가 관리자 컨텍스트 단지와 다르면 세대 미존재로 처리
+        if (!household.getComplexId().equals(targetComplexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND);
+        }
+
+        // 세대주 userId 확보 — 세대주 정보 미수신이면 사용자 미존재로 처리
+        Long headUserId = household.getHeadUserId();
+        if (headUserId == null) {
+            throw new BusinessException(ParkingVehicleErrorCode.USER_NOT_FOUND);
+        }
+
+        // 신규 고정 방문차량 엔티티 — userId는 세대주, isActive/isDeleted는 빌더 디폴트
+        RegularVisitorVehicle entity = RegularVisitorVehicle.builder()
+                .userId(headUserId)
+                .householdId(householdId)
+                .complexId(targetComplexId)
+                .licensePlate(licensePlate)
+                .visitorName(request.getVisitorName())
+                .phone(request.getPhone())
+                .visitPurpose(request.getVisitPurpose())
+                .startDate(startDate)
+                .endDate(endDate)
+                .build();
+
+        RegularVisitorVehicle saved = regularVisitorVehicleRepository.save(entity);
+
+        // 관리자 대리 등록 알림 outbox 적재 — 세대 대상, actorUserId는 컨트롤러가 전달한 관리자 식별자
+        parkingVehicleOutboxService.saveRegularVisitorVehicleNotificationEvent(
+                saved,
+                ParkingVehicleOutboxService.REGULAR_VISITOR_VEHICLE_CREATED_BY_ADMIN,
+                ParkingVehicleOutboxService.TARGET_HOUSEHOLD,
+                actorUserId);
+
+        return AdminRegularVisitorVehicleCreateRes.builder()
+                .regularVisitorVehicleId(saved.getId())
+                .householdId(saved.getHouseholdId())
+                .licensePlate(saved.getLicensePlate())
+                .visitPurpose(saved.getVisitPurpose())
+                .startDate(saved.getStartDate())
+                .endDate(saved.getEndDate())
+                .isActive(saved.getIsActive())
+                .createdAt(saved.getCreatedAt())
+                .build();
+    }
+
+    // 요청자 userId로 활성 세대 매핑을 해석해 householdId를 반환한다. 미동기화면 세대 미존재로 처리.
+    private Long resolveHouseholdId(Long userId) {
+        return householdMemberCacheRepository.findByUserIdAndIsActiveTrue(userId)
+                .map(HouseholdMemberCache::getHouseholdId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
     }
 
 }
