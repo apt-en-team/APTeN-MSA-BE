@@ -172,6 +172,7 @@ public class VisitorVehicleService {
                         .endTime(v.getEndTime())
                         .status(v.getStatus())
                         .createdAt(v.getCreatedAt())
+                        .isMine(v.getUserId().equals(userId))
                         .build())
                 .toList();
 
@@ -221,6 +222,7 @@ public class VisitorVehicleService {
                 .sourceId(visitorVehicle.getSourceId())
                 .createdAt(visitorVehicle.getCreatedAt())
                 .updatedAt(visitorVehicle.getUpdatedAt())
+                .isMine(visitorVehicle.getUserId().equals(userId))
                 .build();
     }
 
@@ -365,9 +367,17 @@ public class VisitorVehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 원본 방문차량 단건 + 소유자 동시 검증, 미존재 시 404
-        VisitorVehicle source = visitorVehicleRepository.findByIdAndUserIdAndIsDeletedFalse(visitorVehicleId, userId)
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
+        // 원본 방문차량 단건 조회, 미존재 시 404
+        VisitorVehicle source = visitorVehicleRepository.findByIdAndIsDeletedFalse(visitorVehicleId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND));
+
+        // 같은 세대 방문차량이 아니면 존재를 노출하지 않고 404로 차단
+        if (!source.getHouseholdId().equals(householdId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VISITOR_VEHICLE_NOT_FOUND);
+        }
 
         // 원본 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
         if (!source.getComplexId().equals(complexId)) {
@@ -380,9 +390,9 @@ public class VisitorVehicleService {
             throw new BusinessException(ParkingVehicleErrorCode.VISIT_DATE_INVALID);
         }
 
-        // 신규 방문차량 엔티티 — 식별/연락 정보는 원본 승계, 일정은 요청값, sourceId는 원본 ID
+        // 신규 방문차량 엔티티 — userId는 재등록 실행자, 식별/연락 정보는 원본 승계, 일정은 요청값, sourceId는 원본 ID
         VisitorVehicle entity = VisitorVehicle.builder()
-                .userId(source.getUserId())
+                .userId(userId)
                 .householdId(source.getHouseholdId())
                 .complexId(source.getComplexId())
                 .licensePlate(source.getLicensePlate())

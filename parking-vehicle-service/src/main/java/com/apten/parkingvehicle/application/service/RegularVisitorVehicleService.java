@@ -13,6 +13,7 @@ import com.apten.parkingvehicle.application.model.response.AdminRegularVisitorVe
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleDeleteRes;
+import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehicleListRes;
 import com.apten.parkingvehicle.application.model.response.RegularVisitorVehiclePatchRes;
 import com.apten.parkingvehicle.application.support.RoleContextValidator;
@@ -167,6 +168,7 @@ public class RegularVisitorVehicleService {
                         .endDate(r.getEndDate())
                         .isActive(r.getIsActive())
                         .createdAt(r.getCreatedAt())
+                        .isMine(r.getUserId().equals(userId))
                         .build())
                 .toList();
 
@@ -177,6 +179,44 @@ public class RegularVisitorVehicleService {
                 .totalElements(resultPage.getTotalElements())
                 .totalPages(resultPage.getTotalPages())
                 .hasNext(resultPage.hasNext())
+                .build();
+    }
+
+    // 내 고정 방문차량 상세를 조회한다.
+    @Transactional(readOnly = true)
+    public RegularVisitorVehicleDetailRes getMyRegularVisitorVehicleDetail(Long regularVisitorVehicleId, Long userId, String userRole, Long complexId) {
+        // 입주민 컨텍스트 검증
+        RoleContextValidator.validateResidentContext(userId, userRole, complexId);
+
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
+        // 고정 방문차량 단건 조회, 미존재 시 404
+        RegularVisitorVehicle entity = regularVisitorVehicleRepository.findByIdAndIsDeletedFalse(regularVisitorVehicleId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.REGULAR_VISITOR_NOT_FOUND));
+
+        // 같은 세대 고정 방문차량이 아니면 존재를 노출하지 않고 404로 차단
+        if (!entity.getHouseholdId().equals(householdId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.REGULAR_VISITOR_NOT_FOUND);
+        }
+
+        // 고정 방문차량 단지가 요청 단지와 다르면 단지 불일치로 접근 차단
+        if (!entity.getComplexId().equals(complexId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.REGULAR_VISITOR_COMPLEX_MISMATCH);
+        }
+
+        return RegularVisitorVehicleDetailRes.builder()
+                .regularVisitorVehicleId(entity.getId())
+                .licensePlate(entity.getLicensePlate())
+                .visitorName(entity.getVisitorName())
+                .phone(entity.getPhone())
+                .visitPurpose(entity.getVisitPurpose())
+                .startDate(entity.getStartDate())
+                .endDate(entity.getEndDate())
+                .isActive(entity.getIsActive())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .isMine(entity.getUserId().equals(userId))
                 .build();
     }
 

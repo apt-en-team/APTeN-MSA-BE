@@ -41,4 +41,7 @@ public class VisitorVehicleListRes {
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
+
+    // 요청자 본인 등록 여부이다.
+    private Boolean isMine;
 }

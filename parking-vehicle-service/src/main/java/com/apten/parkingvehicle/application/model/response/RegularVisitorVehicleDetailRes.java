@@ -5,10 +5,10 @@ import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
-// 고정 방문차량 목록 항목 응답 DTO이다.
+// 고정 방문차량 상세 조회 응답 DTO이다.
 @Getter
 @Builder
-public class RegularVisitorVehicleListRes {
+public class RegularVisitorVehicleDetailRes {
 
     // 고정 방문차량 ID이다.
     private Long regularVisitorVehicleId;
@@ -36,6 +36,9 @@ public class RegularVisitorVehicleListRes {
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
+
+    // 수정 시각이다.
+    private LocalDateTime updatedAt;
 
     // 요청자 본인 등록 여부이다.
     private Boolean isMine;

@@ -47,4 +47,7 @@ public class VisitorVehicleDetailRes {
 
     // 수정 시각이다.
     private LocalDateTime updatedAt;
+
+    // 요청자 본인 등록 여부이다.
+    private Boolean isMine;
 }
