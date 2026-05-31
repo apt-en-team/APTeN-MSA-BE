@@ -16,6 +16,7 @@ out/
 # OS
 .DS_Store
 __MACOSX/
+.claude/
 
 # Logs
 *.log
