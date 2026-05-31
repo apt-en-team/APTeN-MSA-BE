@@ -69,6 +69,7 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             Pageable pageable
     );
 
+    // 이번 달 입주 카드는 등록입주민 명부의 실제 입주일 기준으로 세대를 집계한다.
     @Query("""
             SELECT COUNT(DISTINCT e.householdId) FROM ExpectedResident e
             WHERE e.complexId = :complexId

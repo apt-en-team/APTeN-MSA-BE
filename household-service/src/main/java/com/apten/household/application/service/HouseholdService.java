@@ -187,6 +187,7 @@ public class HouseholdService {
                 .map(Household::getId)
                 .toList();
 
+        // 세대 목록의 부가 정보는 세대별 반복 조회 대신 한 번에 조회해 N+1을 방지한다.
         Map<Long, List<ExpectedResident>> expectedResidentsByHouseholdId = householdIds.isEmpty()
                 ? Map.of()
                 : expectedResidentRepository.findByHouseholdIdInAndStatusNot(householdIds, ExpectedResidentStatus.DISABLED)
@@ -623,6 +624,7 @@ public class HouseholdService {
                 .build();
     }
 
+    // 상단 통계 카드를 단지 전체 기준으로 집계한다.
     private HouseholdListRes.Summary buildHouseholdSummary(Long complexId) {
         LocalDate now = LocalDate.now();
         LocalDate from = now.withDayOfMonth(1);
