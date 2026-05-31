@@ -37,7 +37,7 @@ public class AdminRegularVisitorVehicleListRes {
     // 호 정보이다.
     private String unit;
 
-    // 세대주 이름이다.
+    // 등록자 이름이다.
     private String residentName;
 
     // 활성 여부이다.

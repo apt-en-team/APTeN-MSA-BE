@@ -21,7 +21,7 @@ public class AdminVisitorVehicleDetailRes {
     // 등록 사용자 ID이다.
     private Long userId;
 
-    // 입주민 이름이다.
+    // 등록자 이름이다.
     private String residentName;
 
     // 동 정보이다.
