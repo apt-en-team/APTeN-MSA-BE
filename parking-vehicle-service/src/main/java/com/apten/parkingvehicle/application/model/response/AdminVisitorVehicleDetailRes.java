@@ -39,6 +39,9 @@ public class AdminVisitorVehicleDetailRes {
     // 연락처이다.
     private String phone;
 
+    // 방문 목적이다.
+    private String visitPurpose;
+
     // 방문 예정일이다.
     private LocalDate visitDate;
 
