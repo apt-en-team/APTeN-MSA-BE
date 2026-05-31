@@ -34,7 +34,7 @@ public class FacilityReservationReferenceCacheService {
     // complex cache 저장소
     private final ComplexCacheRepository complexCacheRepository;
 
-    // complex feature cache 저장소
+    // complex feature cache 저장소.
     private final ComplexFeatureCacheRepository complexFeatureCacheRepository;
 
     // household cache 저장소

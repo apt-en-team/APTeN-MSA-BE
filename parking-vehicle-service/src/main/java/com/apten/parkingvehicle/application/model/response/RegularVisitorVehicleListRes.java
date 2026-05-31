@@ -22,6 +22,9 @@ public class RegularVisitorVehicleListRes {
     // 연락처이다.
     private String phone;
 
+    // 방문 목적이다.
+    private String visitPurpose;
+
     // 시작일이다.
     private LocalDate startDate;
 
@@ -33,4 +36,7 @@ public class RegularVisitorVehicleListRes {
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
+
+    // 요청자 본인 등록 여부이다.
+    private Boolean isMine;
 }

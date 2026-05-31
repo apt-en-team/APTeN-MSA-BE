@@ -29,7 +29,7 @@ apten:
     enabled: true
   internal:
     notification:
-      service-url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+      service-url: ${NOTIFICATION_SERVICE_URL:http://notification-service:80}
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}

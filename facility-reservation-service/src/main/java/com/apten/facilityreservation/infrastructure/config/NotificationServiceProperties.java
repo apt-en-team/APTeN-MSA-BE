@@ -12,6 +12,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class NotificationServiceProperties {
 
     // 로컬은 localhost, 배포는 서비스 DNS 주소를 yml/env에서 주입한다
-    // 예: http://localhost:9081 또는 http://notification-service:8080
+    // 예: 로컬 http://localhost:9081, 배포 http://notification-service:80
     private String serviceUrl;
 }

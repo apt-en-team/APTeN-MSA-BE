@@ -136,7 +136,10 @@ public class NotificationService {
         validateCreateCommand(command);
         NotificationType type = parseType(command.getType());
         NotificationCategory category = NotificationCategory.fromType(type);
+        // 사용자가 카테고리를 OFF로 둔 경우 원본 DB 저장과 WebSocket/FCM 발송을 모두 생략한다
         if (!notificationSettingService.isEnabled(command.getReceiverUserId(), category)) {
+            log.info("[Notification] 알림 설정 OFF로 생성 생략. receiverUserId={}, category={}, type={}",
+                    command.getReceiverUserId(), category, type);
             return NotificationPostRes.builder()
                     .receiverUserId(command.getReceiverUserId())
                     .createdAt(LocalDateTime.now())
@@ -263,17 +266,24 @@ public class NotificationService {
     }
 
     private void dispatchAfterCommit(Notification notification) {
+        boolean synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive();
+        log.info("[Notification] 후속 발송 dispatch 진입. notificationId={}, transactionSyncActive={}",
+                notification.getId(), synchronizationActive);
+
         // 테스트나 내부 호출처럼 트랜잭션 동기화가 없으면 즉시 best-effort 전송한다
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (!synchronizationActive) {
+            log.info("[Notification] 트랜잭션 동기화 없음 - 즉시 후속 발송. notificationId={}", notification.getId());
             sendRealtimeBestEffort(notification);
             sendFcmBestEffort(notification);
             return;
         }
 
-        // 커밋 전에 메시지가 먼저 나가면 클라이언트 재조회 시 데이터가 안 보일 수 있어 afterCommit으로 늦춘다
+        // 커밋 전에 메시지가 먼저 나가면 클라이언트 재조회 시 저장된 알림이 안 보일 수 있어 afterCommit으로 늦춘다
+        log.info("[Notification] afterCommit 후속 발송 등록. notificationId={}", notification.getId());
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                log.info("[Notification] afterCommit 후속 발송 실행. notificationId={}", notification.getId());
                 sendRealtimeBestEffort(notification);
                 sendFcmBestEffort(notification);
             }
@@ -282,18 +292,20 @@ public class NotificationService {
 
     private void sendRealtimeBestEffort(Notification notification) {
         try {
+            // WebSocket 실패는 DB 알림 저장과 FCM 발송을 막지 않는다
             notificationRealtimeService.sendNewNotification(notification);
         } catch (RuntimeException exception) {
-            // WebSocket 실패는 DB 알림 저장과 FCM 발송을 막지 않는다
             log.warn("[Notification] WebSocket 전송 실패 - notificationId={}", notification.getId(), exception);
         }
     }
 
     private void sendFcmBestEffort(Notification notification) {
         try {
-            notificationPushService.send(notification.getId());
-        } catch (RuntimeException exception) {
             // FCM 실패는 DB 알림 저장과 WebSocket 전송을 막지 않는다
+            boolean sent = notificationPushService.send(notification.getId());
+            log.info("[Notification] FCM best-effort 발송 완료. notificationId={}, sent={}",
+                    notification.getId(), sent);
+        } catch (RuntimeException exception) {
             log.warn("[Notification] FCM 전송 실패 - notificationId={}", notification.getId(), exception);
         }
     }

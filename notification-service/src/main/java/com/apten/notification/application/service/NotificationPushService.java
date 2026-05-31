@@ -36,28 +36,36 @@ public class NotificationPushService {
 
     @Transactional
     public boolean send(Long notificationId) {
-        log.info("[FCM] 발송 처리 진입. notificationId={}", notificationId);
+        log.info("[FCM] 발송 처리 진입. notificationId={}, fcmEnabled={}",
+                notificationId, properties.isFcmEnabled());
 
-        // HTTP 개발 환경에서는 FCM 실제 발송을 막고 DB/WebSocket 알림만 사용한다
+        // fcmEnabled=false이면 Firebase 호출만 생략하고 DB/WebSocket 알림은 정상 유지한다
         if (!properties.isFcmEnabled()) {
             log.info("[FCM] 발송 비활성화 상태라 생략합니다. notificationId={}, fcmEnabled={}",
                     notificationId, properties.isFcmEnabled());
             return false;
         }
 
+        // 내부 API가 잘못 호출된 경우 Firebase까지 가지 않고 빠르게 중단한다
         if (notificationId == null) {
             log.warn("[FCM] notificationId 없음 - 발송 생략");
             return false;
         }
 
+        // Bean이 없으면 credentials 경로 누락 또는 FirebaseConfig 조건 불일치를 먼저 확인해야 한다
         FirebaseMessaging firebaseMessaging = firebaseMessagingProvider.getIfAvailable();
         if (firebaseMessaging == null) {
             log.warn("[FCM] FirebaseMessaging bean 없음 - 발송 생략");
             return false;
         }
 
+        // notification DB가 원본이므로 저장된 알림을 다시 읽어 FCM payload를 만든다
         return notificationRepository.findById(notificationId)
-                .map(notification -> sendToActiveTokens(firebaseMessaging, notification))
+                .map(notification -> {
+                    log.info("[FCM] 알림 조회 성공. notificationId={}, userId={}",
+                            notificationId, notification.getUserId());
+                    return sendToActiveTokens(firebaseMessaging, notification);
+                })
                 .orElseGet(() -> {
                     log.warn("[FCM] 알림 없음 - notificationId={}", notificationId);
                     return false;
@@ -65,12 +73,13 @@ public class NotificationPushService {
     }
 
     private boolean sendToActiveTokens(FirebaseMessaging firebaseMessaging, Notification notification) {
+        // 활성 토큰이 있는 기기에만 보내며, 토큰이 없으면 발송 대상 없음으로 정상 생략한다
         List<FcmToken> activeTokens = fcmTokenRepository.findByUserIdAndIsActive(notification.getUserId(), true);
         log.info("[FCM] 활성 토큰 조회. userId={}, tokenCount={}", notification.getUserId(), activeTokens.size());
 
         if (activeTokens.isEmpty()) {
-            // 토큰이 없어도 DB 알림과 WebSocket 흐름은 이미 완료되었으므로 조용히 생략한다
-            log.debug("[FCM] 활성 토큰 없음 - notificationId={}, userId={}", notification.getId(), notification.getUserId());
+            // 토큰이 없어도 DB 알림과 WebSocket 흐름은 이미 완료되었으므로 실패로 다루지 않는다
+            log.info("[FCM] 활성 토큰 없음 - notificationId={}, userId={}", notification.getId(), notification.getUserId());
             return false;
         }
 
@@ -79,13 +88,13 @@ public class NotificationPushService {
                 .filter(StringUtils::hasText)
                 .toList();
         if (tokenValues.isEmpty()) {
-            log.debug("[FCM] 발송 가능한 토큰 문자열 없음 - notificationId={}", notification.getId());
+            log.info("[FCM] 발송 가능한 토큰 문자열 없음 - notificationId={}", notification.getId());
             return false;
         }
         tokenValues.forEach(tv ->
                 log.info("[FCM] 발송 대상 토큰 prefix={}, userId={}", tokenPrefix(tv), notification.getUserId()));
 
-        String linkPath = StringUtils.hasText(notification.getLinkPath()) ? notification.getLinkPath() : "/";
+        String linkPath = toAbsoluteLink(notification.getLinkPath());
         WebpushConfig webpushConfig = WebpushConfig.builder()
                 .setNotification(WebpushNotification.builder()
                         .setTitle(notification.getTitle())
@@ -124,7 +133,7 @@ public class NotificationPushService {
             return response.getSuccessCount() > 0;
         } catch (FirebaseMessagingException exception) {
             // FCM 장애가 원본 알림 저장이나 WebSocket 전송 결과를 되돌리면 안 된다
-            log.warn("[FCM] Firebase 발송 실패 - notificationId={}, error={}", notification.getId(), exception.getMessage());
+            log.warn("[FCM] Firebase 발송 실패 - notificationId={}, error={}", notification.getId(), exception.getMessage(), exception);
             return false;
         }
     }
@@ -176,6 +185,19 @@ public class NotificationPushService {
     private String tokenPrefix(String token) {
         if (token == null || token.isBlank()) return "(없음)";
         return token.length() > 25 ? token.substring(0, 25) + "..." : token;
+    }
+
+    // WebpushConfig.link는 절대 URL이어야 Chrome push service가 정상 처리한다
+    private String toAbsoluteLink(String linkPath) {
+        if (!StringUtils.hasText(linkPath)) {
+            return properties.getWebBaseUrl();
+        }
+        if (linkPath.startsWith("http://") || linkPath.startsWith("https://")) {
+            return linkPath;
+        }
+        String base = properties.getWebBaseUrl().replaceAll("/$", "");
+        String path = linkPath.startsWith("/") ? linkPath : "/" + linkPath;
+        return base + path;
     }
 
     private boolean isInvalidToken(FirebaseMessagingException exception) {

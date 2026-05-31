@@ -76,7 +76,7 @@ public class ParkingVehicleKafkaHandler {
         }
     }
 
-    // household member 이벤트를 받아 세대주 사용자 캐시를 보강한다
+    // household member 이벤트를 받아 세대 구성원 캐시와 세대주 사용자 캐시를 갱신한다
     @KafkaListener(topics = KafkaTopics.HOUSEHOLD_MEMBER, groupId = "parking-vehicle-service-household-member-cache")
     public void consumeHouseholdMemberEvent(String message) {
         try {
@@ -86,6 +86,7 @@ public class ParkingVehicleKafkaHandler {
                             new TypeReference<EventEnvelope<HouseholdMemberEventPayload>>() {}
                     );
             log.info("Consumed household member event. eventType={}, eventId={}", eventEnvelope.getEventType(), eventEnvelope.getEventId());
+            parkingVehicleReferenceCacheService.upsertHouseholdMemberCache(eventEnvelope.getPayload());
             parkingVehicleReferenceCacheService.syncHouseholdHeadUser(eventEnvelope.getPayload());
         } catch (Exception exception) {
             log.error("Failed to consume household member event. message={}", message, exception);

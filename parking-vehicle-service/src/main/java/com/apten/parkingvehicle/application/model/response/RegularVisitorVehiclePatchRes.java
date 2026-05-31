@@ -19,6 +19,9 @@ public class RegularVisitorVehiclePatchRes {
     // 연락처이다.
     private String phone;
 
+    // 방문 목적이다.
+    private String visitPurpose;
+
     // 시작일이다.
     private LocalDate startDate;
 

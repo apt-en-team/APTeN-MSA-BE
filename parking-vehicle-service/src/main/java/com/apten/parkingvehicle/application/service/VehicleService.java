@@ -9,6 +9,8 @@ import com.apten.parkingvehicle.application.model.request.VehiclePatchReq;
 import com.apten.parkingvehicle.application.model.request.VehicleRejectReq;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleLocationRes;
+import com.apten.parkingvehicle.application.model.response.AdminVehicleStatsRes;
 import com.apten.parkingvehicle.application.model.response.LicensePlateCheckRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.model.response.VehicleApproveRes;
@@ -20,19 +22,26 @@ import com.apten.parkingvehicle.application.model.response.VehiclePatchRes;
 import com.apten.parkingvehicle.application.model.response.VehicleRejectRes;
 import com.apten.parkingvehicle.application.support.RoleContextValidator;
 import com.apten.parkingvehicle.domain.entity.HouseholdCache;
+import com.apten.parkingvehicle.domain.entity.HouseholdMemberCache;
+import com.apten.parkingvehicle.domain.entity.ParkingLog;
 import com.apten.parkingvehicle.domain.entity.UserCache;
 import com.apten.parkingvehicle.domain.entity.Vehicle;
 import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import com.apten.parkingvehicle.domain.enums.VehicleType;
 import com.apten.parkingvehicle.domain.repository.HouseholdCacheRepository;
+import com.apten.parkingvehicle.domain.repository.HouseholdMemberCacheRepository;
+import com.apten.parkingvehicle.domain.repository.ParkingLogRepository;
 import com.apten.parkingvehicle.domain.repository.UserCacheRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRegistrationPolicyRepository;
 import com.apten.parkingvehicle.domain.repository.VehicleRepository;
 import com.apten.parkingvehicle.exception.ParkingVehicleErrorCode;
 import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -55,6 +64,12 @@ public class VehicleService {
 
     // 세대 캐시 저장소
     private final HouseholdCacheRepository householdCacheRepository;
+
+    // 세대 구성원 캐시 저장소
+    private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+
+    // 입출차 로그 저장소
+    private final ParkingLogRepository parkingLogRepository;
 
     // 차량 등록 한도 정책 저장소
     private final VehicleRegistrationPolicyRepository vehicleRegistrationPolicyRepository;
@@ -83,8 +98,9 @@ public class VehicleService {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 세대주 기준 세대 조회 — 세대원이면 여기서 차단
-        HouseholdCache household = householdCacheRepository.findByHeadUserId(userId)
+        // 세대 구성원 기준 세대 해석 — 세대주와 세대원 모두 본인 세대로 등록 가능
+        Long householdId = resolveHouseholdId(userId);
+        HouseholdCache household = householdCacheRepository.findById(householdId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
 
         // 헤더 단지와 세대 단지 일치 검증, 불일치는 세대 미존재와 동일하게 처리
@@ -217,11 +233,21 @@ public class VehicleService {
                 .build();
     }
 
-    // 내 차량 목록을 조회한다.
+    // 요청자 userId로 활성 세대 매핑을 해석해 householdId를 반환한다. 미동기화면 세대 미존재로 처리.
+    private Long resolveHouseholdId(Long userId) {
+        return householdMemberCacheRepository.findByUserIdAndIsActiveTrue(userId)
+                .map(HouseholdMemberCache::getHouseholdId)
+                .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.HOUSEHOLD_NOT_FOUND));
+    }
+
+    // 내 세대 차량 목록을 조회한다.
     @Transactional(readOnly = true)
     public PageResponse<VehicleListRes> getMyVehicleList(VehicleListReq request, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
         RoleContextValidator.validateResidentContext(userId, userRole, complexId);
+
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
 
         // 페이지 파라미터 디폴트 방어
         int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
@@ -230,21 +256,43 @@ public class VehicleService {
 
         // 상태 필터 유무로 쿼리 메서드 분기 — enum null 비교 회피
         Page<Vehicle> resultPage = request.getStatus() != null
-                ? vehicleRepository.findMyVehiclesByStatus(userId, complexId, request.getStatus(), pageable)
-                : vehicleRepository.findMyVehicles(userId, complexId, pageable);
+                ? vehicleRepository.findHouseholdVehiclesByStatus(householdId, complexId, request.getStatus(), pageable)
+                : vehicleRepository.findHouseholdVehicles(householdId, complexId, pageable);
+
+        List<Vehicle> vehicles = resultPage.getContent();
+
+        // 등록자 이름 batch 조회로 N+1 회피, 캐시 누락 시 이름 null 허용
+        List<Long> userIds = vehicles.stream().map(Vehicle::getUserId).distinct().toList();
+        Map<Long, UserCache> userCacheMap = userIds.isEmpty() ? Map.of() :
+                userCacheRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(UserCache::getId, u -> u));
+
+        // 마지막 입출차 로그 batch 조회로 N+1 회피, 동률 로그는 먼저 들어온 한 건만 유지
+        List<Long> vehicleIds = vehicles.stream().map(Vehicle::getId).toList();
+        Map<Long, ParkingLog> latestLogMap = vehicleIds.isEmpty() ? Map.of() :
+                parkingLogRepository.findLatestLogsByVehicleIds(vehicleIds).stream()
+                        .collect(Collectors.toMap(ParkingLog::getVehicleId, log -> log, (existing, ignored) -> existing));
 
         // 응답 DTO 매핑
-        List<VehicleListRes> content = resultPage.getContent().stream()
-                .map(v -> VehicleListRes.builder()
-                        .vehicleId(v.getId())
-                        .licensePlate(v.getLicensePlate())
-                        .modelName(v.getModelName())
-                        .vehicleType(v.getVehicleType())
-                        .status(v.getStatus())
-                        .isPrimary(v.getIsPrimary())
-                        .approvedAt(v.getApprovedAt())
-                        .createdAt(v.getCreatedAt())
-                        .build())
+        List<VehicleListRes> content = vehicles.stream()
+                .map(v -> {
+                    UserCache userCache = userCacheMap.get(v.getUserId());
+                    ParkingLog latestLog = latestLogMap.get(v.getId());
+                    return VehicleListRes.builder()
+                            .vehicleId(v.getId())
+                            .userId(v.getUserId())
+                            .residentName(userCache != null ? userCache.getName() : null)
+                            .licensePlate(v.getLicensePlate())
+                            .modelName(v.getModelName())
+                            .vehicleType(v.getVehicleType())
+                            .status(v.getStatus())
+                            .isPrimary(v.getIsPrimary())
+                            .approvedAt(v.getApprovedAt())
+                            .createdAt(v.getCreatedAt())
+                            .lastLoggedAt(latestLog != null ? latestLog.getLoggedAt() : null)
+                            .lastEntryType(latestLog != null ? latestLog.getEntryType() : null)
+                            .build();
+                })
                 .toList();
 
         return PageResponse.<VehicleListRes>builder()
@@ -257,23 +305,39 @@ public class VehicleService {
                 .build();
     }
 
-    // 내 차량 상세를 조회한다.
+    // 내 세대 차량 상세를 조회한다.
     @Transactional(readOnly = true)
     public VehicleDetailRes getMyVehicleDetail(Long vehicleId, Long userId, String userRole, Long complexId) {
         // 입주민 컨텍스트 검증
         RoleContextValidator.validateResidentContext(userId, userRole, complexId);
 
-        // 차량 단건 + 소유자 동시 검증, 미존재 시 404
-        Vehicle vehicle = vehicleRepository.findByIdAndUserIdAndIsDeletedFalse(vehicleId, userId)
+        // 요청자 userId로 활성 세대 해석 — 미동기화 세대원은 세대 미존재로 처리
+        Long householdId = resolveHouseholdId(userId);
+
+        // 차량 단건 조회, 미존재 시 404
+        Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
                 .orElseThrow(() -> new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND));
+
+        // 같은 세대 차량이 아니면 존재를 노출하지 않고 404로 차단
+        if (!vehicle.getHouseholdId().equals(householdId)) {
+            throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_NOT_FOUND);
+        }
 
         // 차량 단지가 요청 단지와 다르면 권한 차단
         if (!vehicle.getComplexId().equals(complexId)) {
             throw new BusinessException(ParkingVehicleErrorCode.VEHICLE_COMPLEX_MISMATCH);
         }
 
+        // 등록자 이름 조회, 캐시 누락 시 null 허용
+        UserCache userCache = userCacheRepository.findById(vehicle.getUserId()).orElse(null);
+
+        // 마지막 입출차 로그 한 건 조회, 기록 없으면 null 허용
+        ParkingLog latestLog = parkingLogRepository.findTopByVehicleIdOrderByLoggedAtDesc(vehicle.getId()).orElse(null);
+
         return VehicleDetailRes.builder()
                 .vehicleId(vehicle.getId())
+                .userId(vehicle.getUserId())
+                .residentName(userCache != null ? userCache.getName() : null)
                 .licensePlate(vehicle.getLicensePlate())
                 .modelName(vehicle.getModelName())
                 .vehicleType(vehicle.getVehicleType())
@@ -283,6 +347,8 @@ public class VehicleService {
                 .rejectReason(vehicle.getRejectReason())
                 .createdAt(vehicle.getCreatedAt())
                 .updatedAt(vehicle.getUpdatedAt())
+                .lastLoggedAt(latestLog != null ? latestLog.getLoggedAt() : null)
+                .lastEntryType(latestLog != null ? latestLog.getEntryType() : null)
                 .build();
     }
 
@@ -495,6 +561,80 @@ public class VehicleService {
                 .createdAt(vehicle.getCreatedAt())
                 .updatedAt(vehicle.getUpdatedAt())
                 .build();
+    }
+
+    // 관리자 차량 상태별 통계를 조회한다.
+    @Transactional(readOnly = true)
+    public AdminVehicleStatsRes getAdminVehicleStats(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 상태별 건수 집계, 소프트 삭제 차량은 제외
+        long total = vehicleRepository.countByComplexIdAndIsDeletedFalse(targetComplexId);
+        long pending = vehicleRepository.countByComplexIdAndStatusAndIsDeletedFalse(targetComplexId, VehicleStatus.PENDING);
+        long approved = vehicleRepository.countByComplexIdAndStatusAndIsDeletedFalse(targetComplexId, VehicleStatus.APPROVED);
+        long rejected = vehicleRepository.countByComplexIdAndStatusAndIsDeletedFalse(targetComplexId, VehicleStatus.REJECTED);
+
+        return AdminVehicleStatsRes.builder()
+                .total(total)
+                .pending(pending)
+                .approved(approved)
+                .rejected(rejected)
+                .build();
+    }
+
+    // 관리자 차량 화면 동/호 옵션을 조회한다.
+    @Transactional(readOnly = true)
+    public AdminVehicleLocationRes getAdminVehicleLocations(String userRole, Long complexId, Long selectedComplexId) {
+        // 관리자 컨텍스트 해석
+        Long targetComplexId = RoleContextValidator.resolveAdminContextComplexId(userRole, complexId, selectedComplexId);
+
+        // 단지 세대 캐시를 동 기준으로 묶어 호 목록을 중복 없이 수집
+        Map<String, Set<String>> unitsByBuilding = new HashMap<>();
+        for (HouseholdCache household : householdCacheRepository.findByComplexId(targetComplexId)) {
+            if (household.getBuilding() == null || household.getUnit() == null) {
+                continue;
+            }
+            unitsByBuilding.computeIfAbsent(household.getBuilding(), key -> new HashSet<>()).add(household.getUnit());
+        }
+
+        // 동/호를 자연 정렬해 응답 항목 구성
+        List<AdminVehicleLocationRes.Building> buildings = unitsByBuilding.entrySet().stream()
+                .sorted((a, b) -> compareNatural(a.getKey(), b.getKey()))
+                .map(entry -> AdminVehicleLocationRes.Building.builder()
+                        .building(entry.getKey())
+                        .units(entry.getValue().stream().sorted(this::compareNatural).toList())
+                        .build())
+                .toList();
+
+        return AdminVehicleLocationRes.builder()
+                .buildings(buildings)
+                .build();
+    }
+
+    // 동/호 문자열을 자연 정렬한다. 숫자는 수치로 비교하고 숫자를 문자보다 앞에 둔다.
+    private int compareNatural(String a, String b) {
+        Integer numberA = parseIntOrNull(a);
+        Integer numberB = parseIntOrNull(b);
+        if (numberA != null && numberB != null) {
+            return Integer.compare(numberA, numberB);
+        }
+        if (numberA != null) {
+            return -1;
+        }
+        if (numberB != null) {
+            return 1;
+        }
+        return a.compareTo(b);
+    }
+
+    // 정수 변환을 시도하고 실패하면 null을 반환한다.
+    private Integer parseIntOrNull(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
 }
