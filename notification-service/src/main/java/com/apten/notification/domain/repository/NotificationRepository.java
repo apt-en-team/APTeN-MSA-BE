@@ -2,10 +2,14 @@ package com.apten.notification.domain.repository;
 
 import com.apten.notification.domain.entity.Notification;
 import com.apten.notification.domain.enums.NotificationType;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 // notification-service의 저장과 단순 조회를 맡는 JPA Repository
 // 복잡 조회는 infrastructure/mapper의 MyBatis 인터페이스로 분리하는 기준을 따른다
@@ -33,4 +37,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     // 전체 읽음 처리에서 본인 미읽음 알림만 가져온다
     List<Notification> findByUserIdAndIsRead(Long userId, Boolean isRead);
+
+    // 읽음 처리된 알림 중 기준 일시 이전 데이터를 일괄 삭제하고 삭제된 row 수를 반환한다
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.isRead = true AND n.createdAt < :threshold")
+    int deleteByIsReadTrueAndCreatedAtBefore(@Param("threshold") LocalDateTime threshold);
 }

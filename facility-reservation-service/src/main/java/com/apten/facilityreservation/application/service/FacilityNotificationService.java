@@ -249,8 +249,8 @@ public class FacilityNotificationService {
     }
 
     private String buildAdminGxLink(Long complexId, Long programId) {
-        // 관리자 GX 프로그램 승인 화면 경로: 프론트 adminRoutes 기준으로 확인 필요
-        return "/admin/" + complexId + "/facility/gx-programs/" + programId;
+        // 관리자 화면은 complexId를 URL에 포함하지 않으며, GX 목록에서 모달로 상세/승인 처리한다
+        return "/admin/gx-programs";
     }
 
     private String buildReservationLink(Long complexId, Long reservationId) {

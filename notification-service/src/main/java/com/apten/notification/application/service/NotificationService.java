@@ -178,10 +178,13 @@ public class NotificationService {
 
     @Transactional
     public NotificationCleanupRes cleanupOldNotifications() {
-        // 후속 범위: 오래된 알림 삭제 정책 확정 후 구현
+        LocalDateTime now = LocalDateTime.now();
+        // 미읽음 알림은 사용자가 아직 확인하지 않았으므로 삭제 대상에서 제외한다
+        LocalDateTime threshold = now.minusDays(30);
+        int deletedCount = notificationRepository.deleteByIsReadTrueAndCreatedAtBefore(threshold);
         return NotificationCleanupRes.builder()
-                .deletedCount(0)
-                .executedAt(LocalDateTime.now())
+                .deletedCount(deletedCount)
+                .executedAt(now)
                 .build();
     }
 
