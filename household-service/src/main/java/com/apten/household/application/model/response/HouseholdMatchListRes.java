@@ -42,6 +42,7 @@ public class HouseholdMatchListRes {
         private String inputBuilding;
         private String inputUnit;
         private Long matchedHouseholdId;
+        private Boolean expectedResidentRegistered;
         private String processType;
         private String matchStatus;
         private LocalDateTime processedAt;

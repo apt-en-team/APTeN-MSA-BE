@@ -17,6 +17,10 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
 
     List<HouseholdBill> findByHouseholdIdOrderByBillYearDescBillMonthDesc(Long householdId);
 
+    // 청구 ID와 단지 ID 기준 청구를 조회한다.
+    Optional<HouseholdBill> findByIdAndComplexId(Long id, Long complexId);
+
+    // 관리자 조건 기준 청구 목록을 조회한다.
     @Query("""
             SELECT b FROM HouseholdBill b
             JOIN Household h ON b.householdId = h.id

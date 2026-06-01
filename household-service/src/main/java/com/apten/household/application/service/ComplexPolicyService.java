@@ -70,7 +70,7 @@ public class ComplexPolicyService {
         // 요청값을 원본 정책에 반영한다.
         complexPolicy.apply(req);
 
-        // TODO 정책 변경 이력 또는 감사 로그 저장이 필요하면 여기서 확장한다.
+        // 정책 변경 이력 또는 감사 로그가 필요하면 별도 감사 정책에 맞춰 확장한다.
         ComplexPolicy savedPolicy = complexPolicyRepository.save(complexPolicy);
 
         return toResponse(savedPolicy);
