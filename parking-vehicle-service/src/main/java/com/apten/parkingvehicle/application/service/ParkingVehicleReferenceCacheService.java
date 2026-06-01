@@ -28,6 +28,9 @@ public class ParkingVehicleReferenceCacheService {
     // household cache 저장소
     private final HouseholdCacheRepository householdCacheRepository;
 
+    // household member cache 저장소
+    private final HouseholdMemberCacheRepository householdMemberCacheRepository;
+
     // complex cache 저장소
     private final ComplexCacheRepository complexCacheRepository;
 
@@ -132,9 +135,18 @@ public class ParkingVehicleReferenceCacheService {
         }
     }
 
+    // 세대원 이벤트를 받아 세대 구성원 캐시를 upsert한다.
+    public void upsertHouseholdMemberCache(HouseholdMemberEventPayload payload) {
+        // 원본 세대원 PK 기준 멱등 upsert, 탈퇴/비활성 이벤트도 row 삭제 없이 isActive만 갱신
+        HouseholdMemberCache memberCache = householdMemberCacheRepository.findById(payload.getHouseholdMemberId())
+                .orElseGet(() -> HouseholdMemberCache.builder().id(payload.getHouseholdMemberId()).build());
+        memberCache.apply(payload);
+        householdMemberCacheRepository.save(memberCache);
+    }
+
     // 세대원 이벤트를 받아 세대 캐시의 세대주 식별자를 동기화한다.
     public void syncHouseholdHeadUser(HouseholdMemberEventPayload payload) {
-        //TODO 세대원 삭제와 역할 변경까지 고려한 세대주 동기화 정책 확정
+        // 구성원 단위 삭제와 역할 변경은 household_member_cache가 추적하고, 여기서는 세대주 식별자만 반영한다
         householdCacheRepository.findById(payload.getHouseholdId())
                 .ifPresent(householdCache -> {
                     if ("HEAD".equals(payload.getMemberRole())) {

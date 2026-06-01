@@ -5,9 +5,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 // 관리자 차량 목록 조회 요청 DTO이다.
+// 쿼리 파라미터를 @ModelAttribute로 바인딩하려면 세터가 필요하다.
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

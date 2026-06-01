@@ -7,6 +7,7 @@ import com.apten.parkingvehicle.application.model.request.AdminVisitorVehicleLis
 import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleCreateRes;
 import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleDetailRes;
 import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleListRes;
+import com.apten.parkingvehicle.application.model.response.AdminVisitorVehicleStatsRes;
 import com.apten.parkingvehicle.application.model.response.PageResponse;
 import com.apten.parkingvehicle.application.service.VisitorVehicleService;
 import lombok.RequiredArgsConstructor;
@@ -32,11 +33,12 @@ public class AdminVisitorVehicleController {
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<AdminVisitorVehicleCreateRes> createAdminVisitorVehicle(
             @RequestBody AdminVisitorVehicleCreateReq request,
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
-        return ResultResponse.success("관리자 방문차량 등록 성공", visitorVehicleService.createAdminVisitorVehicle(request, userRole, complexId, selectedComplexId));
+        return ResultResponse.success("관리자 방문차량 등록 성공", visitorVehicleService.createAdminVisitorVehicle(request, userId, userRole, complexId, selectedComplexId));
     }
 
     //방문 예정 차량 목록 조회
@@ -48,6 +50,16 @@ public class AdminVisitorVehicleController {
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
     ) {
         return ResultResponse.success("방문 예정 차량 목록 조회 성공", visitorVehicleService.getAdminVisitorVehicleList(request, userRole, complexId, selectedComplexId));
+    }
+
+    //관리자 방문차량 통계 조회
+    @GetMapping("/api/admin/visitor-vehicle-stats")
+    public ResultResponse<AdminVisitorVehicleStatsRes> getAdminVisitorVehicleStats(
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        return ResultResponse.success("관리자 방문차량 통계 조회 성공", visitorVehicleService.getAdminVisitorVehicleStats(userRole, complexId, selectedComplexId));
     }
 
     //관리자 방문차량 상세 조회

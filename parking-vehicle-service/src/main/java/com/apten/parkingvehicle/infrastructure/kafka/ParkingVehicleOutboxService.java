@@ -61,6 +61,7 @@ public class ParkingVehicleOutboxService {
     public static final String REGULAR_VISITOR_VEHICLE_REGISTERED = "REGULAR_VISITOR_VEHICLE_REGISTERED";
     public static final String REGULAR_VISITOR_VEHICLE_UPDATED = "REGULAR_VISITOR_VEHICLE_UPDATED";
     public static final String REGULAR_VISITOR_VEHICLE_FORCE_DELETED_BY_ADMIN = "REGULAR_VISITOR_VEHICLE_FORCE_DELETED_BY_ADMIN";
+    public static final String REGULAR_VISITOR_VEHICLE_CREATED_BY_ADMIN = "REGULAR_VISITOR_VEHICLE_CREATED_BY_ADMIN";
 
     // 알림 대상 구분 문자열이다.
     public static final String TARGET_ADMIN = "ADMIN";
