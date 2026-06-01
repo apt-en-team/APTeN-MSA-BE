@@ -44,6 +44,20 @@ public class ResidentHouseholdBillController {
         );
     }
 
+    // 입주민 홈 화면 관리비 카드 조회 API
+    @GetMapping("/home")
+    public ResultResponse<MyBillListRes.Item> getMyHomeBill(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveResidentContext(userId, userRole, complexId);
+        return ResultResponse.success(
+                "홈 관리비 카드 조회 성공",
+                householdBillService.getMyHomeBill(context.getUserId(), context.getComplexId())
+        );
+    }
+
     @GetMapping("/{billId}")
     public ResultResponse<AdminHouseholdBillDetailRes> getMyBillDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
