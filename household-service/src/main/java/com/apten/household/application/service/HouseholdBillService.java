@@ -30,6 +30,7 @@ import com.apten.household.domain.entity.VehicleSnapshot;
 import com.apten.household.domain.enums.FacilityUsageStatus;
 import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
+import com.apten.household.domain.enums.HouseholdMemberRole;
 import com.apten.household.domain.enums.HouseholdStatus;
 import com.apten.household.domain.enums.VehicleSnapshotStatus;
 import com.apten.household.domain.repository.BuildingLineTypeRepository;
@@ -365,6 +366,9 @@ public class HouseholdBillService {
     public MyBillListRes.Item getMyHomeBill(Long userId, Long complexId) {
         HouseholdMember member = householdMemberRepository.findActiveByUserIdAndComplexId(userId, complexId)
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+        if (member.getRole() != HouseholdMemberRole.HEAD) {
+            return null;
+        }
         getHouseholdForComplex(complexId, member.getHouseholdId());
 
         LocalDate today = LocalDate.now();
