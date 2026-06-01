@@ -28,8 +28,16 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
               AND (:billYear IS NULL OR b.billYear = :billYear)
               AND (:billMonth IS NULL OR b.billMonth = :billMonth)
               AND (:status IS NULL OR b.status = :status)
-              AND (:building IS NULL OR h.building = :building)
-              AND (:unit IS NULL OR h.unit = :unit)
+              AND (
+                    :building IS NULL
+                    OR h.building = :building
+                    OR REPLACE(REPLACE(REPLACE(h.building, '동', ''), '호', ''), ' ', '') = :building
+                  )
+              AND (
+                    :unit IS NULL
+                    OR h.unit = :unit
+                    OR REPLACE(REPLACE(REPLACE(h.unit, '동', ''), '호', ''), ' ', '') = :unit
+                  )
             ORDER BY b.billYear DESC, b.billMonth DESC, h.building ASC, h.unit ASC
             """)
     Page<HouseholdBill> findAdminBills(
@@ -40,6 +48,34 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
             @Param("building") String building,
             @Param("unit") String unit,
             Pageable pageable
+    );
+
+    // 관리자 조건 기준 청구 건수를 조회한다.
+    @Query("""
+            SELECT COUNT(b) FROM HouseholdBill b
+            JOIN Household h ON b.householdId = h.id
+            WHERE b.complexId = :complexId
+              AND (:billYear IS NULL OR b.billYear = :billYear)
+              AND (:billMonth IS NULL OR b.billMonth = :billMonth)
+              AND (:status IS NULL OR b.status = :status)
+              AND (
+                    :building IS NULL
+                    OR h.building = :building
+                    OR REPLACE(REPLACE(REPLACE(h.building, '동', ''), '호', ''), ' ', '') = :building
+                  )
+              AND (
+                    :unit IS NULL
+                    OR h.unit = :unit
+                    OR REPLACE(REPLACE(REPLACE(h.unit, '동', ''), '호', ''), ' ', '') = :unit
+                  )
+            """)
+    Long countAdminBills(
+            @Param("complexId") Long complexId,
+            @Param("billYear") Integer billYear,
+            @Param("billMonth") Integer billMonth,
+            @Param("status") HouseholdBillStatus status,
+            @Param("building") String building,
+            @Param("unit") String unit
     );
 
     @Query("""
@@ -60,6 +96,27 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
             Integer billMonth,
             LocalDate today,
             Pageable pageable
+    );
+
+    @Query("""
+            SELECT b FROM HouseholdBill b
+            WHERE b.householdId = :householdId
+              AND b.complexId = :complexId
+              AND b.status = :status
+              AND b.billYear = :billYear
+              AND b.billMonth = :billMonth
+              AND b.sendDate IS NOT NULL
+              AND b.sendDate <= :today
+              AND b.homeDisplayUntil IS NOT NULL
+              AND b.homeDisplayUntil >= :today
+            """)
+    Optional<HouseholdBill> findCurrentHomeBill(
+            Long householdId,
+            Long complexId,
+            HouseholdBillStatus status,
+            Integer billYear,
+            Integer billMonth,
+            LocalDate today
     );
 
     // 특정 세대의 년월 범위 청구 이력을 조회한다.

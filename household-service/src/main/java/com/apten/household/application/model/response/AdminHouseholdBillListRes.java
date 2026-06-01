@@ -24,6 +24,15 @@ public class AdminHouseholdBillListRes {
     // 전체 건수이다.
     private Long totalElements;
 
+    // 선택 기간 기준 전체 청구 건수이다.
+    private Long totalBillCount;
+
+    // 미확정 청구 건수이다.
+    private Long draftCount;
+
+    // 확정 청구 건수이다.
+    private Long confirmedCount;
+
     // 전체 페이지 수이다.
     private Integer totalPages;
 

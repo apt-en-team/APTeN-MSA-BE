@@ -235,19 +235,45 @@ public class HouseholdBillService {
         int pageNumber = request.getPage() != null ? request.getPage() : 0;
         int pageSize = request.getSize() != null ? request.getSize() : 20;
 
-        log.info("[getAdminBills] building={}, unit={}", request.getBuilding(), request.getUnit());
+        String building = normalizeAddressFilter(request.getBuilding());
+        String unit = normalizeAddressFilter(request.getUnit());
+        HouseholdBillStatus status = request.resolveStatus();
 
         Page<HouseholdBill> page = householdBillRepository.findAdminBills(
                 complexId,
                 request.getBillYear(),
                 request.getBillMonth(),
-                request.resolveStatus(),
-                blankToNull(request.getBuilding()),
-                blankToNull(request.getUnit()),
+                status,
+                building,
+                unit,
                 PageRequest.of(pageNumber, pageSize)
         );
 
         Map<Long, Household> householdById = findHouseholdsById(complexId, page.getContent());
+        long draftCount = householdBillRepository.countAdminBills(
+                complexId,
+                request.getBillYear(),
+                request.getBillMonth(),
+                HouseholdBillStatus.DRAFT,
+                null,
+                null
+        );
+        long confirmedCount = householdBillRepository.countAdminBills(
+                complexId,
+                request.getBillYear(),
+                request.getBillMonth(),
+                HouseholdBillStatus.CONFIRMED,
+                null,
+                null
+        );
+        long totalBillCount = householdBillRepository.countAdminBills(
+                complexId,
+                request.getBillYear(),
+                request.getBillMonth(),
+                null,
+                null,
+                null
+        );
 
         return AdminHouseholdBillListRes.builder()
                 .content(page.getContent().stream()
@@ -256,6 +282,9 @@ public class HouseholdBillService {
                 .page(page.getNumber())
                 .size(page.getSize())
                 .totalElements(page.getTotalElements())
+                .totalBillCount(totalBillCount)
+                .draftCount(draftCount)
+                .confirmedCount(confirmedCount)
                 .totalPages(page.getTotalPages())
                 .hasNext(page.hasNext())
                 .build();
@@ -321,28 +350,52 @@ public class HouseholdBillService {
 
         return MyBillListRes.builder()
                 .content(page.getContent().stream()
-                        .map(bill -> MyBillListRes.Item.builder()
-                                .billId(bill.getId())
-                                .billYear(bill.getBillYear())
-                                .billMonth(bill.getBillMonth())
-                                .totalFee(bill.getTotalFee())
-                                .lateFee(effectiveLateFee(bill, LocalDate.now()))
-                                .payableAmount(effectivePayableAmount(bill, LocalDate.now()))
-                                .sendDate(bill.getSendDate())
-                                .dueDate(bill.getDueDate())
-                                .overdueStartDate(bill.getOverdueStartDate())
-                                .homeDisplayUntil(bill.getHomeDisplayUntil())
-                                .overdue(isOverdue(bill, LocalDate.now()))
-                                .status(bill.getStatus())
-                                .confirmedAt(bill.getConfirmedAt())
-                                .createdAt(bill.getCreatedAt())
-                                .build())
+                        .map(bill -> toMyBillListItem(bill, LocalDate.now()))
                         .toList())
                 .page(page.getNumber())
                 .size(page.getSize())
                 .totalElements(page.getTotalElements())
                 .totalPages(page.getTotalPages())
                 .hasNext(page.hasNext())
+                .build();
+    }
+
+    // 홈 화면에는 이번 달 확정 청구 중 발송일~홈노출 종료일 사이의 청구만 노출한다.
+    @Transactional(readOnly = true)
+    public MyBillListRes.Item getMyHomeBill(Long userId, Long complexId) {
+        HouseholdMember member = householdMemberRepository.findActiveByUserIdAndComplexId(userId, complexId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+        getHouseholdForComplex(complexId, member.getHouseholdId());
+
+        LocalDate today = LocalDate.now();
+        return householdBillRepository.findCurrentHomeBill(
+                        member.getHouseholdId(),
+                        complexId,
+                        HouseholdBillStatus.CONFIRMED,
+                        today.getYear(),
+                        today.getMonthValue(),
+                        today
+                )
+                .map(bill -> toMyBillListItem(bill, today))
+                .orElse(null);
+    }
+
+    private MyBillListRes.Item toMyBillListItem(HouseholdBill bill, LocalDate today) {
+        return MyBillListRes.Item.builder()
+                .billId(bill.getId())
+                .billYear(bill.getBillYear())
+                .billMonth(bill.getBillMonth())
+                .totalFee(bill.getTotalFee())
+                .lateFee(effectiveLateFee(bill, today))
+                .payableAmount(effectivePayableAmount(bill, today))
+                .sendDate(bill.getSendDate())
+                .dueDate(bill.getDueDate())
+                .overdueStartDate(bill.getOverdueStartDate())
+                .homeDisplayUntil(bill.getHomeDisplayUntil())
+                .overdue(isOverdue(bill, today))
+                .status(bill.getStatus())
+                .confirmedAt(bill.getConfirmedAt())
+                .createdAt(bill.getCreatedAt())
                 .build();
     }
 
@@ -591,7 +644,18 @@ public class HouseholdBillService {
     }
 
     private String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeAddressFilter(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.replace("동", "")
+                .replace("호", "")
+                .replaceAll("\\s+", "");
+        return normalized.isBlank() ? null : normalized;
     }
 
     // 방문차량 한 세대분 사용량을 스냅샷과 청구 항목에 함께 반영한다.
