@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// 단지 기능 캐시 저장소이다.
+// 단지 기능 캐시 저장/조회 Repository
 public interface ComplexFeatureCacheRepository extends JpaRepository<ComplexFeatureCache, Long> {
 
-    // 단지와 기능 코드로 캐시를 조회한다.
+    // 단지 기능 캐시 조회
     Optional<ComplexFeatureCache> findByComplexIdAndFeatureCode(Long complexId, FeatureCode featureCode);
 
-    // 단지에 속한 전체 기능 캐시를 조회한다.
+    // 단지 기능 캐시 목록 조회
     List<ComplexFeatureCache> findByComplexId(Long complexId);
 }

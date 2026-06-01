@@ -16,7 +16,7 @@ public class NotificationReferenceCacheService {
     // 사용자 캐시 저장소이다.
     private final UserCacheRepository userCacheRepository;
 
-    // 사용자 이벤트 payload를 받아 user_cache를 upsert 한다.
+    // user_cache upsert
     public void upsertUserCache(UserEventPayload payload) {
         // 기존 캐시가 있으면 갱신하고 없으면 새로 만든다.
         UserCache userCache = userCacheRepository.findById(payload.getUserId())

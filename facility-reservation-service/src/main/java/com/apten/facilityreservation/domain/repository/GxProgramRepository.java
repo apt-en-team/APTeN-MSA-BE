@@ -13,32 +13,32 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-// GX 프로그램 저장소이다.
+// GX 프로그램 저장/조회 Repository
 public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
 
-    // 단지와 상태 기준 GX 프로그램 목록을 조회한다.
-    List<GxProgram> findByComplexIdAndStatus(Long complexId, GxProgramStatus status);
+    // 승인 리마인더 대상 조회
+    List<GxProgram> findByStartDateAndStatusIn(LocalDate startDate, List<GxProgramStatus> statuses);
 
-    // 단지 소속 단건 조회한다.
+    // GX 프로그램 조회
     Optional<GxProgram> findByIdAndComplexId(Long id, Long complexId);
 
-    // 비관적 락을 걸어 단지 소속 단건을 조회한다. waitNo 동시 충돌 방지용이다.
+    // GX 프로그램 조회 (비관적 락, waitNo 충돌 방지)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT g FROM GxProgram g WHERE g.id = :id AND g.complexId = :complexId")
     Optional<GxProgram> findByIdAndComplexIdForUpdate(@Param("id") Long id, @Param("complexId") Long complexId);
 
-    // 낙관적 락(버전 강제 증가)을 걸어 단지 소속 단건을 조회한다. 관리자 승인/거절/취소 동시 충돌 감지용이다.
+    // GX 프로그램 조회 (낙관적 락, 관리자 처리 충돌 감지)
     @Lock(LockModeType.OPTIMISTIC_FORCE_INCREMENT)
     @Query("SELECT g FROM GxProgram g WHERE g.id = :id AND g.complexId = :complexId")
     Optional<GxProgram> findByIdAndComplexIdWithOptimisticLock(@Param("id") Long id, @Param("complexId") Long complexId);
 
-    // 월 비용 산정은 프로그램별 요금을 한 번에 읽어 N+1을 피한다.
+    // GX 프로그램 일괄 조회 (N+1 방지)
     List<GxProgram> findByIdIn(List<Long> ids);
 
-    // GX 비용 산정: 프로그램 시작일 기준으로 당월 대상 프로그램을 조회한다.
+    // GX 월 비용 대상 조회
     List<GxProgram> findByStartDateBetween(LocalDate fromDate, LocalDate toDate);
 
-    // 관리자 GX 프로그램 목록 조회 - status 필터 없음
+    // 관리자 GX 프로그램 목록 조회
     @Query("""
         SELECT g FROM GxProgram g
         WHERE g.complexId = :complexId
@@ -55,7 +55,7 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
             Pageable pageable
     );
 
-    // 관리자 GX 프로그램 목록 조회 - status 필터 포함 (enum 파라미터 null 비교 회피)
+    // 관리자 GX 프로그램 목록 조회 (상태 필터)
     @Query("""
         SELECT g FROM GxProgram g
         WHERE g.complexId = :complexId
@@ -74,7 +74,7 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
             Pageable pageable
     );
 
-    // 입주민 GX 프로그램 목록 조회 - status 필터 없음, CANCELLED 제외 (enum null 비교 회피)
+    // 입주민 GX 프로그램 목록 조회 (취소 제외)
     @Query("""
         SELECT g FROM GxProgram g
         WHERE g.complexId = :complexId
@@ -91,7 +91,7 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
             Pageable pageable
     );
 
-    // 입주민 GX 프로그램 목록 조회 - status 필터 포함 (서비스에서 CANCELLED 진입 차단 보장)
+    // 입주민 GX 프로그램 목록 조회 (상태 필터)
     @Query("""
         SELECT g FROM GxProgram g
         WHERE g.complexId = :complexId

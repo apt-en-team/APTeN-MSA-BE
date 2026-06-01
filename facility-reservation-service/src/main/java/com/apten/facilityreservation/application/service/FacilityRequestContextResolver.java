@@ -6,11 +6,11 @@ import com.apten.common.security.UserRole;
 import com.apten.facilityreservation.application.model.dto.FacilityRequestContext;
 import org.springframework.stereotype.Component;
 
-// gateway 헤더를 시설예약 서비스의 사용자/단지 컨텍스트로 해석하는 resolver이다.
+// 시설예약 요청 컨텍스트 해석
 @Component
 public class FacilityRequestContextResolver {
 
-    // 관리자 API의 단지 컨텍스트를 역할별 헤더 기준으로 해석한다.
+    // 관리자 단지 컨텍스트 해석
     public FacilityRequestContext resolveAdminContext(
             Long userId,
             String userRoleHeader,
@@ -45,7 +45,7 @@ public class FacilityRequestContextResolver {
         throw new BusinessException(CommonErrorCode.FORBIDDEN);
     }
 
-    // 입주민 API의 단지 컨텍스트를 토큰 단지 헤더 기준으로 해석한다.
+    // 입주민 단지 컨텍스트 해석
     public FacilityRequestContext resolveResidentContext(Long userId, String userRoleHeader, Long complexIdHeader) {
         UserRole userRole = parseUserRole(userRoleHeader);
         validateUserId(userId);
@@ -65,7 +65,7 @@ public class FacilityRequestContextResolver {
                 .build();
     }
 
-    // 헤더의 사용자 역할을 공통 enum으로 변환한다.
+    // 사용자 역할 변환
     private UserRole parseUserRole(String userRoleHeader) {
         if (userRoleHeader == null || userRoleHeader.isBlank()) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
@@ -78,7 +78,7 @@ public class FacilityRequestContextResolver {
         }
     }
 
-    // 헤더의 사용자 ID를 기본 검증한다.
+    // 사용자 ID 검증
     private void validateUserId(Long userId) {
         if (userId == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);

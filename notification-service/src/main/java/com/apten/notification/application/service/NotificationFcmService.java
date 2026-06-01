@@ -29,6 +29,7 @@ public class NotificationFcmService {
     private final FcmTokenRepository fcmTokenRepository;
     private final UserCacheRepository userCacheRepository;
 
+    // FCM 토큰 등록 (기존 토큰이면 갱신)
     @Transactional
     public NotificationFcmTokenPostRes registerFcmToken(Long userId, Long complexIdHeader, NotificationFcmTokenPostReq request) {
         // Gateway가 전달한 사용자/단지 컨텍스트를 기준으로 토큰 소유자를 결정한다
@@ -68,6 +69,7 @@ public class NotificationFcmService {
                 .build();
     }
 
+    // FCM 토큰 해제
     @Transactional
     public NotificationFcmTokenDeleteRes deleteFcmToken(Long userId, NotificationFcmTokenDeleteReq request) {
         // 다른 사용자의 토큰을 끄지 않도록 userId와 tokenValue를 함께 확인한다
@@ -83,6 +85,7 @@ public class NotificationFcmService {
                 .build();
     }
 
+    // FCM 토큰 갱신 (구 토큰 비활성화 포함)
     @Transactional
     public NotificationFcmTokenPatchRes updateFcmToken(Long userId, Long complexIdHeader, NotificationFcmTokenPatchReq request) {
         // 토큰 갱신도 현재 로그인 사용자와 단지 컨텍스트를 기준으로 처리한다

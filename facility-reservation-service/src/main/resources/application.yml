@@ -16,9 +16,6 @@ spring:
     url: ${FACILITY_DB_URL}
     username: ${FACILITY_DB_USERNAME}
     password: ${FACILITY_DB_PASSWORD}
-  kafka:
-    consumer:
-#      group-id: facility-reservation-service-group
 constants:
   api:
     prefix: /api
@@ -41,3 +38,6 @@ apten:
       enabled: ${APTEN_SCHEDULER_GX_COMPLETE_ENABLED:true}
       fixed-delay-ms: ${APTEN_SCHEDULER_GX_COMPLETE_FIXED_DELAY_MS:60000}
       batch-size: ${APTEN_SCHEDULER_GX_COMPLETE_BATCH_SIZE:100}
+    gx-approval-reminder:
+      enabled: ${APTEN_SCHEDULER_GX_APPROVAL_REMINDER_ENABLED:true}
+      cron: ${APTEN_SCHEDULER_GX_APPROVAL_REMINDER_CRON:0 0 9 * * *}

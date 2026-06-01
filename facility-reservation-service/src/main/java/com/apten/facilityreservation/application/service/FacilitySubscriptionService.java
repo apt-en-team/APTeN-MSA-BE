@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 시설 이용 구독 관련 API 시그니처를 담당하는 서비스이다.
+// 시설 구독 관리
 @Service
 @RequiredArgsConstructor
 public class FacilitySubscriptionService {
@@ -45,7 +45,7 @@ public class FacilitySubscriptionService {
     private final ReservationRepository reservationRepository;
     private final FeatureAccessService featureAccessService;
 
-    // 입주민이 시설 구독을 해지한다.
+    // 입주민 시설 구독 해지
     @Transactional
     public FacilitySubscriptionCancelRes cancelSubscription(Long userId, Long complexId, Long facilityId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -58,17 +58,17 @@ public class FacilitySubscriptionService {
                         memberCache.getHouseholdId(), facilityId, FacilitySubscriptionStatus.ACTIVE)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_NOT_FOUND));
 
-        // 조회된 구독이 요청 단지 소속인지 검증한다.
+        // 구독 단지 소속 검증
         if (!subscription.getComplexId().equals(complexId)) {
             throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_NOT_FOUND);
         }
 
-        // CONFIRMED 예약이 남아 있으면 먼저 취소를 요청한다.
+        // 확정 예약 잔여 여부 검증
         if (reservationRepository.existsByUserIdAndFacilityIdAndStatus(userId, facilityId, ReservationStatus.CONFIRMED)) {
             throw new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_HAS_CONFIRMED_RESERVATION);
         }
 
-        // 이번 달에 COMPLETED 이용 이력이 있고 가입일로부터 30일 미만이면 해지를 거부한다.
+        // 월 이용 이력/가입 기간 검증
         LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
         LocalDate monthEnd = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
         boolean hasCompletedThisMonth = reservationRepository.existsByUserIdAndFacilityIdAndReservationDateBetweenAndStatus(
@@ -87,7 +87,7 @@ public class FacilitySubscriptionService {
                 .build();
     }
 
-    // 관리자가 단지 내 구독 목록을 조회한다. facilityId/status 필터 적용 가능하다.
+    // 관리자 시설 구독 목록 조회
     @Transactional(readOnly = true)
     public List<AdminFacilitySubscriptionListRes> getAdminSubscriptionList(
             Long complexId, Long facilityId, FacilitySubscriptionStatus status) {
@@ -124,7 +124,7 @@ public class FacilitySubscriptionService {
                 .toList();
     }
 
-    // API-652 입주민 본인의 구독 목록을 조회한다.
+    // 입주민 시설 구독 목록 조회
     @Transactional(readOnly = true)
     public List<ResidentFacilitySubscriptionListRes> getMySubscriptions(Long userId, Long complexId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -141,7 +141,7 @@ public class FacilitySubscriptionService {
 
         List<Long> facilityIds = subscriptions.stream().map(FacilitySubscription::getFacilityId).toList();
 
-        // 시설 이름과 요금 방식을 배치 조회한다.
+        // 시설/요금 정보 일괄 조회 (N+1 방지)
         Map<Long, Facility> facilityMap = facilityRepository.findAllById(facilityIds)
                 .stream().collect(Collectors.toMap(Facility::getId, f -> f));
         Map<Long, FacilityPolicy> policyMap = facilityPolicyRepository
@@ -174,7 +174,7 @@ public class FacilitySubscriptionService {
                 .toList();
     }
 
-    // 관리자 세대별 구독 요약 목록을 조회한다.
+    // 관리자 세대별 구독 요약 조회
     @Transactional(readOnly = true)
     public List<AdminHouseholdSubscriptionSummaryRes> getHouseholdSubscriptionList(Long complexId) {
         List<FacilitySubscription> all = facilitySubscriptionRepository.findByComplexIdOrderBySubscribedAtDesc(complexId);
@@ -182,11 +182,11 @@ public class FacilitySubscriptionService {
             return List.of();
         }
 
-        // householdId → 구독 목록으로 그룹핑한다.
+        // 세대별 구독 그룹화
         Map<Long, List<FacilitySubscription>> byHousehold = all.stream()
                 .collect(Collectors.groupingBy(FacilitySubscription::getHouseholdId));
 
-        // 세대 정보를 배치 조회한다.
+        // 세대 정보 일괄 조회 (N+1 방지)
         Map<Long, HouseholdCache> householdMap = householdCacheRepository
                 .findAllById(byHousehold.keySet())
                 .stream()
@@ -212,7 +212,7 @@ public class FacilitySubscriptionService {
                 .toList();
     }
 
-    // 관리자 세대별 구독 상세를 조회한다.
+    // 관리자 세대별 구독 상세 조회
     @Transactional(readOnly = true)
     public AdminHouseholdSubscriptionDetailRes getHouseholdSubscriptionDetail(Long complexId, Long householdId) {
         HouseholdCache household = householdCacheRepository.findByHouseholdId(householdId)
@@ -221,7 +221,7 @@ public class FacilitySubscriptionService {
         List<FacilitySubscription> subscriptions = facilitySubscriptionRepository
                 .findByHouseholdIdAndComplexIdOrderBySubscribedAtDesc(householdId, complexId);
 
-        // 세대원 이름 조회: householdMemberCache → userCache 순으로 배치 조회한다.
+        // 세대원 정보 일괄 조회 (캐시 기준)
         List<HouseholdMemberCache> members = householdMemberCacheRepository.findByHouseholdId(householdId);
         List<Long> userIds = members.stream().map(HouseholdMemberCache::getUserId).toList();
         Map<Long, UserCache> userMap = userCacheRepository.findAllById(userIds)
@@ -239,7 +239,7 @@ public class FacilitySubscriptionService {
                 .sorted(java.util.Comparator.comparing(AdminHouseholdSubscriptionDetailRes.MemberInfo::isPrimary).reversed())
                 .toList();
 
-        // 시설명과 요금 정보를 배치 조회한다.
+        // 시설/요금 정보 일괄 조회 (N+1 방지)
         List<Long> facilityIds = subscriptions.stream().map(FacilitySubscription::getFacilityId).toList();
         Map<Long, Facility> facilityMap = facilityRepository.findAllById(facilityIds)
                 .stream().collect(Collectors.toMap(Facility::getId, f -> f));
@@ -273,7 +273,7 @@ public class FacilitySubscriptionService {
                 .build();
     }
 
-    // 관리자가 세대의 구독을 강제 해지한다.
+    // 관리자 시설 구독 강제 해지
     @Transactional
     public void adminCancelSubscription(Long complexId, Long subscriptionId) {
         FacilitySubscription subscription = facilitySubscriptionRepository.findById(subscriptionId)

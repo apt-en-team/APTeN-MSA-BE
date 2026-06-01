@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 관리자 예약 통합 개요 조회 서비스이다.
+// 관리자 예약 통합 개요 조회
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -41,6 +41,7 @@ public class AdminReservationOverviewService {
     private final UserCacheRepository userCacheRepository;
     private final HouseholdCacheRepository householdCacheRepository;
 
+    // 관리자 예약 통합 개요 조회
     public PageResponse<AdminReservationOverviewRes> getOverview(Long complexId, AdminReservationOverviewReq req) {
         ReservationKind kind = req.getReservationKind();
         List<AdminReservationOverviewRes> items = new ArrayList<>();
@@ -58,7 +59,7 @@ public class AdminReservationOverviewService {
                 Comparator.nullsLast(Comparator.naturalOrder())
         ).reversed());
 
-        // 예약자명 Like 필터
+        // 예약자명 검색 필터
         String residentNameFilter = req.getResidentName();
         if (residentNameFilter != null && !residentNameFilter.isBlank()) {
             String keyword = residentNameFilter.toLowerCase();
@@ -68,7 +69,7 @@ public class AdminReservationOverviewService {
                     .collect(Collectors.toCollection(ArrayList::new));
         }
 
-        // 시설명/프로그램명 Like 필터
+        // 시설명/프로그램명 검색 필터
         String facilityNameFilter = req.getFacilityName();
         if (facilityNameFilter != null && !facilityNameFilter.isBlank()) {
             String keyword = facilityNameFilter.toLowerCase();
@@ -86,8 +87,9 @@ public class AdminReservationOverviewService {
         return buildPageResponse(items, req.getPage(), req.getSize());
     }
 
+    // 일반 시설 예약 목록 변환
     private List<AdminReservationOverviewRes> fetchFacilityItems(Long complexId, AdminReservationOverviewReq req) {
-        // status 파라미터를 ReservationStatus로 변환한다. WAITING은 FACILITY에 해당 없으므로 빈 결과를 반환한다.
+        // 일반 예약 상태 필터 변환
         ReservationStatus facilityStatus = resolveFacilityStatus(req.getStatus());
         if (req.getStatus() != null && !req.getStatus().isBlank() && facilityStatus == null) {
             return List.of();
@@ -110,15 +112,9 @@ public class AdminReservationOverviewService {
         List<Long> facilityIds = reservations.stream()
                 .map(Reservation::getFacilityId).filter(id -> id != null).distinct().toList();
 
-        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of()
-                : userCacheRepository.findAllById(userIds).stream()
-                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
-        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of()
-                : householdCacheRepository.findAllById(householdIds).stream()
-                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
-        Map<Long, Facility> facilityMap = facilityIds.isEmpty() ? Map.of()
-                : facilityRepository.findAllById(facilityIds).stream()
-                        .collect(Collectors.toMap(Facility::getId, Function.identity()));
+        Map<Long, UserCache> userMap = loadUserMap(userIds);
+        Map<Long, HouseholdCache> householdMap = loadHouseholdMap(householdIds);
+        Map<Long, Facility> facilityMap = loadFacilityMap(facilityIds);
 
         return reservations.stream().map(r -> {
             UserCache user = userMap.get(r.getUserId());
@@ -146,8 +142,9 @@ public class AdminReservationOverviewService {
         }).toList();
     }
 
+    // GX 예약 목록 변환
     private List<AdminReservationOverviewRes> fetchGxItems(Long complexId, AdminReservationOverviewReq req) {
-        // status 파라미터를 GxReservationStatus로 변환한다. COMPLETED는 GX에 해당 없으므로 빈 결과를 반환한다.
+        // GX 예약 상태 필터 변환
         GxReservationStatus gxStatus = resolveGxStatus(req.getStatus());
         if (req.getStatus() != null && !req.getStatus().isBlank() && gxStatus == null) {
             return List.of();
@@ -176,15 +173,9 @@ public class AdminReservationOverviewService {
         List<Long> facilityIds = programMap.values().stream()
                 .map(GxProgram::getFacilityId).filter(id -> id != null).distinct().toList();
 
-        Map<Long, UserCache> userMap = userIds.isEmpty() ? Map.of()
-                : userCacheRepository.findAllById(userIds).stream()
-                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
-        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of()
-                : householdCacheRepository.findAllById(householdIds).stream()
-                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
-        Map<Long, Facility> facilityMap = facilityIds.isEmpty() ? Map.of()
-                : facilityRepository.findAllById(facilityIds).stream()
-                        .collect(Collectors.toMap(Facility::getId, Function.identity()));
+        Map<Long, UserCache> userMap = loadUserMap(userIds);
+        Map<Long, HouseholdCache> householdMap = loadHouseholdMap(householdIds);
+        Map<Long, Facility> facilityMap = loadFacilityMap(facilityIds);
 
         return gxList.stream().map(r -> {
             UserCache user = userMap.get(r.getUserId());
@@ -219,7 +210,7 @@ public class AdminReservationOverviewService {
         }).toList();
     }
 
-    // status 문자열을 ReservationStatus로 변환한다. WAITING은 FACILITY에 없으므로 null을 반환한다.
+    // 일반 예약 상태 변환
     private ReservationStatus resolveFacilityStatus(String status) {
         if (status == null || status.isBlank()) return null;
         return switch (status.toUpperCase()) {
@@ -230,7 +221,7 @@ public class AdminReservationOverviewService {
         };
     }
 
-    // status 문자열을 GxReservationStatus로 변환한다. COMPLETED는 GX에 없으므로 null을 반환한다.
+    // GX 예약 상태 변환
     private GxReservationStatus resolveGxStatus(String status) {
         if (status == null || status.isBlank()) return null;
         return switch (status.toUpperCase()) {
@@ -242,6 +233,28 @@ public class AdminReservationOverviewService {
         };
     }
 
+    // 사용자 캐시 일괄 조회
+    private Map<Long, UserCache> loadUserMap(List<Long> ids) {
+        return ids.isEmpty() ? Map.of()
+                : userCacheRepository.findAllById(ids).stream()
+                        .collect(Collectors.toMap(UserCache::getId, Function.identity()));
+    }
+
+    // 세대 캐시 일괄 조회
+    private Map<Long, HouseholdCache> loadHouseholdMap(List<Long> ids) {
+        return ids.isEmpty() ? Map.of()
+                : householdCacheRepository.findAllById(ids).stream()
+                        .collect(Collectors.toMap(HouseholdCache::getHouseholdId, Function.identity()));
+    }
+
+    // 시설 일괄 조회
+    private Map<Long, Facility> loadFacilityMap(List<Long> ids) {
+        return ids.isEmpty() ? Map.of()
+                : facilityRepository.findAllById(ids).stream()
+                        .collect(Collectors.toMap(Facility::getId, Function.identity()));
+    }
+
+    // 세대 동/호 표시명 생성
     private String buildUnit(HouseholdCache household) {
         if (household == null
                 || household.getBuildingNo() == null
@@ -251,6 +264,7 @@ public class AdminReservationOverviewService {
         return household.getBuildingNo() + "동 " + household.getUnitNo() + "호";
     }
 
+    // 목록 페이지 응답 생성
     private PageResponse<AdminReservationOverviewRes> buildPageResponse(
             List<AdminReservationOverviewRes> items, int page, int size) {
         int safePage = Math.max(page, 0);

@@ -13,13 +13,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-// 일반 예약 저장소이다.
+// 일반 예약 저장/조회 Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
 
     // 시설 기준 예약 존재 여부 조회
     boolean existsByFacilityId(Long facilityId);
 
-    // 같은 시간대 예약 존재 여부를 확인한다.
+    // 시간대 예약 중복 확인
     boolean existsByUserIdAndFacilityIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
             Long userId,
             Long facilityId,
@@ -29,7 +29,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             ReservationStatus status
     );
 
-    // 같은 시간대 정원형 예약 수를 센다.
+    // 시간대 정원형 예약 수 조회
     long countByFacilityIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
             Long facilityId,
             LocalDate reservationDate,
@@ -38,45 +38,26 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             ReservationStatus status
     );
 
-    // 사용자별 예약 목록을 조회한다.
-    List<Reservation> findByUserId(Long userId);
-
-    // 사용자 + 단지 기준 전체 예약 목록을 조회한다. (통합 목록 API 용)
+    // 사용자 예약 목록 조회 (통합 목록)
     List<Reservation> findByUserIdAndComplexId(Long userId, Long complexId);
 
-    // 시설별 예약 목록을 조회한다.
-    List<Reservation> findByFacilityId(Long facilityId);
-
-    // 시설의 미래 확정 예약 존재 여부를 확인한다.
+    // 미래 확정 예약 확인
     boolean existsByFacilityIdAndReservationDateGreaterThanEqualAndStatus(
             Long facilityId,
             java.time.LocalDate reservationDate,
             ReservationStatus status
     );
 
-    // 상태 기준 예약 목록을 조회한다.
-    List<Reservation> findByStatus(ReservationStatus status);
-
-    // 시설과 날짜, 상태 기준 예약 목록을 조회한다.
+    // 예약 목록 조회 (시설 + 날짜 + 상태)
     List<Reservation> findByFacilityIdAndReservationDateAndStatus(Long facilityId, LocalDate reservationDate, ReservationStatus status);
 
-    // 시설과 날짜, 복수 상태 기준 예약 목록을 조회한다. 과거/오늘 날짜의 COMPLETED 포함 조회에 사용한다.
+    // 예약 목록 조회 (시설 + 날짜 + 복수 상태)
     List<Reservation> findByFacilityIdAndReservationDateAndStatusIn(Long facilityId, LocalDate reservationDate, List<ReservationStatus> statuses);
 
-    // 상태별 현황 집계는 DB count를 직접 사용해 불필요한 목록 적재를 줄인다.
+    // 예약 수 조회 (상태)
     long countByFacilityIdAndReservationDateAndStatus(Long facilityId, LocalDate reservationDate, ReservationStatus status);
 
-    // 좌석형 중복 예약 검증에 사용할 예약 목록을 조회한다.
-    List<Reservation> findByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
-            Long facilityId,
-            Long seatId,
-            LocalDate reservationDate,
-            LocalTime startTime,
-            LocalTime endTime,
-            ReservationStatus status
-    );
-
-    // 좌석형 동일 슬롯의 확정 예약 존재 여부를 빠르게 확인한다.
+    // 좌석형 확정 예약 중복 확인
     boolean existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
             Long facilityId,
             Long seatId,
@@ -86,40 +67,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             ReservationStatus status
     );
 
-    // 사용자의 동일 시간대 중복 예약 검증에 사용할 예약 목록을 조회한다.
-    List<Reservation> findByUserIdAndReservationDateAndStartTimeAndEndTimeAndStatus(
-            Long userId,
-            LocalDate reservationDate,
-            LocalTime startTime,
-            LocalTime endTime,
-            ReservationStatus status
-    );
-
-    // 세대별 월 비용 산정용 예약 목록을 조회한다.
-    List<Reservation> findByHouseholdIdAndReservationDateBetween(Long householdId, LocalDate fromDate, LocalDate toDate);
-
-    // 세대별 상태 기준 월 비용 산정용 예약 목록을 조회한다.
-    List<Reservation> findByHouseholdIdAndStatusAndReservationDateBetween(
-            Long householdId,
-            ReservationStatus status,
-            LocalDate fromDate,
-            LocalDate toDate
-    );
-
-    // 월 비용 산정은 완료된 이용 실적만 반영해야 하므로 COMPLETED 기준으로 조회한다.
+    // 월 비용 대상 예약 조회 (COMPLETED)
     List<Reservation> findByStatusAndReservationDateBetween(
             ReservationStatus status,
             LocalDate fromDate,
             LocalDate toDate
     );
 
-    // 예약 ID와 사용자 ID 기준 상세를 조회한다.
+    // 사용자 예약 상세 조회
     Optional<Reservation> findByIdAndUserId(Long id, Long userId);
 
-    // 예약 ID와 단지 ID 기준 상세를 조회한다.
+    // 관리자 예약 상세 조회
     Optional<Reservation> findByIdAndComplexId(Long id, Long complexId);
 
-    // 관리자 예약 목록 조회 — status 필터 없음 (enum null 비교 회피)
+    // 관리자 예약 목록 조회
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.complexId = :complexId
@@ -134,7 +95,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 관리자 예약 목록 조회 — status 필터 포함 (enum non-null 보장)
+    // 관리자 예약 목록 조회 (상태 필터)
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.complexId = :complexId
@@ -151,7 +112,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 내 예약 목록 조회 — status 필터 없음 (enum null 비교 회피)
+    // 내 예약 목록 조회
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.userId = :userId
@@ -168,7 +129,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 내 예약 목록 조회 — status 필터 포함 (enum non-null 보장)
+    // 내 예약 목록 조회 (상태 필터)
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.userId = :userId
@@ -187,9 +148,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 완료 처리 대상 조회 — 당일 예약과 자정 초과(야간) 예약을 구분해 완료 기준일을 적용한다.
-    // endTime >= startTime : 당일 완료 (reservationDate 기준)
-    // endTime < startTime  : 자정을 넘기는 예약 — 다음날(reservationDate + 1) 기준으로 완료 처리
+    // 완료 처리 대상 조회 (야간 예약 익일 완료)
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.status = :status
@@ -214,26 +173,26 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Pageable pageable
     );
 
-    // 사용자 + 시설 기준 특정 상태 예약 존재 여부 확인 (구독 해지 검증용)
+    // 사용자 시설 예약 확인 (구독 해지 검증)
     boolean existsByUserIdAndFacilityIdAndStatus(Long userId, Long facilityId, ReservationStatus status);
 
-    // 사용자 + 시설 기준 기간 내 특정 상태 예약 존재 여부 확인 (이번달 이용 이력 검증용)
+    // 사용자 기간별 시설 예약 확인 (월 이용 이력)
     boolean existsByUserIdAndFacilityIdAndReservationDateBetweenAndStatus(
             Long userId, Long facilityId, LocalDate from, LocalDate to, ReservationStatus status);
 
-    // 통계 — 단지 기준 오늘 예약 수
+    // 예약 통계 조회 (오늘)
     long countByComplexIdAndReservationDate(Long complexId, LocalDate reservationDate);
 
-    // 통계 — 단지 기준 날짜+상태별 예약 수
+    // 예약 통계 조회 (날짜 + 상태)
     long countByComplexIdAndReservationDateAndStatus(Long complexId, LocalDate reservationDate, ReservationStatus status);
 
-    // 통계 — 단지 기준 상태별 예약 수
+    // 예약 통계 조회 (상태)
     long countByComplexIdAndStatus(Long complexId, ReservationStatus status);
 
-    // 통계 — 단지 기준 기간별 예약 생성 수
+    // 예약 통계 조회 (기간)
     long countByComplexIdAndCreatedAtBetween(Long complexId, LocalDateTime from, LocalDateTime to);
 
-    // 관리자 예약 통합 개요 조회 — status 필터 없음
+    // 관리자 예약 통합 개요 조회
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.complexId = :complexId
@@ -247,7 +206,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("reservationDate") LocalDate reservationDate
     );
 
-    // 관리자 예약 통합 개요 조회 — status 필터 포함 (enum null 비교 회피)
+    // 관리자 예약 통합 개요 조회 (상태 필터)
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.complexId = :complexId
@@ -263,7 +222,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("reservationDate") LocalDate reservationDate
     );
 
-    // 시설별 특정 날짜/상태 예약 건수를 배치 집계한다. (N+1 방지용)
+    // 시설별 예약 수 일괄 집계 (N+1 방지)
     @Query("""
         SELECT r.facilityId, COUNT(r)
         FROM Reservation r

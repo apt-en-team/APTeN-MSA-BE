@@ -5,15 +5,12 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// complex_admin 테이블 접근을 담당하는 JPA repository
+// 단지 관리자 소속 저장/조회 Repository
 public interface ComplexAdminRepository extends JpaRepository<ComplexAdmin, Long> {
 
-    // 단지 ID와 관리자 사용자 ID 기준으로 기존 배정 이력을 조회한다.
+    // 관리자 소속 조회
     Optional<ComplexAdmin> findByComplexIdAndAdminUserId(Long complexId, Long adminUserId);
 
-    // 단지 ID 기준 현재 활성화된 관리자 목록을 조회한다.
-    List<ComplexAdmin> findByComplexIdAndIsActiveTrue(Long complexId);
-
-    // 단지 ID 기준 관리자 현황을 최근 배정 순으로 조회한다.
+    // 단지 관리자 목록 조회 (최근 배정순)
     List<ComplexAdmin> findByComplexIdOrderByAssignedAtDesc(Long complexId);
 }

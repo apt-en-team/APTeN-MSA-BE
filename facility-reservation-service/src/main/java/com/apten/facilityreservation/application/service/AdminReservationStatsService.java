@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 관리자 예약 통계 서비스이다.
+// 관리자 예약 통계 조회
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -21,6 +21,7 @@ public class AdminReservationStatsService {
     private final ReservationRepository reservationRepository;
     private final GxReservationRepository gxReservationRepository;
 
+    // 관리자 예약 통계 조회
     public AdminReservationStatsRes getStats(Long complexId) {
         LocalDate today = LocalDate.now();
         YearMonth thisMonth = YearMonth.now();

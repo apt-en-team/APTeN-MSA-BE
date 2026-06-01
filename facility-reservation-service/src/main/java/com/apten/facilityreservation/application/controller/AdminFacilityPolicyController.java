@@ -13,7 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 시설 정책 API 진입점이다.
+// 관리자 시설 정책 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/facility-policies")
@@ -22,7 +22,7 @@ public class AdminFacilityPolicyController {
     private final FacilityPolicyService facilityPolicyService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-610 시설 예약 정책 설정
+    // 시설 예약 정책 설정
     @PutMapping
     public ResultResponse<FacilityPolicyPutRes> updateFacilityPolicy(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -35,7 +35,7 @@ public class AdminFacilityPolicyController {
         return ResultResponse.success("시설 예약 정책 설정 성공", facilityPolicyService.updateFacilityPolicy(context.getComplexId(), req));
     }
 
-    // API-611 시설 예약 정책 조회
+    // 시설 예약 정책 조회
     @GetMapping
     public ResultResponse<List<FacilityPolicyListRes>> getFacilityPolicyList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
