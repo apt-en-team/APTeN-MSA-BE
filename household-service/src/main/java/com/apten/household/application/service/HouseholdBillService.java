@@ -688,7 +688,6 @@ public class HouseholdBillService {
         return normalized.isBlank() ? null : normalized;
     }
 
-    // 방문차량 한 세대분 사용량을 스냅샷과 청구 항목에 함께 반영한다.
     // 차량 요금 산정 이벤트의 세대별 금액을 관리비와 청구 항목에 반영한다.
     private void reflectVehicleFeeItem(VehicleFeeReflectReq request, VehicleFeeReflectReq.Item item) {
         if (item == null || item.getHouseholdId() == null) {
@@ -719,6 +718,7 @@ public class HouseholdBillService {
         upsertBillItem(bill.getId(), HouseholdBillItemType.FACILITY_FEE, HouseholdBillItemType.FACILITY_FEE.getValue(), facilityFee, "시설 이용 월별 반영");
     }
 
+    // 방문차량 한 세대분 사용량을 스냅샷과 청구 항목에 함께 반영한다.
     private VisitorFeeReflectRes.Item reflectVisitorFeeItem(VisitorFeeReflectReq request, VisitorFeeReflectReq.Item item) {
         if (item == null || item.getHouseholdId() == null) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);

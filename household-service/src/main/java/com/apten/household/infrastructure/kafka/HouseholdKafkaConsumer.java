@@ -28,6 +28,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HouseholdKafkaConsumer {
 
+    private static final String VEHICLE_FEE_CALCULATED_TOPIC = "vehicle.fee.calculated";
+    private static final String FACILITY_FEE_CALCULATED_TOPIC = "facility.fee.calculated";
+    private static final String VISITOR_FEE_CALCULATED_TOPIC = "visitor.fee.calculated";
+
     private final HouseholdReferenceCacheService householdReferenceCacheService;
     private final HouseholdMatchService householdMatchService;
     private final HouseholdBillService householdBillService;
@@ -100,7 +104,7 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    @KafkaListener(topics = "vehicle.fee.calculated", groupId = "household-service-vehicle-fee")
+    @KafkaListener(topics = VEHICLE_FEE_CALCULATED_TOPIC, groupId = "household-service-vehicle-fee")
     public void consumeVehicleFeeCalculatedEvent(String message) {
         try {
             JsonNode payload = payloadNode(message);
@@ -126,7 +130,7 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    @KafkaListener(topics = "facility.fee.calculated", groupId = "household-service-facility-fee")
+    @KafkaListener(topics = FACILITY_FEE_CALCULATED_TOPIC, groupId = "household-service-facility-fee")
     public void consumeFacilityFeeCalculatedEvent(String message) {
         try {
             JsonNode payload = payloadNode(message);
@@ -152,7 +156,7 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    @KafkaListener(topics = "visitor.fee.calculated", groupId = "household-service-visitor-fee")
+    @KafkaListener(topics = VISITOR_FEE_CALCULATED_TOPIC, groupId = "household-service-visitor-fee")
     public void consumeVisitorFeeCalculatedEvent(String message) {
         try {
             JsonNode payload = payloadNode(message);
