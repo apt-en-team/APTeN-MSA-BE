@@ -1,5 +1,7 @@
 package com.apten.household.application.model.request;
 
+import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,4 +22,19 @@ public class VehicleFeeReflectReq {
 
     // 청구 월이다.
     private Integer billMonth;
+    // 세대별 차량 비용 목록이다. Kafka 비용 산정 이벤트를 직접 반영할 때 사용한다.
+    private List<Item> items;
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Item {
+
+        // 세대 ID이다.
+        private Long householdId;
+
+        // 차량 비용이다.
+        private BigDecimal vehicleFee;
+    }
 }

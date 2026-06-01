@@ -111,6 +111,19 @@ public class HouseholdBillService {
     // 차량 서비스에서 전달된 차량 스냅샷 기준으로 차량 비용 반영 대상을 준비한다.
     public VehicleFeeReflectRes reflectVehicleFee(VehicleFeeReflectReq request) {
         validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
+
+        List<VehicleFeeReflectReq.Item> items = request.getItems() == null ? List.of() : request.getItems();
+        if (!items.isEmpty()) {
+            items.forEach(item -> reflectVehicleFeeItem(request, item));
+            return VehicleFeeReflectRes.builder()
+                    .complexId(request.getComplexId())
+                    .billYear(request.getBillYear())
+                    .billMonth(request.getBillMonth())
+                    .affectedHouseholdCount(items.size())
+                    .reflectedAt(LocalDateTime.now())
+                    .build();
+        }
+
         List<VehicleSnapshot> snapshots = vehicleSnapshotRepository.findByComplexIdAndStatusAndIsDeletedFalse(
                 request.getComplexId(),
                 VehicleSnapshotStatus.APPROVED
@@ -139,6 +152,19 @@ public class HouseholdBillService {
     // 시설 이용 스냅샷을 월 단위로 합산해 세대별 관리비 항목에 반영한다.
     public FacilityFeeReflectRes reflectFacilityFee(FacilityFeeReflectReq request) {
         validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
+
+        List<FacilityFeeReflectReq.Item> items = request.getItems() == null ? List.of() : request.getItems();
+        if (!items.isEmpty()) {
+            items.forEach(item -> reflectFacilityFeeItem(request, item));
+            return FacilityFeeReflectRes.builder()
+                    .complexId(request.getComplexId())
+                    .billYear(request.getBillYear())
+                    .billMonth(request.getBillMonth())
+                    .affectedHouseholdCount(items.size())
+                    .reflectedAt(LocalDateTime.now())
+                    .build();
+        }
+
         LocalDate fromDate = LocalDate.of(request.getBillYear(), request.getBillMonth(), 1);
         LocalDate toDate = fromDate.withDayOfMonth(fromDate.lengthOfMonth());
         Map<Long, BigDecimal> feeByHousehold = facilityUsageSnapshotRepository
@@ -663,6 +689,36 @@ public class HouseholdBillService {
     }
 
     // 방문차량 한 세대분 사용량을 스냅샷과 청구 항목에 함께 반영한다.
+    // 차량 요금 산정 이벤트의 세대별 금액을 관리비와 청구 항목에 반영한다.
+    private void reflectVehicleFeeItem(VehicleFeeReflectReq request, VehicleFeeReflectReq.Item item) {
+        if (item == null || item.getHouseholdId() == null) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);
+        }
+        getHouseholdForComplex(request.getComplexId(), item.getHouseholdId());
+
+        HouseholdBill bill = getOrCreateBill(request.getComplexId(), item.getHouseholdId(), request.getBillYear(), request.getBillMonth());
+        validateBillEditable(bill);
+        BigDecimal vehicleFee = defaultAmount(item.getVehicleFee());
+        updateBillAmounts(bill, bill.getBaseFee(), vehicleFee, bill.getFacilityFee(), bill.getVisitorFee());
+        householdBillRepository.save(bill);
+        upsertBillItem(bill.getId(), HouseholdBillItemType.VEHICLE_FEE, HouseholdBillItemType.VEHICLE_FEE.getValue(), vehicleFee, "차량 비용 월별 반영");
+    }
+
+    // 시설 요금 산정 이벤트의 세대별 금액을 관리비와 청구 항목에 반영한다.
+    private void reflectFacilityFeeItem(FacilityFeeReflectReq request, FacilityFeeReflectReq.Item item) {
+        if (item == null || item.getHouseholdId() == null) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);
+        }
+        getHouseholdForComplex(request.getComplexId(), item.getHouseholdId());
+
+        HouseholdBill bill = getOrCreateBill(request.getComplexId(), item.getHouseholdId(), request.getBillYear(), request.getBillMonth());
+        validateBillEditable(bill);
+        BigDecimal facilityFee = defaultAmount(item.getFacilityFee());
+        updateBillAmounts(bill, bill.getBaseFee(), bill.getVehicleFee(), facilityFee, bill.getVisitorFee());
+        householdBillRepository.save(bill);
+        upsertBillItem(bill.getId(), HouseholdBillItemType.FACILITY_FEE, HouseholdBillItemType.FACILITY_FEE.getValue(), facilityFee, "시설 이용 월별 반영");
+    }
+
     private VisitorFeeReflectRes.Item reflectVisitorFeeItem(VisitorFeeReflectReq request, VisitorFeeReflectReq.Item item) {
         if (item == null || item.getHouseholdId() == null) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);
