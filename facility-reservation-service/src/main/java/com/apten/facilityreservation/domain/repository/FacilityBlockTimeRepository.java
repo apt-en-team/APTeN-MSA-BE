@@ -8,13 +8,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-// 시설 차단 시간 저장소이다.
+// 시설 차단 시간 저장/조회 Repository
 public interface FacilityBlockTimeRepository extends JpaRepository<FacilityBlockTime, Long> {
 
-    // 시설 기준 차단 시간 목록을 조회한다.
-    List<FacilityBlockTime> findByFacilityId(Long facilityId);
-
-    // 특정 날짜의 활성 차단 시간 목록을 조회한다.
+    // 활성 차단 시간 조회 (특정 날짜)
     List<FacilityBlockTime> findByFacilityIdAndBlockDateAndIsActiveTrue(Long facilityId, LocalDate blockDate);
 
     // 시설 차단 시간 목록 조회
@@ -34,12 +31,12 @@ public interface FacilityBlockTimeRepository extends JpaRepository<FacilityBlock
             @Param("isActive") Boolean isActive
     );
 
-    // batchId 기준 일괄 비활성화 (facilityId 포함해 타 시설 접근 차단)
+    // 차단 그룹 일괄 비활성화 (시설 + batchId)
     @Modifying(clearAutomatically = true)
     @Query("UPDATE FacilityBlockTime b SET b.isActive = false WHERE b.batchId = :batchId AND b.facilityId = :facilityId")
     int deactivateByBatchIdAndFacilityId(@Param("batchId") Long batchId, @Param("facilityId") Long facilityId);
 
-    // 시설별 특정 날짜 활성 차단 존재 여부를 배치 조회한다. (N+1 방지용, 점검중 표시에 사용)
+    // 시설별 활성 차단 일괄 조회 (N+1 방지)
     @Query("""
         SELECT b.facilityId
         FROM FacilityBlockTime b

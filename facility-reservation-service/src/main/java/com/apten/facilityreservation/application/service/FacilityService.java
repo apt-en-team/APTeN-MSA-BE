@@ -19,7 +19,6 @@ import com.apten.facilityreservation.application.model.request.FacilitySeatBulkP
 import com.apten.facilityreservation.application.model.request.FacilitySeatPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypeListReq;
-import com.apten.facilityreservation.application.model.request.FacilityTypePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityUsageStatusReq;
 import com.apten.facilityreservation.application.model.request.ResidentFacilityListReq;
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
@@ -59,7 +58,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 시설과 시설 타입, 좌석, 차단 시간 관련 API
+// 시설/좌석/차단 시간 관리
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -113,7 +112,7 @@ public class FacilityService {
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
     }
 
-    // 입주민이 조회 가능한 활성 시설을 조회한다.
+    // 입주민 활성 시설 조회
     private Facility getResidentFacility(Long complexId, Long facilityId) {
         Facility facility = getFacility(complexId, facilityId);
         if (Boolean.FALSE.equals(facility.getIsActive())) {
@@ -161,23 +160,21 @@ public class FacilityService {
         }
     }
 
-    // 운영 시간 검증 — openTime < closeTime(일반) 또는 openTime > closeTime(익일 마감) 모두 허용
+    // 운영 시간 검증 (야간 운영 허용)
     private void validateTime(java.time.LocalTime openTime, java.time.LocalTime closeTime) {
         if (openTime == null || closeTime == null || openTime.equals(closeTime)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
-    // 현황 조회는 슬롯 범위 해석이 핵심이므로 시작/종료 시각이 모두 필요하다.
-    // 익일 마감(endTime < startTime) 허용 — 동일 시각만 거부한다.
+    // 현황 조회 시간 범위 검증 (야간 운영 허용)
     private void validateSlotRange(LocalDate targetDate, LocalTime startTime, LocalTime endTime) {
         if (targetDate == null || startTime == null || endTime == null || startTime.equals(endTime)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
-    // 차단과 예약은 같은 시간 구간을 해석해야 하므로 공통 겹침 규칙을 재사용한다.
-    // slotEnd 또는 candidateEnd가 자정(00:00)처럼 시작 이하인 경우 익일 마감으로 간주해 MAX로 처리한다.
+    // 시간 구간 겹침 판별 (야간 운영 보정)
     private boolean isTimeOverlap(LocalTime slotStart, LocalTime slotEnd, LocalTime candidateStart, LocalTime candidateEnd) {
         LocalTime effectiveStart = candidateStart != null ? candidateStart : LocalTime.MIN;
         LocalTime effectiveEnd = (candidateEnd != null && candidateEnd.isAfter(effectiveStart)) ? candidateEnd : LocalTime.MAX;
@@ -215,8 +212,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 정책 기준 예약 단위 표시 라벨을 생성한다.
-    // MINUTE: slotMin값+"분" (예: "60분"), DAY: "하루", 정책 없으면 null
+    // 예약 단위 표시명 생성
     private String buildReservationUnitLabel(FacilityPolicy policy) {
         if (policy == null || policy.getUsageUnitType() == null) {
             return null;
@@ -304,20 +300,20 @@ public class FacilityService {
         List<Facility> facilities = facilityPage.getContent();
         List<Long> facilityIds = facilities.stream().map(Facility::getId).toList();
 
-        // 시설 타입명 배치 조회 (N+1 방지)
+        // 시설 타입명 일괄 조회 (N+1 방지)
         List<Long> typeIds = facilities.stream().map(Facility::getTypeId).filter(java.util.Objects::nonNull).distinct().toList();
         Map<Long, String> typeNameMap = typeIds.isEmpty() ? Map.of() :
                 facilityTypeRepository.findAllById(typeIds)
                         .stream()
                         .collect(Collectors.toMap(FacilityType::getId, FacilityType::getTypeName));
 
-        // 정책 배치 조회 (N+1 방지)
+        // 정책 일괄 조회 (N+1 방지)
         Map<Long, FacilityPolicy> policyMap = facilityIds.isEmpty() ? Map.of() :
                 facilityPolicyRepository.findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                         .stream()
                         .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
-        // 오늘 예약 수 배치 조회 (CONFIRMED + COMPLETED 기준, N+1 방지)
+        // 오늘 예약 수 일괄 조회 (N+1 방지)
         LocalDate today = LocalDate.now();
         List<ReservationStatus> activeStatuses = List.of(ReservationStatus.CONFIRMED, ReservationStatus.COMPLETED);
         Map<Long, Integer> todayCountMap = facilityIds.isEmpty() ? Map.of() :
@@ -328,11 +324,11 @@ public class FacilityService {
                                 row -> ((Long) row[1]).intValue()
                         ));
 
-        // 오늘 임시 차단(점검) 시설 ID 배치 조회
+        // 오늘 임시 차단 시설 일괄 조회
         Set<Long> blockFacilityIds = facilityIds.isEmpty() ? Set.of() :
                 new java.util.HashSet<>(facilityBlockTimeRepository.findBlockedFacilityIds(facilityIds, today));
 
-        // 오늘 정기 휴무 규칙 적용 시설 ID 배치 조회
+        // 오늘 정기 휴무 시설 일괄 조회
         Set<Long> closureFacilityIds = new java.util.HashSet<>();
         if (!facilityIds.isEmpty()) {
             facilityClosureRuleRepository.findByFacilityIdInAndIsActiveTrue(facilityIds).stream()
@@ -341,7 +337,7 @@ public class FacilityService {
                     .forEach(closureFacilityIds::add);
         }
 
-        // 합산 차단 집합 (isTodayBlocked 판단용)
+        // 오늘 차단 시설 통합
         Set<Long> blockedFacilityIds = new java.util.HashSet<>(blockFacilityIds);
         blockedFacilityIds.addAll(closureFacilityIds);
 
@@ -385,7 +381,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 관리자 시설 상세를 조회한다. API-603
+    // 관리자 시설 상세 조회
     public FacilityDetailRes getAdminFacilityDetail(Long complexId, Long facilityId) {
         // 시설 접근 검증
         validateAdminAccess(complexId);
@@ -466,7 +462,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 관리자 시설 삭제를 처리한다. API-605
+    // 관리자 시설 삭제
     @Transactional
     public FacilityDeleteRes deleteFacility(Long complexId, Long facilityId) {
         // 시설 접근 검증
@@ -506,17 +502,6 @@ public class FacilityService {
                 .updatedAt(facility.getUpdatedAt())
                 .build();
     }
-
-//    // 시설 타입을 등록한다. 부트스트랩처리
-//    public FacilityTypePostRes createFacilityType(Long complexId, FacilityTypePostReq req) {
-//        featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
-//        return FacilityTypePostRes.builder()
-//                .facilityTypeId(0L)
-//                .typeCode(req.getTypeCode())
-//                .typeName(req.getTypeName())
-//                .createdAt(LocalDateTime.now())
-//                .build();
-//    }
 
     // 시설 타입 목록 조회
     public List<FacilityTypeListRes> getFacilityTypeList(Long complexId, FacilityTypeListReq req) {
@@ -630,7 +615,7 @@ public class FacilityService {
                 isActive
         );
 
-        // seatId가 있는 항목의 좌석 정보를 일괄 조회한다.
+        // 연관 좌석 일괄 조회 (N+1 방지)
         Set<Long> seatIds = blockTimes.stream()
                 .map(FacilityBlockTime::getSeatId)
                 .filter(Objects::nonNull)
@@ -661,7 +646,7 @@ public class FacilityService {
                 .toList();
     }
 
-    // 반복 차단 시간 배치 등록 — daysOfWeek × [validFrom, validUntil] 범위 날짜마다 FacilityBlockTime 행을 생성하고 공통 batchId로 묶는다
+    // 반복 차단 시간 배치 등록 (요일 + 기간)
     @Transactional
     public FacilityBlockTimeBatchPostRes createFacilityBlockTimeBatch(Long complexId, Long facilityId, FacilityBlockTimeBatchPostReq req) {
         validateAdminAccess(complexId);
@@ -687,7 +672,7 @@ public class FacilityService {
             }
         }
 
-        // 양의 Long batchId — 같은 배치 그룹을 하나의 where 절로 처리하기 위한 식별자
+        // 차단 배치 그룹 식별자 생성
         long batchId = UUID.randomUUID().getLeastSignificantBits() & 0x7FFFFFFFFFFFFFFFL;
 
         List<FacilityBlockTime> blockTimes = new ArrayList<>();
@@ -725,7 +710,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 반복 차단 그룹 비활성화 — batchId가 같은 모든 행의 is_active를 false로 변경한다
+    // 반복 차단 그룹 비활성화 (batchId 기준)
     @Transactional
     public FacilityBlockTimeBatchDeactivateRes deactivateFacilityBlockTimeBatch(Long complexId, Long facilityId, Long batchId) {
         validateAdminAccess(complexId);
@@ -738,7 +723,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 시설 차단 시간 단건 비활성화 — isActive=false 처리한다
+    // 시설 차단 시간 단건 비활성화
     @Transactional
     public FacilityBlockTimeDeactivateRes deactivateFacilityBlockTime(Long complexId, Long facilityId, Long blockTimeId) {
         validateAdminAccess(complexId);
@@ -755,7 +740,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 시설 차단 시간 단건 수정 — blockDate·시작·종료 시각을 변경한다
+    // 시설 차단 시간 단건 수정
     @Transactional
     public FacilityBlockTimePatchRes updateFacilityBlockTime(Long complexId, Long facilityId, Long blockTimeId, FacilityBlockTimePatchReq req) {
         validateAdminAccess(complexId);
@@ -775,7 +760,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 시설 좌석을 등록한다. API-614
+    // 시설 좌석 등록
     @Transactional
     public FacilitySeatPostRes createFacilitySeat(Long complexId, Long facilityId, FacilitySeatPostReq req) {
         validateAdminAccess(complexId);
@@ -812,12 +797,12 @@ public class FacilityService {
                 .build();
     }
 
-    // 좌석 라벨 규칙은 빠르게 여러 좌석을 구분하려는 운영 목적을 따른다.
+    // 좌석 라벨 규칙 적용
     private String resolveSeatLabel(String prefix, Integer seatNo) {
         return prefix + "-" + seatNo;
     }
 
-    // 패턴이 없을 때도 운영자가 구간 라벨을 바로 알아볼 수 있게 기본 좌석명을 맞춘다.
+    // 좌석 기본 이름 생성
     private String resolveSeatName(String seatNamePattern, String label, Integer seatNo) {
         String effectivePattern = seatNamePattern == null || seatNamePattern.isBlank()
                 ? "{label} 좌석"
@@ -827,7 +812,7 @@ public class FacilityService {
                 .replace("{label}", label);
     }
 
-    // 시설 좌석을 일괄 등록한다.
+    // 시설 좌석 일괄 등록
     @Transactional
     public FacilitySeatBulkPostRes createFacilitySeatsBulk(Long complexId, Long facilityId, FacilitySeatBulkPostReq req) {
         validateAdminAccess(complexId);
@@ -857,7 +842,7 @@ public class FacilityService {
             seatNos.add(seatNo);
         }
 
-        // 하나라도 겹치면 전부 실패시켜야 좌석 구간 생성 결과가 반쪽만 남지 않는다.
+        // 좌석 일괄 중복 방지
         if (!facilitySeatRepository.findByFacilityIdAndSeatNoIn(facilityId, seatNos).isEmpty()) {
             throw new BusinessException(FacilityReservationErrorCode.DUPLICATE_SEAT);
         }
@@ -884,7 +869,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 시설 좌석 목록을 조회한다. API-615
+    // 시설 좌석 목록 조회
     public List<FacilitySeatListRes> getFacilitySeatList(Long complexId, Long facilityId) {
         validateAdminAccess(complexId);
 
@@ -902,7 +887,7 @@ public class FacilityService {
                 .toList();
     }
 
-    // 시설 좌석을 수정한다. API-616
+    // 시설 좌석 수정
     @Transactional
     public FacilitySeatPatchRes updateFacilitySeat(Long complexId, Long seatId, FacilitySeatPatchReq req) {
         validateAdminAccess(complexId);
@@ -910,7 +895,7 @@ public class FacilityService {
         FacilitySeat seat = facilitySeatRepository.findById(seatId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
 
-        // 해당 좌석이 현재 complexId 소속 시설인지 검증한다.
+        // 좌석 시설 소속 검증
         getFacility(complexId, seat.getFacilityId());
 
         seat.apply(req);
@@ -924,7 +909,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 입주민 시설 목록을 조회한다. API-617
+    // 입주민 시설 목록 조회
     public List<ResidentFacilityListRes> getResidentFacilityList(Long complexId, ResidentFacilityListReq req) {
         validateResidentAccess(complexId);
 
@@ -936,14 +921,14 @@ public class FacilityService {
             return List.of();
         }
 
-        // 시설 ID 목록으로 정책을 일괄 조회해 N+1을 제거한다.
+        // 시설 정책 일괄 조회 (N+1 방지)
         List<Long> facilityIds = facilities.stream().map(Facility::getId).toList();
         java.util.Map<Long, FacilityPolicy> policyMap = facilityPolicyRepository
                 .findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
-        // 타입 ID 목록으로 시설 타입을 일괄 조회해 N+1을 제거한다.
+        // 시설 타입 일괄 조회 (N+1 방지)
         List<Long> typeIds = facilities.stream().map(Facility::getTypeId).distinct().toList();
         java.util.Map<Long, FacilityType> typeMap = facilityTypeRepository.findAllById(typeIds)
                 .stream()
@@ -972,7 +957,7 @@ public class FacilityService {
                 .toList();
     }
 
-    // 입주민 시설 상세를 조회한다. API-618
+    // 입주민 시설 상세 조회
     public ResidentFacilityDetailRes getResidentFacilityDetail(Long complexId, Long facilityId) {
         validateResidentAccess(complexId);
 
@@ -1003,7 +988,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 시설 이용 현황을 조회한다. API-644
+    // 시설 이용 현황 조회
     public FacilityUsageStatusRes getFacilityUsageStatus(Long complexId, FacilityUsageStatusReq req) {
         validateAdminAccess(complexId);
 
@@ -1013,7 +998,7 @@ public class FacilityService {
 
         Facility facility = getFacility(complexId, req.getFacilityId());
 
-        // 상태별 건수는 오늘 이용 현황 요약이므로 HOLDING이 아닌 예약 상태만 집계한다.
+        // 예약 상태별 이용 현황 집계
         int reservedCount = (int) reservationRepository.countByFacilityIdAndReservationDateAndStatus(
                 facility.getId(), req.getTargetDate(), ReservationStatus.CONFIRMED);
         int completedCount = (int) reservationRepository.countByFacilityIdAndReservationDateAndStatus(
@@ -1030,7 +1015,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 좌석 상태를 조회한다. API-645
+    // 관리자 좌석 상태 조회
     public List<SeatStatusRes> getSeatStatus(Long complexId, Long facilityId, SeatStatusReq req) {
         validateAdminAccess(complexId);
         if (req == null) {
@@ -1046,7 +1031,7 @@ public class FacilityService {
         List<FacilitySeat> seats = facilitySeatRepository.findByFacilityIdAndIsActiveTrue(facilityId);
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, req.getTargetDate());
-        // 정기 휴무 규칙을 조회한다 — 임시 차단과 함께 예약 가능 여부를 결정한다
+        // 정기 휴무 규칙 조회
         List<FacilityClosureRule> closureRules = facilityClosureRuleRepository
                 .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId);
         List<Reservation> confirmedReservations = reservationRepository
@@ -1060,7 +1045,7 @@ public class FacilityService {
                         LocalDateTime.now()
                 );
 
-        // 좌석 표시 이름은 예약/선점 사용자 이름이 있으면 보여주므로 user_cache를 한 번에 읽는다.
+        // 좌석 사용자 일괄 조회 (N+1 방지)
         Set<Long> userIds = java.util.stream.Stream.concat(
                         confirmedReservations.stream().map(Reservation::getUserId),
                         activeHolds.stream().map(ReservationTempHold::getUserId)
@@ -1079,7 +1064,7 @@ public class FacilityService {
                 householdCacheRepository.findAllById(seatHouseholdIds).stream()
                         .collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
 
-        // 임시 차단 또는 정기 휴무 규칙이 시설 전체에 적용되면 모든 좌석을 BLOCKED로 본다.
+        // 시설 전체 차단 여부 판별
         boolean facilityBlocked = blockTimes.stream()
                 .filter(blockTime -> blockTime.getSeatId() == null)
                 .anyMatch(blockTime -> isTimeOverlap(
@@ -1092,7 +1077,7 @@ public class FacilityService {
 
         return seats.stream()
                 .map(seat -> {
-                    // 시설 전체 차단 또는 임시 차단 또는 해당 좌석의 정기 휴무 규칙이 적용되면 BLOCKED이다
+                    // 좌석 차단 여부 판별
                     boolean seatBlockedByRule = isBlockedByClosureRules(
                             req.getTargetDate(), req.getStartTime(), req.getEndTime(), seat.getId(), closureRules);
                     if (facilityBlocked || isSeatBlocked(seat.getId(), blockTimes, req.getStartTime(), req.getEndTime())
@@ -1172,7 +1157,7 @@ public class FacilityService {
                 .toList();
     }
 
-    // 정원형 이용 현황을 조회한다. API-646
+    // 정원형 이용 현황 조회
     public CountStatusRes getCountStatus(Long complexId, Long facilityId, CountStatusReq req) {
         validateAdminAccess(complexId);
         if (req == null) {
@@ -1191,7 +1176,7 @@ public class FacilityService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
         }
 
-        // 정기 휴무 규칙이 이 날짜·시간대에 적용되면 예약 불가 슬롯으로 처리한다
+        // 정기 휴무 슬롯 차단
         List<FacilityClosureRule> closureRules = facilityClosureRuleRepository
                 .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId);
         boolean blockedByRule = isBlockedByClosureRules(
@@ -1205,8 +1190,8 @@ public class FacilityService {
                         && req.getEndTime().equals(reservation.getEndTime()))
                 .toList();
 
-        // COUNT용 HOLDING은 아직 생성하지 않으므로 현재 잔여 수량은 CONFIRMED 기준으로만 계산한다.
-        // 정기 휴무 규칙에 해당하면 availableCount를 0으로 강제한다.
+        // COUNT 선점 미지원
+        // 정기 휴무 잔여 수량 차단
         int reservedCount = confirmedReservations.size();
         int maxCount = policy.getMaxReservationCount();
         int availableCount = blockedByRule ? 0 : Math.max(0, maxCount - reservedCount);
@@ -1219,7 +1204,7 @@ public class FacilityService {
                 userCacheRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
 
-        // 동/호수 표시를 위해 HouseholdCache를 batch 조회한다. 캐시 미동기 시 null로 내려간다.
+        // 세대 정보 일괄 조회 (N+1 방지, 누락 캐시 null 허용)
         Set<Long> householdIds = confirmedReservations.stream()
                 .map(Reservation::getHouseholdId)
                 .filter(Objects::nonNull)
@@ -1255,7 +1240,7 @@ public class FacilityService {
                 .build();
     }
 
-    // 입주민 좌석 상태를 조회한다. 다른 입주민 개인정보는 응답에 포함하지 않는다.
+    // 입주민 좌석 상태 조회 (개인정보 제외)
     public List<ResidentSeatStatusRes> getResidentSeatStatus(Long complexId, Long facilityId, SeatStatusReq req) {
         validateResidentAccess(complexId);
         if (req == null) {
@@ -1263,7 +1248,7 @@ public class FacilityService {
         }
         validateSlotRange(req.getTargetDate(), req.getStartTime(), req.getEndTime());
 
-        // 활성 시설인지 함께 검증한다.
+        // 활성 시설 검증
         Facility facility = getResidentFacility(complexId, facilityId);
         if (facility.getReservationType() != ReservationType.SEAT) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
@@ -1272,7 +1257,7 @@ public class FacilityService {
         List<FacilitySeat> seats = facilitySeatRepository.findByFacilityIdAndIsActiveTrue(facilityId);
         List<FacilityBlockTime> blockTimes = facilityBlockTimeRepository
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(facilityId, req.getTargetDate());
-        // 정기 휴무 규칙을 조회한다
+        // 정기 휴무 규칙 조회
         List<FacilityClosureRule> closureRules = facilityClosureRuleRepository
                 .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId);
         List<Reservation> confirmedReservations = reservationRepository
@@ -1285,7 +1270,7 @@ public class FacilityService {
                         LocalDateTime.now()
                 );
 
-        // 임시 차단 또는 정기 휴무 규칙이 시설 전체에 적용되면 모든 좌석을 BLOCKED로 본다.
+        // 시설 전체 차단 여부 판별
         boolean facilityBlocked = blockTimes.stream()
                 .filter(blockTime -> blockTime.getSeatId() == null)
                 .anyMatch(blockTime -> isTimeOverlap(
@@ -1360,79 +1345,78 @@ public class FacilityService {
                 .toList();
     }
 
-    // 좌석 차단은 좌석별 설비 이슈도 포함하므로 시설 전체 차단과 분리해 판단한다.
+    // 좌석별 차단 여부 판별
     private boolean isSeatBlocked(Long seatId, List<FacilityBlockTime> blockTimes, LocalTime startTime, LocalTime endTime) {
         return blockTimes.stream()
                 .filter(blockTime -> seatId.equals(blockTime.getSeatId()))
                 .anyMatch(blockTime -> isTimeOverlap(startTime, endTime, blockTime.getStartTime(), blockTime.getEndTime()));
     }
 
-    // 정기 휴무 규칙 목록 중 주어진 날짜와 시간대에 해당하는 규칙이 있는지 판단한다.
-    // seatId가 null이면 시설 전체 규칙만 검사하고, 값이 있으면 해당 좌석 규칙도 함께 검사한다.
+    // 정기 휴무 차단 여부 판별 (시설/좌석)
     private boolean isBlockedByClosureRules(LocalDate date, LocalTime startTime, LocalTime endTime,
                                              Long seatId, List<FacilityClosureRule> rules) {
         return rules.stream()
-                // 날짜 패턴과 맞는 규칙만 남긴다
+                // 날짜 패턴 필터
                 .filter(rule -> rule.isDateBlocked(date))
-                // 해당 규칙이 시설 전체(seatId null) 또는 요청 좌석과 같은 좌석에 적용되는 규칙인지 확인한다
+                // 시설/좌석 적용 범위 필터
                 .filter(rule -> rule.getSeatId() == null || rule.getSeatId().equals(seatId))
-                // 종일 차단이거나 시간대가 겹치면 차단이다
+                // 종일/시간대 차단 판별
                 .anyMatch(rule -> rule.isAllDay()
                         || isTimeOverlap(startTime, endTime, rule.getStartTime(), rule.getEndTime()));
     }
 
-    // 정기 휴무 규칙 등록 요청 값을 검증한다.
+    // 정기 휴무 규칙 요청 검증
     private void validateClosureRulePostReq(FacilityClosureRulePostReq req) {
         if (req == null || req.getRuleType() == null
                 || req.getDaysOfWeek() == null || req.getDaysOfWeek().isEmpty()) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
-        // MONTHLY_NTH는 weekOrdinals가 반드시 필요하다
+        // MONTHLY_NTH 주차 필수 검증
         if (req.getRuleType() == com.apten.facilityreservation.domain.enums.ClosureRuleType.MONTHLY_NTH
                 && (req.getWeekOrdinals() == null || req.getWeekOrdinals().isEmpty())) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
-        // weekOrdinals 범위 검사 — 1~5 주만 유효하다
+        // 주차 범위 검증 (1~5주)
         if (req.getWeekOrdinals() != null) {
             for (int ordinal : req.getWeekOrdinals()) {
                 if (ordinal < 1 || ordinal > 5) throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
             }
         }
-        // startTime과 endTime은 둘 다 있거나 둘 다 없어야 한다
+        // 시작/종료 시각 쌍 검증
         boolean hasStart = req.getStartTime() != null;
         boolean hasEnd = req.getEndTime() != null;
         if (hasStart != hasEnd || (hasStart && !req.getStartTime().isBefore(req.getEndTime()))) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
-        // validFrom이 validUntil보다 뒤일 수 없다
+        // 적용 기간 순서 검증
         if (req.getValidFrom() != null && req.getValidUntil() != null
                 && req.getValidFrom().isAfter(req.getValidUntil())) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }
 
-    // List<DayOfWeek>를 쉼표 구분 문자열로 변환한다. 엔티티 저장 형식이다.
+    // 요일 목록 저장값 변환
     private String joinDaysOfWeek(List<java.time.DayOfWeek> days) {
         return days.stream().map(Enum::name).collect(Collectors.joining(","));
     }
 
-    // List<Integer>를 쉼표 구분 문자열로 변환한다. 엔티티 저장 형식이다.
+    // 주차 목록 저장값 변환
     private String joinWeekOrdinals(List<Integer> ordinals) {
         if (ordinals == null || ordinals.isEmpty()) return null;
         return ordinals.stream().map(String::valueOf).collect(Collectors.joining(","));
     }
 
-    // 정기 휴무 규칙을 등록한다.
+    // 정기 휴무 규칙 등록
     @Transactional
     public FacilityClosureRulePostRes createClosureRule(Long complexId, Long facilityId, FacilityClosureRulePostReq req) {
-        // 시설 접근 및 소속 검증
+        // 시설 접근/소속 검증
         validateAdminAccess(complexId);
         Facility facility = getFacility(complexId, facilityId);
 
-        // 요청 값 검증
+        // 요청값 검증
         validateClosureRulePostReq(req);
 
-        // 좌석 소속 검증 — seatId가 지정된 경우에만 확인한다
+        // 좌석 소속 검증 (seatId 지정 시)
         if (req.getSeatId() != null) {
             FacilitySeat seat = facilitySeatRepository.findById(req.getSeatId())
                     .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_SEAT_NOT_FOUND));
@@ -1469,13 +1453,13 @@ public class FacilityService {
                 .build();
     }
 
-    // 정기 휴무 규칙 목록을 조회한다.
+    // 정기 휴무 규칙 목록 조회
     public List<FacilityClosureRuleListRes> getClosureRuleList(Long complexId, Long facilityId) {
-        // 시설 접근 및 소속 검증
+        // 시설 접근/소속 검증
         validateAdminAccess(complexId);
         Facility facility = getFacility(complexId, facilityId);
 
-        // 규칙과 연관된 좌석 정보를 일괄 조회한다 (N+1 방지)
+        // 연관 좌석 일괄 조회 (N+1 방지)
         List<FacilityClosureRule> rules = facilityClosureRuleRepository
                 .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facility.getId());
 
@@ -1511,22 +1495,22 @@ public class FacilityService {
                 .toList();
     }
 
-    // 정기 휴무 규칙을 수정한다.
+    // 정기 휴무 규칙 수정
     @Transactional
     public FacilityClosureRuleListRes updateClosureRule(Long complexId, Long facilityId,
                                                          Long ruleId, FacilityClosureRulePatchReq req) {
-        // 시설 접근 및 소속 검증
+        // 시설 접근/소속 검증
         validateAdminAccess(complexId);
         getFacility(complexId, facilityId);
 
-        // 규칙 존재 및 시설 소속 검증
+        // 규칙/시설 소속 검증
         FacilityClosureRule rule = facilityClosureRuleRepository.findById(ruleId)
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
         if (!rule.getFacilityId().equals(facilityId)) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
 
-        // 요청 값 유효성 — startTime/endTime 쌍 검증
+        // 시작/종료 시각 쌍 검증
         boolean hasStart = req.getStartTime() != null;
         boolean hasEnd = req.getEndTime() != null;
         if (hasStart != hasEnd || (hasStart && !req.getStartTime().isBefore(req.getEndTime()))) {
@@ -1561,14 +1545,14 @@ public class FacilityService {
                 .build();
     }
 
-    // 정기 휴무 규칙을 비활성화한다.
+    // 정기 휴무 규칙 비활성화
     @Transactional
     public FacilityClosureRuleDeactivateRes deactivateClosureRule(Long complexId, Long facilityId, Long ruleId) {
-        // 시설 접근 및 소속 검증
+        // 시설 접근/소속 검증
         validateAdminAccess(complexId);
         getFacility(complexId, facilityId);
 
-        // 규칙 존재 및 시설 소속 검증
+        // 규칙/시설 소속 검증
         FacilityClosureRule rule = facilityClosureRuleRepository.findById(ruleId)
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_PARAMETER));
         if (!rule.getFacilityId().equals(facilityId)) {

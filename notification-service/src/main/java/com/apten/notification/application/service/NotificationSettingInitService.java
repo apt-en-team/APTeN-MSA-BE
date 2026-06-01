@@ -19,7 +19,7 @@ public class NotificationSettingInitService {
 
     private final NotificationSettingRepository notificationSettingRepository;
 
-    // REQUIRES_NEW로 외부 트랜잭션과 독립 커밋해야 DataIntegrityViolationException이 외부를 오염시키지 않는다
+    // 누락된 기본 설정 row 생성 (REQUIRES_NEW 독립 트랜잭션)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<NotificationSetting> createMissingDefaultRows(Long userId, Long complexId) {
         // 조회 API 호출 시 빠진 category row를 생성해 이후 변경/조회 흐름을 단순하게 유지한다

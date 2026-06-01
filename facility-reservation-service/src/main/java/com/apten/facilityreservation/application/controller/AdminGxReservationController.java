@@ -13,7 +13,7 @@ import com.apten.facilityreservation.application.service.FacilityRequestContextR
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 GX 예약 승인 API 진입점이다.
+// 관리자 GX 예약 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/gx-reservations")
@@ -35,7 +35,7 @@ public class AdminGxReservationController {
         return ResultResponse.success("관리자 GX 예약 상세 조회 성공", gxReservationService.getAdminGxReservationDetail(context.getComplexId(), gxReservationId));
     }
 
-    // API-640 GX 단건 승인 처리
+    // GX 단건 승인 처리
     @PatchMapping("/{gxReservationId}/approve")
     public ResultResponse<GxReservationApproveRes> approveGxReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -48,7 +48,7 @@ public class AdminGxReservationController {
         return ResultResponse.success("GX 단건 승인 처리 성공", gxReservationService.approveGxReservation(context.getComplexId(), gxReservationId));
     }
 
-    // API-641 GX 단건 거절 처리
+    // GX 단건 거절 처리
     @PatchMapping("/{gxReservationId}/reject")
     public ResultResponse<GxReservationRejectRes> rejectGxReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

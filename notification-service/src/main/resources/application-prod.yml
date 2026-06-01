@@ -21,6 +21,10 @@ constants:
     prefix: /api/notifications
 
 apten:
+  scheduler:
+    notification-cleanup:
+      enabled: ${APTEN_SCHEDULER_NOTIFICATION_CLEANUP_ENABLED:true}
+      cron: ${APTEN_SCHEDULER_NOTIFICATION_CLEANUP_CRON:0 0 3 * * *}
   notification:
     push:
       fcm-enabled: ${APTEN_NOTIFICATION_PUSH_FCM_ENABLED:false}

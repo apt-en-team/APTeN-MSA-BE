@@ -2,10 +2,12 @@ package com.apten.notification.application.service;
 
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.notification.application.model.request.NotificationAdminBroadcastPostReq;
 import com.apten.notification.application.model.request.NotificationCreateCommand;
 import com.apten.notification.application.model.request.NotificationOwnerCheckReq;
 import com.apten.notification.application.model.request.NotificationPostReq;
 import com.apten.notification.application.model.request.NotificationSearchReq;
+import com.apten.notification.application.model.response.NotificationAdminBroadcastPostRes;
 import com.apten.notification.application.model.response.NotificationCleanupRes;
 import com.apten.notification.application.model.response.NotificationGetPageRes;
 import com.apten.notification.application.model.response.NotificationOwnerCheckRes;
@@ -15,10 +17,14 @@ import com.apten.notification.application.model.response.NotificationReadRes;
 import com.apten.notification.application.model.response.NotificationRes;
 import com.apten.notification.application.model.response.NotificationUnreadCountRes;
 import com.apten.notification.domain.entity.Notification;
+import com.apten.notification.domain.entity.UserCache;
 import com.apten.notification.domain.enums.NotificationCategory;
 import com.apten.notification.domain.enums.NotificationTargetType;
 import com.apten.notification.domain.enums.NotificationType;
+import com.apten.notification.domain.enums.UserCacheRole;
+import com.apten.notification.domain.enums.UserCacheStatus;
 import com.apten.notification.domain.repository.NotificationRepository;
+import com.apten.notification.domain.repository.UserCacheRepository;
 import com.apten.notification.exception.NotificationErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,7 +48,9 @@ public class NotificationService {
     private final NotificationSettingService notificationSettingService;
     private final NotificationRealtimeService notificationRealtimeService;
     private final NotificationPushService notificationPushService;
+    private final UserCacheRepository userCacheRepository;
 
+    // 알림 목록 조회
     @Transactional(readOnly = true)
     public NotificationGetPageRes getNotificationList(Long userId, NotificationSearchReq request) {
         validateUserId(userId);
@@ -82,6 +90,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 미읽음 알림 수 조회
     @Transactional(readOnly = true)
     public NotificationUnreadCountRes getUnreadCount(Long userId) {
         validateUserId(userId);
@@ -90,6 +99,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 알림 읽음 처리
     @Transactional
     public NotificationReadRes readNotification(Long userId, Long notificationId) {
         validateUserId(userId);
@@ -104,6 +114,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 전체 알림 읽음 처리
     @Transactional
     public NotificationReadAllRes readAllNotifications(Long userId) {
         validateUserId(userId);
@@ -116,6 +127,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 알림 생성 (외부 HTTP 요청)
     @Transactional
     public NotificationPostRes createNotification(NotificationPostReq request) {
         return createNotification(NotificationCreateCommand.builder()
@@ -131,6 +143,7 @@ public class NotificationService {
                 .build());
     }
 
+    // 알림 생성 (setting 검증 → DB 저장 → 커밋 후 WebSocket/FCM 발송)
     @Transactional
     public NotificationPostRes createNotification(NotificationCreateCommand command) {
         validateCreateCommand(command);
@@ -169,15 +182,73 @@ public class NotificationService {
                 .build();
     }
 
+    // 오래된 읽음 알림 삭제 (30일 기준, 미읽음 제외)
     @Transactional
     public NotificationCleanupRes cleanupOldNotifications() {
-        // 후속 범위: 오래된 알림 삭제 정책 확정 후 구현
+        LocalDateTime now = LocalDateTime.now();
+        // 미읽음 알림은 사용자가 아직 확인하지 않았으므로 삭제 대상에서 제외한다
+        LocalDateTime threshold = now.minusDays(30);
+        int deletedCount = notificationRepository.deleteByIsReadTrueAndCreatedAtBefore(threshold);
         return NotificationCleanupRes.builder()
-                .deletedCount(0)
-                .executedAt(LocalDateTime.now())
+                .deletedCount(deletedCount)
+                .executedAt(now)
                 .build();
     }
 
+    // 관리자 broadcast 알림 생성 (단지 ADMIN/MANAGER 전체, MASTER 제외)
+    @Transactional
+    public NotificationAdminBroadcastPostRes createAdminBroadcastNotification(NotificationAdminBroadcastPostReq request) {
+        // complexId 기준으로 ACTIVE 상태의 ADMIN, MANAGER를 조회한다
+        // MASTER는 단지별 알림 수신 대상에서 제외한다
+        List<UserCache> admins = userCacheRepository.findByComplexIdAndRoleInAndStatus(
+                request.getComplexId(),
+                List.of(UserCacheRole.ADMIN, UserCacheRole.MANAGER),
+                UserCacheStatus.ACTIVE
+        );
+
+        if (admins.isEmpty()) {
+            log.info("[Notification] 관리자 broadcast 대상 없음. complexId={}, type={}", request.getComplexId(), request.getType());
+            return NotificationAdminBroadcastPostRes.builder()
+                    .targetCount(0)
+                    .createdCount(0)
+                    .build();
+        }
+
+        int createdCount = 0;
+        for (UserCache admin : admins) {
+            try {
+                NotificationPostRes result = createNotification(NotificationCreateCommand.builder()
+                        .receiverUserId(admin.getId())
+                        .complexId(request.getComplexId())
+                        .type(request.getType())
+                        .targetType(request.getTargetType())
+                        .targetId(request.getTargetId())
+                        .title(request.getTitle())
+                        .content(request.getContent())
+                        .linkPath(request.getLinkPath())
+                        .payloadJson(request.getPayloadJson())
+                        .build());
+                // notificationId가 있으면 실제로 저장된 것이다 (setting OFF이면 null)
+                if (result.getNotificationId() != null) {
+                    createdCount++;
+                }
+            } catch (Exception exception) {
+                // 일부 관리자 알림 실패가 나머지 생성을 막지 않도록 예외를 흡수한다
+                log.warn("[Notification] 관리자 알림 생성 실패. userId={}, complexId={}, type={}",
+                        admin.getId(), request.getComplexId(), request.getType(), exception);
+            }
+        }
+
+        log.info("[Notification] 관리자 broadcast 완료. complexId={}, type={}, target={}, created={}",
+                request.getComplexId(), request.getType(), admins.size(), createdCount);
+
+        return NotificationAdminBroadcastPostRes.builder()
+                .targetCount(admins.size())
+                .createdCount(createdCount)
+                .build();
+    }
+
+    // 알림 소유자 확인 (내부 권한 검증용)
     @Transactional(readOnly = true)
     public NotificationOwnerCheckRes checkNotificationOwner(NotificationOwnerCheckReq request) {
         if (request == null || request.getLoginUserId() == null || request.getNotificationId() == null) {

@@ -4,24 +4,21 @@ import com.apten.facilityreservation.domain.entity.FacilitySeat;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// 시설 좌석 저장소이다.
+// 시설 좌석 저장/조회 Repository
 public interface FacilitySeatRepository extends JpaRepository<FacilitySeat, Long> {
 
-    // 좌석 ID와 시설 ID, 활성 여부 기준으로 좌석을 조회한다.
+    // 활성 시설 좌석 조회
     java.util.Optional<FacilitySeat> findByIdAndFacilityIdAndIsActiveTrue(Long id, Long facilityId);
 
-    // 시설별 좌석 목록을 조회한다.
-    List<FacilitySeat> findByFacilityId(Long facilityId);
-
-    // 시설별 활성 좌석 목록을 조회한다.
+    // 활성 시설 좌석 목록 조회
     List<FacilitySeat> findByFacilityIdAndIsActiveTrue(Long facilityId);
 
-    // 좌석 번호 중복 여부를 확인한다.
+    // 좌석 번호 중복 확인
     boolean existsByFacilityIdAndSeatNo(Long facilityId, Integer seatNo);
 
-    // 일괄 등록은 하나라도 겹치면 전체 실패해야 하므로 범위 좌석을 한 번에 조회한다.
+    // 좌석 번호 일괄 중복 확인
     List<FacilitySeat> findByFacilityIdAndSeatNoIn(Long facilityId, List<Integer> seatNos);
 
-    // 시설 ID 기준으로 삭제되지 않은 좌석 목록을 조회한다.
+    // 시설 좌석 목록 조회 (삭제 제외)
     List<FacilitySeat> findByFacilityIdOrderBySeatNoAsc(Long facilityId);
 }
