@@ -10,4 +10,7 @@ public interface FacilityUsageSnapshotRepository extends JpaRepository<FacilityU
 
     // 세대와 사용일 기준 시설 이용 스냅샷을 조회한다.
     List<FacilityUsageSnapshot> findByHouseholdIdAndUsageDateBetween(Long householdId, LocalDate fromDate, LocalDate toDate);
+
+    // 단지와 사용일 기준 시설 이용 스냅샷을 조회한다.
+    List<FacilityUsageSnapshot> findByComplexIdAndUsageDateBetween(Long complexId, LocalDate fromDate, LocalDate toDate);
 }

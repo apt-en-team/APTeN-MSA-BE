@@ -100,7 +100,5 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    // TODO 차량 요약 이벤트 계약이 확정되면 VEHICLE topic consumer를 추가한다.
-    // TODO 시설 이용 요약 이벤트 계약이 확정되면 FACILITY_USAGE topic consumer를 추가한다.
-    // TODO 방문차량 집계 이벤트 계약이 확정되면 VISITOR_USAGE topic consumer를 추가한다.
+    // 차량/시설/방문차량 스냅샷 consumer는 이벤트 계약 확정 후 연결한다.
 }

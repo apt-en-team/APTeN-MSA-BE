@@ -3,6 +3,7 @@ package com.apten.household.application.controller;
 import com.apten.common.constants.HeaderConstants;
 import com.apten.common.response.ResultResponse;
 import com.apten.household.application.model.dto.HouseholdRequestContext;
+import com.apten.household.application.model.request.HouseholdMatchBulkApproveReq;
 import com.apten.household.application.model.request.HouseholdMatchListReq;
 import com.apten.household.application.model.request.HouseholdMatchRejectReq;
 import com.apten.household.application.model.response.HouseholdMatchApproveRes;
@@ -10,6 +11,7 @@ import com.apten.household.application.model.response.HouseholdMatchListRes;
 import com.apten.household.application.model.response.HouseholdMatchRejectRes;
 import com.apten.household.application.service.HouseholdRequestContextResolver;
 import com.apten.household.application.service.HouseholdMatchService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -46,6 +48,18 @@ public class AdminHouseholdMatchController {
     }
 
     //수동 승인 처리 API-414
+    @PatchMapping("/approve-bulk")
+    public ResultResponse<List<HouseholdMatchApproveRes>> approveMatchRequests(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
+            @RequestBody HouseholdMatchBulkApproveReq request
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success("세대 매칭 일괄 승인 성공", householdMatchService.approveMatchRequests(context.getComplexId(), request));
+    }
+
     @PatchMapping("/{matchRequestId}/approve")
     public ResultResponse<HouseholdMatchApproveRes> approveMatchRequest(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

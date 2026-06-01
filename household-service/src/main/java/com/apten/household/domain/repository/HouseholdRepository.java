@@ -30,7 +30,7 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
             WHERE h.complexId = :complexId
               AND (:building IS NULL OR h.building = :building)
               AND (:unit IS NULL OR h.unit = :unit)
-            ORDER BY h.building ASC, h.unit ASC
+            ORDER BY h.status ASC, h.building ASC, h.unit ASC
             """)
     Page<Household> findByFilters(
             @Param("complexId") Long complexId,
@@ -45,7 +45,7 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
               AND (:building IS NULL OR h.building = :building)
               AND (:unit IS NULL OR h.unit = :unit)
               AND h.status = :status
-            ORDER BY h.building ASC, h.unit ASC
+            ORDER BY h.status ASC, h.building ASC, h.unit ASC
             """)
     Page<Household> findByFiltersAndStatus(
             @Param("complexId") Long complexId,

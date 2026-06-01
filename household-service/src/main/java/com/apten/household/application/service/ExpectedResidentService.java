@@ -12,15 +12,18 @@ import com.apten.household.domain.entity.ExpectedResident;
 import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdHistory;
 import com.apten.household.domain.entity.HouseholdMatchRequest;
+import com.apten.household.domain.entity.UserCache;
 import com.apten.household.domain.enums.ExpectedResidentStatus;
 import com.apten.household.domain.enums.HouseholdMatchStatus;
 import com.apten.household.domain.enums.HouseholdMemberRole;
 import com.apten.household.domain.enums.HouseholdStatus;
+import com.apten.household.domain.enums.UserCacheStatus;
 import com.apten.household.domain.repository.ExpectedResidentRepository;
 import com.apten.household.domain.repository.HouseholdHistoryRepository;
 import com.apten.household.domain.repository.HouseholdMatchRequestRepository;
 import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.HouseholdRepository;
+import com.apten.household.domain.repository.UserCacheRepository;
 import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
 import com.apten.household.exception.HouseholdErrorCode;
 import java.time.LocalDate;
@@ -44,6 +47,7 @@ public class ExpectedResidentService {
     private final HouseholdMatchRequestRepository householdMatchRequestRepository;
     private final HouseholdMemberRepository householdMemberRepository;
     private final HouseholdHistoryRepository householdHistoryRepository;
+    private final UserCacheRepository userCacheRepository;
     private final HouseholdOutboxService householdOutboxService;
 
     // 관리자 요청을 검증하고 명부 등록 응답을 조립한다.
@@ -52,6 +56,7 @@ public class ExpectedResidentService {
 
         Household household = getHouseholdForComplex(context.getComplexId(), request.getHouseholdId());
         validateDuplicateExpectedResident(null, household.getId(), request.getName(), request.getPhone(), request.getBirthDate());
+        validateSingleExpectedResidentHead(null, household.getId(), resolveHouseholdRole(request.getHouseholdRole()));
 
         ExpectedResident expectedResident = createExpectedResident(context, request, household);
         occupyHouseholdIfMoveInDateDue(household, expectedResident.getMoveInDate(), LocalDate.now());
@@ -120,6 +125,7 @@ public class ExpectedResidentService {
                 : expectedResident.getHouseholdRole();
 
         validateDuplicateExpectedResident(expectedResident.getId(), household.getId(), name, phone, birthDate);
+        validateSingleExpectedResidentHead(expectedResident.getId(), household.getId(), householdRole);
         expectedResident.update(
                 household.getId(),
                 household.getBuilding(),
@@ -262,6 +268,12 @@ public class ExpectedResidentService {
             ExpectedResident expectedResident,
             HouseholdMatchRequest latestMatchRequest
     ) {
+        Long matchedUserId = expectedResident.getMatchedUserId() != null
+                ? expectedResident.getMatchedUserId()
+                : latestMatchRequest == null ? null : latestMatchRequest.getUserId();
+        if (isDeletedUser(matchedUserId)) {
+            return WebServiceStatus.DELETED;
+        }
         if (isActiveHouseholdMember(expectedResident)) {
             return WebServiceStatus.COMPLETED;
         }
@@ -292,11 +304,22 @@ public class ExpectedResidentService {
                 && householdMemberRepository.findByHouseholdIdAndUserIdAndIsActiveTrue(householdId, userId).isPresent();
     }
 
+    private boolean isDeletedUser(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        return userCacheRepository.findById(userId)
+                .map(UserCache::getStatus)
+                .filter(UserCacheStatus.DELETED::equals)
+                .isPresent();
+    }
+
     private enum WebServiceStatus {
         NOT_SIGNED_UP("NOT_SIGNED_UP", "미가입"),
         COMPLETED("COMPLETED", "가입"),
         PENDING("PENDING", "대기"),
-        REJECTED("REJECTED", "반려");
+        REJECTED("REJECTED", "반려"),
+        DELETED("DELETED", "탈퇴");
 
         private final String code;
         private final String label;
@@ -359,6 +382,28 @@ public class ExpectedResidentService {
 
         if (duplicated) {
             throw new BusinessException(HouseholdErrorCode.DUPLICATE_EXPECTED_RESIDENT);
+        }
+    }
+
+    private void validateSingleExpectedResidentHead(
+            Long currentExpectedResidentId,
+            Long householdId,
+            HouseholdMemberRole householdRole
+    ) {
+        if (householdRole != HouseholdMemberRole.HEAD) {
+            return;
+        }
+        boolean duplicatedHead = expectedResidentRepository.findByHouseholdIdAndStatusNot(
+                        householdId,
+                        ExpectedResidentStatus.DISABLED
+                )
+                .stream()
+                .filter(expectedResident -> currentExpectedResidentId == null
+                        || !expectedResident.getId().equals(currentExpectedResidentId))
+                .anyMatch(expectedResident -> expectedResident.getHouseholdRole() == HouseholdMemberRole.HEAD);
+
+        if (duplicatedHead) {
+            throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_HEAD_DUPLICATED);
         }
     }
 
