@@ -4,12 +4,15 @@ import com.apten.common.constants.HeaderConstants;
 import com.apten.common.response.ResultResponse;
 import com.apten.household.application.model.dto.HouseholdRequestContext;
 import com.apten.household.application.model.request.MyBillListReq;
+import com.apten.household.application.model.response.AdminHouseholdBillDetailRes;
+import com.apten.household.application.model.response.BillComparisonRes;
 import com.apten.household.application.model.response.MyBillListRes;
 import com.apten.household.application.service.HouseholdBillService;
 import com.apten.household.application.service.HouseholdRequestContextResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,6 +41,48 @@ public class ResidentHouseholdBillController {
         return ResultResponse.success(
                 "세대 비용 조회 성공",
                 householdBillService.getMyBills(context.getUserId(), context.getComplexId(), request)
+        );
+    }
+
+    // 입주민 홈 화면 관리비 카드 조회 API
+    @GetMapping("/home")
+    public ResultResponse<MyBillListRes.Item> getMyHomeBill(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveResidentContext(userId, userRole, complexId);
+        return ResultResponse.success(
+                "홈 관리비 카드 조회 성공",
+                householdBillService.getMyHomeBill(context.getUserId(), context.getComplexId())
+        );
+    }
+
+    @GetMapping("/{billId}")
+    public ResultResponse<AdminHouseholdBillDetailRes> getMyBillDetail(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId,
+            @PathVariable Long billId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveResidentContext(userId, userRole, complexId);
+        return ResultResponse.success(
+                "내 관리비 상세 조회 성공",
+                householdBillService.getMyBillDetail(context.getUserId(), context.getComplexId(), billId)
+        );
+    }
+
+    @GetMapping("/{billId}/comparison")
+    public ResultResponse<BillComparisonRes> getMyBillComparison(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(HeaderConstants.X_COMPLEX_ID) Long complexId,
+            @PathVariable Long billId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveResidentContext(userId, userRole, complexId);
+        return ResultResponse.success(
+                "관리비 비교 조회 성공",
+                householdBillService.getMyBillComparison(context.getUserId(), context.getComplexId(), billId)
         );
     }
 }

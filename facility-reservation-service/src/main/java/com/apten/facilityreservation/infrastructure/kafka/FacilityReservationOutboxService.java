@@ -1,5 +1,7 @@
 package com.apten.facilityreservation.infrastructure.kafka;
 
+import com.apten.common.kafka.EventEnvelope;
+import com.apten.common.kafka.EventType;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
 import com.apten.facilityreservation.infrastructure.kafka.payload.FacilityFeeCalculatedEventPayload;
@@ -7,6 +9,8 @@ import com.apten.facilityreservation.infrastructure.kafka.payload.GxProgramCance
 import com.apten.facilityreservation.infrastructure.kafka.payload.ReservationStatusChangedEventPayload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -46,8 +50,17 @@ public class FacilityReservationOutboxService {
 
     // 시설 이용 비용 산정 이벤트를 outbox에 저장한다.
     public void saveFacilityFeeCalculatedEvent(FacilityFeeCalculatedEventPayload payload) {
-        //TODO Household Service 연동 topic 계약이 확정되면 공통 이벤트 구조로 정리
-        saveOutboxPayload(FACILITY_FEE_CALCULATED_TOPIC, payload.getComplexId(), FACILITY_FEE_CALCULATED_TOPIC, payload);
+        EventEnvelope<FacilityFeeCalculatedEventPayload> envelope = EventEnvelope
+                .<FacilityFeeCalculatedEventPayload>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(EventType.FACILITY_FEE_CALCULATED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("facility-reservation-service")
+                .payload(payload)
+                .build();
+        saveOutboxPayload(FACILITY_FEE_CALCULATED_TOPIC, payload.getComplexId(),
+                EventType.FACILITY_FEE_CALCULATED.name(), envelope);
     }
 
     // 공통 outbox row 저장을 처리한다.
