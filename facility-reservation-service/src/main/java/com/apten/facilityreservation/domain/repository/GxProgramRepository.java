@@ -19,6 +19,9 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
     // 단지와 상태 기준 GX 프로그램 목록을 조회한다.
     List<GxProgram> findByComplexIdAndStatus(Long complexId, GxProgramStatus status);
 
+    // 승인 리마인더 스케줄러가 특정 시작일과 상태 목록 기준으로 프로그램을 조회한다
+    List<GxProgram> findByStartDateAndStatusIn(LocalDate startDate, List<GxProgramStatus> statuses);
+
     // 단지 소속 단건 조회한다.
     Optional<GxProgram> findByIdAndComplexId(Long id, Long complexId);
 

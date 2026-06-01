@@ -41,6 +41,7 @@ import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.UserCacheRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -567,6 +568,22 @@ public class GxProgramService {
                 .findByProgramIdAndStatusOrderByWaitNoAsc(programId, GxReservationStatus.WAITING);
         for (int i = 0; i < waitingList.size(); i++) {
             waitingList.get(i).assignWaitNo(i + 1);
+        }
+    }
+
+    // 승인 리마인더 스케줄러에서 호출한다.
+    // targetStartDate 당일 시작하는 OPEN 프로그램 중 WAITING 신청이 있으면 관리자 broadcast 알림을 보낸다.
+    @Transactional(readOnly = true)
+    public void sendApprovalReminderNotifications(LocalDate targetStartDate) {
+        List<GxProgram> programs = gxProgramRepository.findByStartDateAndStatusIn(
+                targetStartDate, List.of(GxProgramStatus.OPEN));
+
+        for (GxProgram program : programs) {
+            long waitingCount = gxReservationRepository.countByProgramIdAndStatus(
+                    program.getId(), GxReservationStatus.WAITING);
+            if (waitingCount > 0) {
+                facilityNotificationService.notifyGxApprovalReminder(program.getComplexId(), program);
+            }
         }
     }
 

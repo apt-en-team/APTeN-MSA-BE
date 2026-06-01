@@ -158,6 +158,12 @@ public class GxReservationService {
         // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
         facilityNotificationService.notifyGxApplied(userId, complexId, reservation, program);
 
+        // waitNo가 minCount에 정확히 도달한 시점에만 관리자에게 최소 인원 충족 알림을 발송한다
+        // minCount=0은 미설정으로 간주해 알림 대상에서 제외한다
+        if (program.getMinCount() > 0 && waitNo == program.getMinCount()) {
+            facilityNotificationService.notifyGxMinimumReached(complexId, program);
+        }
+
         return GxReservationPostRes.builder()
                 .gxReservationId(reservation.getId())
                 .programId(reservation.getProgramId())

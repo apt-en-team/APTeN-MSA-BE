@@ -5,6 +5,7 @@ import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.infrastructure.client.NotificationInternalClient;
+import com.apten.facilityreservation.infrastructure.client.model.NotificationAdminBroadcastReq;
 import com.apten.facilityreservation.infrastructure.client.model.NotificationCreateReq;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,8 @@ public class FacilityNotificationService {
     private static final String TYPE_GX_APPLIED = "GX_APPLIED";
     private static final String TYPE_GX_APPROVED = "GX_APPROVED";
     private static final String TYPE_GX_REJECTED = "GX_REJECTED";
+    private static final String TYPE_GX_MINIMUM_REACHED = "GX_MINIMUM_REACHED";
+    private static final String TYPE_GX_APPROVAL_REMINDER = "GX_APPROVAL_REMINDER";
 
     // notification-service의 NotificationTargetType 문자열과 맞춰야 한다
     private static final String TARGET_FACILITY_RESERVATION = "FACILITY_RESERVATION";
@@ -144,6 +147,35 @@ public class FacilityNotificationService {
         sendAfterCommit("GX 신청 거절 알림", request);
     }
 
+    public void notifyGxMinimumReached(Long complexId, GxProgram program) {
+        NotificationAdminBroadcastReq request = NotificationAdminBroadcastReq.builder()
+                .complexId(complexId)
+                .type(TYPE_GX_MINIMUM_REACHED)
+                .targetType(TARGET_GX_PROGRAM)
+                .targetId(program.getId())
+                .title("GX 최소 인원이 충족되었습니다.")
+                .content(program.getName() + " 신청 인원이 최소 인원에 도달했습니다. 승인 처리를 확인해주세요.")
+                // 관리자 GX 프로그램 화면 경로: 프론트 adminRoutes 기준으로 확인 필요
+                .linkPath(buildAdminGxLink(complexId, program.getId()))
+                .build();
+
+        sendAdminBroadcastAfterCommit("GX 최소 인원 충족 관리자 알림", request);
+    }
+
+    public void notifyGxApprovalReminder(Long complexId, GxProgram program) {
+        NotificationAdminBroadcastReq request = NotificationAdminBroadcastReq.builder()
+                .complexId(complexId)
+                .type(TYPE_GX_APPROVAL_REMINDER)
+                .targetType(TARGET_GX_PROGRAM)
+                .targetId(program.getId())
+                .title("GX 승인 대기 신청이 있습니다.")
+                .content(program.getName() + " 시작일이 가까워졌습니다. 승인 대기 신청을 확인해주세요.")
+                .linkPath(buildAdminGxLink(complexId, program.getId()))
+                .build();
+
+        sendAdminBroadcastBestEffort("GX 승인 리마인더 관리자 알림", request);
+    }
+
     private void sendAfterCommit(String operationName, NotificationCreateReq request) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             // 트랜잭션 밖에서 호출되는 테스트/배치 상황은 바로 best-effort로 보낸다
@@ -181,6 +213,44 @@ public class FacilityNotificationService {
                 }
             }
         }
+    }
+
+    private void sendAdminBroadcastAfterCommit(String operationName, NotificationAdminBroadcastReq request) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sendAdminBroadcastBestEffort(operationName, request);
+            return;
+        }
+        // 도메인 트랜잭션 커밋 이후 관리자 broadcast를 보내야 롤백된 이벤트의 알림이 남지 않는다
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sendAdminBroadcastBestEffort(operationName, request);
+            }
+        });
+    }
+
+    private void sendAdminBroadcastBestEffort(String operationName, NotificationAdminBroadcastReq request) {
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                notificationInternalClient.createAdminBroadcastNotification(request);
+                return;
+            } catch (Exception exception) {
+                if (attempt < maxAttempts) {
+                    log.debug("{} 관리자 broadcast 재시도. attempt={}/{}, complexId={}",
+                            operationName, attempt + 1, maxAttempts, request.getComplexId());
+                } else {
+                    // 알림 장애가 원 기능 성공을 막으면 안 되므로 예외를 다시 던지지 않는다
+                    log.warn("{} 생성 실패 ({}회 시도 후). complexId={}, type={}",
+                            operationName, maxAttempts, request.getComplexId(), request.getType(), exception);
+                }
+            }
+        }
+    }
+
+    private String buildAdminGxLink(Long complexId, Long programId) {
+        // 관리자 GX 프로그램 승인 화면 경로: 프론트 adminRoutes 기준으로 확인 필요
+        return "/admin/" + complexId + "/facility/gx-programs/" + programId;
     }
 
     private String buildReservationLink(Long complexId, Long reservationId) {

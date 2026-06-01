@@ -1,5 +1,6 @@
 package com.apten.facilityreservation.infrastructure.client;
 
+import com.apten.facilityreservation.infrastructure.client.model.NotificationAdminBroadcastReq;
 import com.apten.facilityreservation.infrastructure.client.model.NotificationCreateReq;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,6 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "notification-internal", url = "${apten.internal.notification.service-url}")
 public interface NotificationInternalClient {
 
+    // 입주민 단일 수신자 알림 생성
     @PostMapping("/internal/notifications")
     void createNotification(@RequestBody NotificationCreateReq request);
+
+    // 단지 ACTIVE ADMIN/MANAGER 전체 대상 알림 생성 (MASTER 제외)
+    @PostMapping("/internal/notifications/admin-broadcast")
+    void createAdminBroadcastNotification(@RequestBody NotificationAdminBroadcastReq request);
 }
