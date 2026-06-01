@@ -9,13 +9,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 단지별 기능 사용 가능 여부를 조회하고 차단하는 서비스이다.
+// 단지 기능 접근 제어
 @Service
 @Transactional(readOnly = true) //읽기 전용
 @RequiredArgsConstructor
 public class FeatureAccessService {
 
-    //기능 온-오프 캐시테이블 참조
+    // 단지 기능 캐시 조회
     private final ComplexFeatureCacheRepository complexFeatureCacheRepository;
 
     public boolean isEnabled(Long complexId, FeatureCode featureCode) {
@@ -23,13 +23,13 @@ public class FeatureAccessService {
             return false;
         }
 
-        // 캐시가 없으면 기존 단지 기능을 막지 않기 위해 사용 가능으로 본다.
+        // 누락 캐시 기본 활성
         return complexFeatureCacheRepository.findByComplexIdAndFeatureCode(complexId, featureCode)
                 .map(feature -> Boolean.TRUE.equals(feature.getEnabled()))
                 .orElse(true);
     }
 
-    // 기능이 꺼진 단지는 시설/예약 API 접근을 차단한다.
+    // 단지 기능 활성 검증
     public void validateEnabled(Long complexId, FeatureCode featureCode) {
         if (complexId == null || featureCode == null) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);

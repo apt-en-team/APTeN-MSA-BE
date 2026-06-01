@@ -71,7 +71,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 일반 시설 예약과 좌석 선점 관련 API 시그니처를 담당하는 서비스이다.
+// 일반 시설 예약/좌석 선점 관리
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
@@ -98,7 +98,7 @@ public class ReservationService {
     private final ReservationTempHoldRedisService reservationTempHoldRedisService;
     private final FacilityNotificationService facilityNotificationService;
 
-    // 예약 가능 시간 목록을 조회한다.
+    // 예약 가능 시간 조회
     @Transactional(readOnly = true)
     public List<AvailableTimeListRes> getAvailableTimeList(Long userId, Long complexId, AvailableTimeListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -127,13 +127,13 @@ public class ReservationService {
 
         long openSec = facility.getOpenTime().toSecondOfDay();
         long closeSec = facility.getCloseTime().toSecondOfDay();
-        // 자정을 넘기는 운영 시간(예: 22:00~02:00)은 마감 초에 하루치를 더해 슬롯 범위를 연장한다
+        // 야간 운영 슬롯 범위 보정
         if (closeSec <= openSec) {
             closeSec += 86400;
         }
         long slotSec = (long) slotMin * 60;
 
-        // 정기 휴무 규칙으로 예약 날짜가 차단된 경우 빈 슬롯 목록을 반환한다.
+        // 정기 휴무 차단
         boolean closureBlocked = facilityClosureRuleRepository
                 .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(req.getFacilityId())
                 .stream()
@@ -146,7 +146,7 @@ public class ReservationService {
                 .findByFacilityIdAndBlockDateAndIsActiveTrue(req.getFacilityId(), req.getReservationDate());
         List<Reservation> confirmedReservations = reservationRepository
                 .findByFacilityIdAndReservationDateAndStatus(req.getFacilityId(), req.getReservationDate(), ReservationStatus.CONFIRMED);
-        // 날짜 기준으로 유효 HOLDING을 한 번에 읽어 슬롯 계산에서 재사용한다.
+        // 유효 좌석 선점 일괄 조회
         List<ReservationTempHold> activeHolds = reservationTempHoldRepository
                 .findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
                         req.getFacilityId(),
@@ -162,10 +162,10 @@ public class ReservationService {
 
         List<AvailableTimeListRes> result = new ArrayList<>();
 
-        // 슬롯 생성: 정수 초 단위로 계산해 자정 wrap-around를 방지한다. % 86400으로 LocalTime 범위를 유지한다.
+        // 슬롯 생성 (야간 운영 보정)
         long slotStart = openSec;
         if (slotSec >= 86400) {
-            // 슬롯이 하루 이상이면 운영 전체를 단일 슬롯으로 처리한다
+            // 장시간 슬롯 단일 처리
             result.add(buildSlot(facility, blockTimes, confirmedReservations, activeHolds, maxReservationCount, seatTotalCount,
                     facility.getOpenTime(), facility.getCloseTime()));
         } else {
@@ -180,6 +180,7 @@ public class ReservationService {
         return result;
     }
 
+    // 예약 슬롯 응답 생성
     private AvailableTimeListRes buildSlot(
             Facility facility,
             List<FacilityBlockTime> blockTimes,
@@ -190,7 +191,7 @@ public class ReservationService {
             LocalTime slotStart,
             LocalTime slotEnd) {
 
-        // 시설 전체 차단 여부 — seatId=null이고 슬롯과 겹치는 차단 시간이 존재하면 차단
+        // 시설 전체 차단 확인
         boolean facilityBlocked = blockTimes.stream()
                 .filter(b -> b.getSeatId() == null)
                 .anyMatch(b -> isSlotOverlap(slotStart, slotEnd, b.getStartTime(), b.getEndTime()));
@@ -215,7 +216,7 @@ public class ReservationService {
                     .filter(b -> b.getSeatId() != null)
                     .filter(b -> isSlotOverlap(slotStart, slotEnd, b.getStartTime(), b.getEndTime()))
                     .count();
-            // 유효 HOLDING도 좌석 점유로 간주해 잔여 좌석에서 차감한다.
+            // 유효 좌석 선점 수 차감
             long holdingCount = activeHolds.stream()
                     .filter(h -> slotStart.equals(h.getStartTime()) && slotEnd.equals(h.getEndTime()))
                     .count();
@@ -233,7 +234,7 @@ public class ReservationService {
             long confirmedCount = confirmedReservations.stream()
                     .filter(r -> slotStart.equals(r.getStartTime()) && slotEnd.equals(r.getEndTime()))
                     .count();
-            // COUNT형 HOLDING은 아직 생성하지 않으므로 현재는 0으로 본다.
+            // COUNT 선점 미지원
             long holdingCount = 0L;
             Integer availableCount = maxReservationCount != null
                     ? Math.max(0, maxReservationCount - (int) confirmedCount - (int) holdingCount)
@@ -248,7 +249,7 @@ public class ReservationService {
                     .build();
         }
 
-        // APPROVAL: 정원 제한 없음, 시설 차단이 없으면 항상 신청 가능
+        // APPROVAL 예약 가능 여부
         return AvailableTimeListRes.builder()
                 .startTime(slotStart)
                 .endTime(slotEnd)
@@ -258,13 +259,14 @@ public class ReservationService {
                 .build();
     }
 
+    // 시간 구간 겹침 판별
     private boolean isSlotOverlap(LocalTime slotStart, LocalTime slotEnd, LocalTime blockStart, LocalTime blockEnd) {
         LocalTime effectiveStart = blockStart != null ? blockStart : LocalTime.MIN;
         LocalTime effectiveEnd = blockEnd != null ? blockEnd : LocalTime.MAX;
         return slotStart.isBefore(effectiveEnd) && slotEnd.isAfter(effectiveStart);
     }
 
-    // 좌석 임시 선점을 생성한다.
+    // 좌석 임시 선점 생성
     @Transactional
     public SeatHoldPostRes createSeatHold(Long userId, Long complexId, SeatHoldPostReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -358,7 +360,7 @@ public class ReservationService {
                     .expiresAt(hold.getExpiresAt())
                     .build();
         } catch (RuntimeException e) {
-            // DB 저장 실패 시 Redis key를 바로 해제해 유령 선점이 남지 않게 한다.
+            // DB 실패 시 Redis 선점 해제
             reservationTempHoldRedisService.releaseHold(
                     facility.getId(),
                     req.getSeatId(),
@@ -370,7 +372,7 @@ public class ReservationService {
         }
     }
 
-    // 만료된 좌석 임시 선점을 자동 해제한다.
+    // 만료 좌석 선점 해제
     @Transactional
     public TempHoldExpireRes expireSeatHolds() {
         LocalDateTime now = LocalDateTime.now();
@@ -391,7 +393,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 예약 생성을 처리한다.
+    // 예약 생성
     @Transactional
     public ReservationPostRes createReservation(Long userId, Long complexId, ReservationPostReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -436,15 +438,14 @@ public class ReservationService {
         } else if (facility.getReservationType() == ReservationType.COUNT) {
             reservation = createCountReservation(userId, complexId, facility, memberCache, req);
         } else {
-            // 승인형 예약은 대기 상태 enum 정리 후 구현한다.
+            // APPROVAL 예약 생성 제외
             throw new BusinessException(FacilityReservationErrorCode.INVALID_PARAMETER);
         }
 
-        // FLAT/PER_PERSON 시설은 첫 예약 시 구독 레코드를 자동 생성한다.
+        // 시설 구독 자동 생성
         autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
 
-        // 여기까지 왔으면 예약 row와 구독 보정이 모두 준비된 상태다.
-        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        // 예약 생성 알림 예약 (afterCommit, best-effort)
         facilityNotificationService.notifyFacilityReserved(userId, complexId, reservation, facility);
 
         return ReservationPostRes.builder()
@@ -459,7 +460,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 내 예약 목록을 조회한다.
+    // 내 예약 목록 조회
     @Transactional(readOnly = true)
     public PageResponse<MyReservationListRes> getMyReservationList(Long userId, Long complexId, MyReservationListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -468,21 +469,21 @@ public class ReservationService {
         int size = req.getSize() != null && req.getSize() > 0 ? req.getSize() : 20;
         PageRequest pageable = PageRequest.of(page, size);
 
-        // status enum null 비교 회피: null 여부에 따라 쿼리 분기
+        // 상태 필터 분기
         Page<Reservation> reservationPage = (req.getStatus() != null)
                 ? reservationRepository.findMyReservationsByStatus(userId, complexId, req.getStatus(), req.getFromDate(), req.getToDate(), pageable)
                 : reservationRepository.findMyReservations(userId, complexId, req.getFromDate(), req.getToDate(), pageable);
 
         List<Reservation> reservations = reservationPage.getContent();
 
-        // 시설명 batch 조회 (N+1 방지)
+        // 시설명 일괄 조회 (N+1 방지)
         Map<Long, Facility> facilityMap = reservations.isEmpty() ? Map.of() :
                 facilityRepository.findAllById(
                                 reservations.stream().map(Reservation::getFacilityId).distinct().toList())
                         .stream()
                         .collect(Collectors.toMap(Facility::getId, f -> f));
 
-        // 좌석 번호 batch 조회 (N+1 방지)
+        // 좌석 번호 일괄 조회 (N+1 방지)
         List<Long> seatIds = reservations.stream()
                 .map(Reservation::getSeatId)
                 .filter(Objects::nonNull)
@@ -520,7 +521,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 내 예약 상세를 조회한다.
+    // 내 예약 상세 조회
     @Transactional(readOnly = true)
     public MyReservationDetailRes getMyReservationDetail(Long userId, Long complexId, Long reservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -528,7 +529,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findByIdAndUserId(reservationId, userId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
 
-        // 요청 단지 소속 검증
+        // 예약 단지 소속 검증
         if (!reservation.getComplexId().equals(complexId)) {
             throw new BusinessException(FacilityReservationErrorCode.RESERVATION_OWNER_MISMATCH);
         }
@@ -540,7 +541,7 @@ public class ReservationService {
                 ? facilitySeatRepository.findById(reservation.getSeatId()).orElse(null)
                 : null;
 
-        // 취소 가능 여부 — CONFIRMED 상태이고 정책 기준 취소 마감 이전인 경우
+        // 예약 취소 가능 여부 판별
         boolean cancelable = false;
         if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
             FacilityPolicy policy = facilityPolicyRepository
@@ -565,7 +566,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 내 예약을 취소한다.
+    // 내 예약 취소
     @Transactional
     public ReservationCancelRes cancelReservation(Long userId, Long complexId, Long reservationId, ReservationCancelReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -573,18 +574,18 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findByIdAndUserId(reservationId, userId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
 
-        // 요청 단지 소속 검증
+        // 예약 단지 소속 검증
         if (!reservation.getComplexId().equals(complexId)) {
             throw new BusinessException(FacilityReservationErrorCode.RESERVATION_OWNER_MISMATCH);
         }
 
-        // 이미 취소/완료 상태면 처리 불가
+        // 중복 취소 방지
         if (reservation.getStatus() == ReservationStatus.CANCELLED
                 || reservation.getStatus() == ReservationStatus.COMPLETED) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // 정책 기준 취소 마감 검증
+        // 취소 마감 검증
         FacilityPolicy policy = facilityPolicyRepository
                 .findByComplexIdAndFacilityIdAndIsActiveTrue(complexId, reservation.getFacilityId())
                 .orElse(null);
@@ -596,9 +597,9 @@ public class ReservationService {
 
         reservation.cancel(ReservationCancelReason.USER);
 
-        // 취소 알림 문구에 시설명을 넣기 위해 조회하되, 실패해도 취소 자체는 성공해야 한다.
+        // 취소 알림용 시설 조회
         Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId()).orElse(null);
-        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        // 예약 취소 알림 예약 (afterCommit, best-effort)
         facilityNotificationService.notifyFacilityCancelled(userId, complexId, reservation, facility);
 
         return ReservationCancelRes.builder()
@@ -608,7 +609,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 관리자 예약 목록을 조회한다.
+    // 관리자 예약 목록 조회
     @Transactional(readOnly = true)
     public PageResponse<AdminReservationListRes> getAdminReservationList(Long complexId, AdminReservationListReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -617,21 +618,21 @@ public class ReservationService {
         int size = req.getSize() != null && req.getSize() > 0 ? req.getSize() : 20;
         PageRequest pageable = PageRequest.of(page, size);
 
-        // status enum null 비교 회피: null 여부에 따라 쿼리 분기
+        // 상태 필터 분기
         Page<Reservation> reservationPage = (req.getStatus() != null)
                 ? reservationRepository.findAdminReservationsByStatus(complexId, req.getStatus(), req.getFacilityId(), req.getReservationDate(), pageable)
                 : reservationRepository.findAdminReservations(complexId, req.getFacilityId(), req.getReservationDate(), pageable);
 
         List<Reservation> reservations = reservationPage.getContent();
 
-        // 시설명 batch 조회 (N+1 방지)
+        // 시설명 일괄 조회 (N+1 방지)
         Map<Long, Facility> facilityMap = reservations.isEmpty() ? Map.of() :
                 facilityRepository.findAllById(
                                 reservations.stream().map(Reservation::getFacilityId).distinct().toList())
                         .stream()
                         .collect(Collectors.toMap(Facility::getId, f -> f));
 
-        // 좌석 번호 batch 조회 (N+1 방지)
+        // 좌석 번호 일괄 조회 (N+1 방지)
         List<Long> seatIds = reservations.stream()
                 .map(Reservation::getSeatId)
                 .filter(Objects::nonNull)
@@ -642,7 +643,7 @@ public class ReservationService {
                         .stream()
                         .collect(Collectors.toMap(FacilitySeat::getId, s -> s));
 
-        // 입주민 이름 batch 조회 (N+1 방지)
+        // 입주민 이름 일괄 조회 (N+1 방지)
         List<Long> userIds = reservations.stream()
                 .map(Reservation::getUserId)
                 .filter(Objects::nonNull)
@@ -684,7 +685,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 관리자 예약 상세를 조회한다.
+    // 관리자 예약 상세 조회
     @Transactional(readOnly = true)
     public AdminReservationDetailRes getAdminReservationDetail(Long complexId, Long reservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -742,7 +743,7 @@ public class ReservationService {
                 .build();
     }
 
-    // 관리자가 예약을 강제 취소한다.
+    // 관리자 예약 강제 취소
     @Transactional
     public AdminReservationCancelRes cancelReservationByAdmin(Long complexId, Long reservationId, AdminReservationCancelReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -750,13 +751,13 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findByIdAndComplexId(reservationId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.RESERVATION_NOT_FOUND));
 
-        // 이미 취소/완료 상태면 처리 불가
+        // 중복 취소 방지
         if (reservation.getStatus() == ReservationStatus.CANCELLED
                 || reservation.getStatus() == ReservationStatus.COMPLETED) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // 관리자 강제 취소 — 취소 마감 시간 무관
+        // 강제 취소 처리 (마감 무관)
         reservation.cancel(ReservationCancelReason.ADMIN);
 
         // TODO: 예약 강제 취소 알림 발행 (가은 담당)
@@ -769,13 +770,13 @@ public class ReservationService {
                 .build();
     }
 
-    // 시간이 지난 예약을 완료 처리한다.
+    // 만료 예약 완료 처리
     @Transactional
     public ReservationCompleteRes completeReservations() {
         LocalDateTime now = LocalDateTime.now();
 
-        // 스케줄러는 반복 실행되므로 한 번에 처리하는 수를 제한해 락 점유를 줄인다.
-        // 야간 예약(endTime < startTime)은 다음날 기준으로 완료 처리하므로 yesterday를 함께 전달한다.
+        // 완료 처리 배치 제한
+        // 야간 예약 완료 기준 보정
         List<Reservation> completableReservations = reservationRepository.findCompletableReservations(
                 ReservationStatus.CONFIRMED,
                 now.toLocalDate(),
@@ -784,7 +785,7 @@ public class ReservationService {
                 PageRequest.of(0, Math.max(reservationCompleteBatchSize, 1))
         );
 
-        // 완료 처리는 비용/현황 집계의 기준이 되므로 CONFIRMED만 COMPLETED로 바꾼다.
+        // 확정 예약 완료 처리
         completableReservations.forEach(Reservation::complete);
 
         // TODO: 완료 기준 비용 집계와 알림/이벤트 발행은 가은 담당 연동 후 추가한다.
@@ -794,6 +795,7 @@ public class ReservationService {
                 .build();
     }
 
+    // 좌석 선점 요청값 검증
     private void validateSeatHoldRequest(SeatHoldPostReq req) {
         if (req == null
                 || req.getFacilityId() == null
@@ -806,10 +808,12 @@ public class ReservationService {
         }
     }
 
+    // 좌석 선점 시간 검증
     private void validateSeatHoldTimeWindow(Facility facility, SeatHoldPostReq req) {
         validateReservationTimeWindow(facility, req.getStartTime(), req.getEndTime());
     }
 
+    // 좌석 선점 차단 시간 검증
     private void validateSeatHoldBlockTime(Long facilityId, SeatHoldPostReq req) {
         validateReservationBlockTime(
                 facilityId,
@@ -820,6 +824,7 @@ public class ReservationService {
         );
     }
 
+    // 예약 요청값 검증
     private void validateReservationRequest(ReservationPostReq req) {
         if (req == null
                 || req.getFacilityId() == null
@@ -831,10 +836,11 @@ public class ReservationService {
         }
     }
 
+    // 예약 운영 시간 검증
     private void validateReservationTimeWindow(Facility facility, LocalTime startTime, LocalTime endTime) {
         LocalTime open = facility.getOpenTime();
         LocalTime close = facility.getCloseTime();
-        // closeTime <= openTime이면 익일 마감(예: 22:00~02:00)으로 판단한다
+        // 야간 운영 여부 판별
         boolean isOvernight = !close.isAfter(open);
         if (isOvernight) {
             if (!isWithinOvernightRange(startTime, open, close) || !isWithinOvernightRange(endTime, open, close)) {
@@ -847,7 +853,7 @@ public class ReservationService {
         }
     }
 
-    // FLAT/PER_PERSON 시설에 활성 구독이 없으면 첫 예약일 기준으로 구독을 생성한다.
+    // 시설 구독 자동 생성
     private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long householdId, java.time.LocalDate subscribedAt) {
         if (householdId == null) {
             return;
@@ -866,7 +872,7 @@ public class ReservationService {
                 householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
             return;
         }
-        // 해지 후 유예기간(이번달 요금 청구 중) 내에 있으면 새 구독을 생성하지 않는다.
+        // 구독 재생성 유예기간 확인
         java.util.Optional<FacilitySubscription> recentCancelled = facilitySubscriptionRepository
                 .findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
                         householdId, facilityId, FacilitySubscriptionStatus.CANCELLED);
@@ -881,8 +887,7 @@ public class ReservationService {
                 .build());
     }
 
-    // 해지된 구독이 이번달 유예기간(요금 청구 중) 내에 있는지 판단한다.
-    // 해지일이 이번달이고 기준일 초과 해지이면 이번달 요금이 청구되므로 이용이 유지된다.
+    // 시설 구독 유예기간 판별
     private boolean isCancelledInGracePeriod(FacilitySubscription cancelled, FacilityPolicy policy) {
         if (cancelled.getCancelledAt() == null) return false;
         java.time.YearMonth cancelledMonth = java.time.YearMonth.from(cancelled.getCancelledAt());
@@ -892,11 +897,12 @@ public class ReservationService {
         return cancelled.getCancelledAt().getDayOfMonth() > cutoff;
     }
 
-    // 익일 마감 운영 범위 검증 — open 이후이거나 close 이전이면 유효한 시간대
+    // 야간 운영 범위 검증
     private boolean isWithinOvernightRange(LocalTime time, LocalTime open, LocalTime close) {
         return !time.isBefore(open) || !time.isAfter(close);
     }
 
+    // 예약 차단 시간 검증
     private void validateReservationBlockTime(
             Long facilityId,
             Long seatId,
@@ -904,7 +910,7 @@ public class ReservationService {
             LocalTime startTime,
             LocalTime endTime
     ) {
-        // 정기 휴무 규칙으로 해당 날짜가 차단된 경우 예약을 거부한다.
+        // 정기 휴무 예약 차단
         boolean closureBlocked = facilityClosureRuleRepository
                 .findByFacilityIdAndIsActiveTrueOrderByCreatedAtDesc(facilityId)
                 .stream()
@@ -930,6 +936,7 @@ public class ReservationService {
         }
     }
 
+    // 좌석형 예약 생성
     private Reservation createSeatReservation(
             Long userId,
             Long complexId,
@@ -1011,6 +1018,7 @@ public class ReservationService {
         return reservation;
     }
 
+    // 정원형 예약 생성
     private Reservation createCountReservation(
             Long userId,
             Long complexId,
@@ -1050,7 +1058,7 @@ public class ReservationService {
                 .build());
     }
 
-    // 입주민 내 예약 통합 목록 (일반 시설 + GX) 을 조회한다.
+    // 내 예약 통합 목록 조회 (FACILITY/GX)
     @Transactional(readOnly = true)
     public PageResponse<MyUnifiedReservationRes> getMyUnifiedReservations(Long userId, Long complexId, MyUnifiedReservationReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -1078,7 +1086,7 @@ public class ReservationService {
                         gxReservations.stream().map(GxReservation::getProgramId).filter(Objects::nonNull).distinct().toList())
                 .stream().collect(Collectors.toMap(GxProgram::getId, p -> p));
 
-        // 통합 목록 생성
+        // 통합 예약 목록 생성
         List<MyUnifiedReservationRes> unified = new ArrayList<>();
 
         for (Reservation r : facilityReservations) {
@@ -1115,14 +1123,14 @@ public class ReservationService {
                     .build());
         }
 
-        // phase 필터 적용
+        // 예약 phase 필터
         if ("UPCOMING".equalsIgnoreCase(req.getPhase())) {
             unified = unified.stream().filter(this::isUpcoming).toList();
         } else if ("PAST".equalsIgnoreCase(req.getPhase())) {
             unified = unified.stream().filter(this::isPast).toList();
         }
 
-        // 예정: 날짜 오름차순, 지난: 날짜 내림차순
+        // 예약 phase 정렬
         boolean ascending = "UPCOMING".equalsIgnoreCase(req.getPhase());
         unified = unified.stream()
                 .sorted((a, b) -> {
@@ -1135,24 +1143,26 @@ public class ReservationService {
                 })
                 .toList();
 
-        long total = unified.size();
+        return buildPageResponse(unified, page, size);
+    }
+
+    // 목록 페이지 응답 생성
+    private <T> PageResponse<T> buildPageResponse(List<T> items, int page, int size) {
+        long total = items.size();
         int totalPages = (int) Math.ceil((double) total / size);
-        int fromIdx = page * size;
-        int toIdx = (int) Math.min(fromIdx + size, total);
-
-        List<MyUnifiedReservationRes> content = (fromIdx >= total) ? List.of() : unified.subList(fromIdx, toIdx);
-
-        return PageResponse.<MyUnifiedReservationRes>builder()
-                .content(content)
+        int fromIndex = page * size;
+        int toIndex = (int) Math.min((long) fromIndex + size, total);
+        return PageResponse.<T>builder()
+                .content(fromIndex >= total ? List.of() : items.subList(fromIndex, toIndex))
                 .page(page)
                 .size(size)
                 .totalElements(total)
                 .totalPages(totalPages)
-                .hasNext(page + 1 < totalPages)
+                .hasNext(toIndex < total)
                 .build();
     }
 
-    // 예정 예약 여부 판단 — 일반: CONFIRMED, GX: WAITING/CONFIRMED
+    // 예정 예약 여부 판별
     private boolean isUpcoming(MyUnifiedReservationRes r) {
         if ("FACILITY".equals(r.getType())) {
             return "CONFIRMED".equals(r.getStatus());
@@ -1160,7 +1170,7 @@ public class ReservationService {
         return "WAITING".equals(r.getStatus()) || "CONFIRMED".equals(r.getStatus());
     }
 
-    // 지난 예약 여부 판단 — 일반: COMPLETED/CANCELLED, GX: COMPLETED/CANCELLED/REJECTED
+    // 지난 예약 여부 판별
     private boolean isPast(MyUnifiedReservationRes r) {
         return !isUpcoming(r);
     }

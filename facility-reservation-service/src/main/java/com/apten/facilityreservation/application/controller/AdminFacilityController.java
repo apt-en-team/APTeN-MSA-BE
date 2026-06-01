@@ -17,7 +17,6 @@ import com.apten.facilityreservation.application.model.request.FacilitySeatBulkP
 import com.apten.facilityreservation.application.model.request.FacilitySeatPostReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypePatchReq;
 import com.apten.facilityreservation.application.model.request.FacilityTypeListReq;
-import com.apten.facilityreservation.application.model.request.FacilityTypePostReq;
 import com.apten.facilityreservation.application.model.request.FacilityUsageStatusReq;
 import com.apten.facilityreservation.application.model.request.SeatStatusReq;
 import com.apten.facilityreservation.application.model.response.CountStatusRes;
@@ -39,7 +38,6 @@ import com.apten.facilityreservation.application.model.response.FacilitySeatBulk
 import com.apten.facilityreservation.application.model.response.FacilitySeatPostRes;
 import com.apten.facilityreservation.application.model.response.FacilityTypeListRes;
 import com.apten.facilityreservation.application.model.response.FacilityTypePatchRes;
-import com.apten.facilityreservation.application.model.response.FacilityTypePostRes;
 import com.apten.facilityreservation.application.model.response.FacilityUsageStatusRes;
 import com.apten.facilityreservation.application.model.response.PageResponse;
 import com.apten.facilityreservation.application.model.response.SeatStatusRes;
@@ -50,7 +48,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 시설과 좌석, 현황 관리 API 진입점이다.
+// 관리자 시설/좌석/현황 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
@@ -86,7 +84,7 @@ public class AdminFacilityController {
         return ResultResponse.success("관리자 시설 목록 조회 성공", facilityService.getAdminFacilityList(context.getComplexId(), req));
     }
 
-    // API-603 관리자 시설 상세 조회
+    // 관리자 시설 상세 조회
     @GetMapping("/facilities/{facilityId}")
     public ResultResponse<FacilityDetailRes> getAdminFacilityDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -99,7 +97,7 @@ public class AdminFacilityController {
         return ResultResponse.success("관리자 시설 상세 조회 성공", facilityService.getAdminFacilityDetail(context.getComplexId(), facilityId));
     }
 
-    // API-604 시설 수정
+    // 시설 수정
     @PatchMapping("/facilities/{facilityId}")
     public ResultResponse<FacilityPatchRes> updateFacility(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -113,7 +111,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 수정 성공", facilityService.updateFacility(context.getComplexId(), facilityId, req));
     }
 
-    // API-605 시설 삭제
+    // 시설 삭제
     @DeleteMapping("/facilities/{facilityId}")
     public ResultResponse<FacilityDeleteRes> deleteFacility(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -126,7 +124,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 삭제 성공", facilityService.deleteFacility(context.getComplexId(), facilityId));
     }
 
-    // API-606 시설 활성/비활성 변경
+    // 시설 활성/비활성 변경
     @PatchMapping("/facilities/{facilityId}/active")
     public ResultResponse<FacilityActivePatchRes> changeFacilityActive(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -140,21 +138,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 활성 상태 변경 성공", facilityService.changeFacilityActive(context.getComplexId(), facilityId, req));
     }
 
-//    // API-607 시설 타입 등록 부트스트랩처리
-//    @PostMapping("/api/admin/facility-types")
-//    @ResponseStatus(HttpStatus.CREATED)
-//    public ResultResponse<FacilityTypePostRes> createFacilityType(
-//            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
-//            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
-//            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
-//            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
-//            @RequestBody FacilityTypePostReq req
-//    ) {
-//        FacilityRequestContext context = facilityRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
-//        return ResultResponse.success("시설 타입 등록 성공", facilityService.createFacilityType(context.getComplexId(), req));
-//    }
-
-    // API-608 시설 타입 목록 조회
+    // 시설 타입 목록 조회
     @GetMapping("/facility-types")
     public ResultResponse<List<FacilityTypeListRes>> getFacilityTypeList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -167,7 +151,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 타입 목록 조회 성공", facilityService.getFacilityTypeList(context.getComplexId(), req));
     }
 
-//    // API-609 시설 타입 수정
+//    // 시설 타입 수정
 //    @PatchMapping("/api/admin/facility-types/{facilityTypeId}")
 //    public ResultResponse<FacilityTypePatchRes> updateFacilityType(
 //            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -181,7 +165,7 @@ public class AdminFacilityController {
 //        return ResultResponse.success("시설 타입 수정 성공", facilityService.updateFacilityType(context.getComplexId(), facilityTypeId, req));
 //    }
 
-    // API-612 시설 차단 시간 등록
+    // 시설 차단 시간 등록
     @PostMapping("/facilities/{facilityId}/block-times")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilityBlockTimePostRes> createFacilityBlockTime(
@@ -196,7 +180,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 차단 시간 등록 성공", facilityService.createFacilityBlockTime(context.getComplexId(), facilityId, req));
     }
 
-    // API-613 시설 차단 시간 조회
+    // 시설 차단 시간 조회
     @GetMapping("/facilities/{facilityId}/block-times")
     public ResultResponse<List<FacilityBlockTimeListRes>> getFacilityBlockTimeList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -210,7 +194,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 차단 시간 조회 성공", facilityService.getFacilityBlockTimeList(context.getComplexId(), facilityId, req));
     }
 
-    // 반복 차단 배치 등록 — 요일 선택 + 기간으로 여러 날짜에 걸친 차단을 한 번에 생성한다
+    // 반복 차단 배치 등록 (요일 + 기간)
     @PostMapping("/facilities/{facilityId}/block-times/batch")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilityBlockTimeBatchPostRes> createFacilityBlockTimeBatch(
@@ -225,7 +209,7 @@ public class AdminFacilityController {
         return ResultResponse.success("반복 차단 시간 배치 등록 성공", facilityService.createFacilityBlockTimeBatch(context.getComplexId(), facilityId, req));
     }
 
-    // 반복 차단 그룹 비활성화 — batchId 기준 is_active=false 일괄 처리
+    // 반복 차단 그룹 비활성화 (batchId 기준)
     @PatchMapping("/facilities/{facilityId}/block-times/batch/{batchId}/deactivate")
     public ResultResponse<FacilityBlockTimeBatchDeactivateRes> deactivateFacilityBlockTimeBatch(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -253,7 +237,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 차단 시간 비활성화 성공", facilityService.deactivateFacilityBlockTime(context.getComplexId(), facilityId, blockTimeId));
     }
 
-    // 시설 차단 시간 단건 수정 — blockDate·시작·종료 시각만 변경한다
+    // 시설 차단 시간 단건 수정
     @PatchMapping("/facilities/{facilityId}/block-times/{blockTimeId}")
     public ResultResponse<FacilityBlockTimePatchRes> updateFacilityBlockTime(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -325,7 +309,7 @@ public class AdminFacilityController {
         return ResultResponse.success("정기 휴무 규칙 비활성화 성공", facilityService.deactivateClosureRule(context.getComplexId(), facilityId, ruleId));
     }
 
-    // API-614 시설 좌석 등록
+    // 시설 좌석 등록
     @PostMapping("/facilities/{facilityId}/seats")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilitySeatPostRes> createFacilitySeat(
@@ -340,7 +324,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 좌석 등록 성공", facilityService.createFacilitySeat(context.getComplexId(), facilityId, req));
     }
 
-    // 시설 좌석을 일괄 등록한다.
+    // 시설 좌석 일괄 등록
     @PostMapping("/facilities/{facilityId}/seats/bulk")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<FacilitySeatBulkPostRes> createFacilitySeatsBulk(
@@ -355,7 +339,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 좌석 일괄 등록 성공", facilityService.createFacilitySeatsBulk(context.getComplexId(), facilityId, req));
     }
 
-    // API-615 시설 좌석 목록 조회
+    // 시설 좌석 목록 조회
     @GetMapping("/facilities/{facilityId}/seats")
     public ResultResponse<List<FacilitySeatListRes>> getFacilitySeatList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -368,7 +352,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 좌석 목록 조회 성공", facilityService.getFacilitySeatList(context.getComplexId(), facilityId));
     }
 
-    // API-616 시설 좌석 수정
+    // 시설 좌석 수정
     @PatchMapping("/facility-seats/{seatId}")
     public ResultResponse<FacilitySeatPatchRes> updateFacilitySeat(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -382,7 +366,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 좌석 수정 성공", facilityService.updateFacilitySeat(context.getComplexId(), seatId, req));
     }
 
-    // API-644 시설 이용 현황 조회
+    // 시설 이용 현황 조회
     @GetMapping("/facility-usage/status")
     public ResultResponse<FacilityUsageStatusRes> getFacilityUsageStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -395,7 +379,7 @@ public class AdminFacilityController {
         return ResultResponse.success("시설 이용 현황 조회 성공", facilityService.getFacilityUsageStatus(context.getComplexId(), req));
     }
 
-    // API-645 좌석 상태 조회
+    // 좌석 상태 조회
     @GetMapping("/facilities/{facilityId}/seat-status")
     public ResultResponse<List<SeatStatusRes>> getSeatStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -409,7 +393,7 @@ public class AdminFacilityController {
         return ResultResponse.success("좌석 상태 조회 성공", facilityService.getSeatStatus(context.getComplexId(), facilityId, req));
     }
 
-    // API-646 정원형 이용 현황 조회
+    // 정원형 이용 현황 조회
     @GetMapping("/facilities/{facilityId}/count-status")
     public ResultResponse<CountStatusRes> getCountStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

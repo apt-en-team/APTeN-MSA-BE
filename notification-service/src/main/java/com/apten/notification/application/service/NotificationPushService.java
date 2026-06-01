@@ -151,6 +151,7 @@ public class NotificationPushService {
         put(data, "targetTypeCode", notification.getTargetType() == null ? null : notification.getTargetType().getCode());
         put(data, "targetTypeValue", notification.getTargetType() == null ? null : notification.getTargetType().getValue());
         put(data, "targetId", notification.getTargetId());
+        // Service Worker가 data.linkPath 기준으로 클릭 이동 URL을 만들므로 절대 URL이어야 한다
         put(data, "linkPath", toAbsoluteLink(notification.getLinkPath()));
         put(data, "payloadJson", notification.getPayloadJson());
         put(data, "createdAt", notification.getCreatedAt());

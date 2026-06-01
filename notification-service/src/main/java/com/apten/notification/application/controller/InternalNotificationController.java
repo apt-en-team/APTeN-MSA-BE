@@ -23,6 +23,7 @@ public class InternalNotificationController {
     private final NotificationService notificationService;
     private final NotificationDeliveryService notificationDeliveryService;
 
+    // 내부 알림 생성
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<NotificationPostRes> createNotification(@RequestBody NotificationPostReq request) {
@@ -30,12 +31,14 @@ public class InternalNotificationController {
         return ResultResponse.success("내부 알림 생성 성공", notificationService.createNotification(request));
     }
 
+    // 내부 푸시 발송
     @PostMapping("/push")
     public ResultResponse<NotificationPushPostRes> sendPushNotification(@RequestBody NotificationPushPostReq request) {
         // 일반 GX 승인 흐름에서 자동 호출되는 API가 아니라, 별도 푸시 재발송/내부 발송용 진입점이다
         return ResultResponse.success("내부 푸시 발송 성공", notificationDeliveryService.sendPushNotification(request));
     }
 
+    // 관리자 broadcast 알림 생성
     @PostMapping("/admin-broadcast")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<NotificationAdminBroadcastPostRes> createAdminBroadcastNotification(
@@ -45,6 +48,7 @@ public class InternalNotificationController {
                 notificationService.createAdminBroadcastNotification(request));
     }
 
+    // 오래된 알림 수동 정리
     @PostMapping("/cleanup")
     public ResultResponse<NotificationCleanupRes> cleanupOldNotifications() {
         return ResultResponse.success("오래된 알림 정리 실행 성공", notificationService.cleanupOldNotifications());

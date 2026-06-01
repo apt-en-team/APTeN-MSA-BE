@@ -16,9 +16,6 @@ spring:
     url: ${FACILITY_DB_URL}
     username: ${FACILITY_DB_USERNAME}
     password: ${FACILITY_DB_PASSWORD}
-  kafka:
-    consumer:
-#      group-id: facility-reservation-service-group
 constants:
   api:
     prefix: /api

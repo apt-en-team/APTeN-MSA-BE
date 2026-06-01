@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 
-// 입주민 시설 조회 API 진입점이다.
+// 입주민 시설 조회 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/facilities")
@@ -24,7 +24,7 @@ public class ResidentFacilityController {
     private final FacilityService facilityService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-617 입주민 시설 목록 조회
+    // 입주민 시설 목록 조회
     @GetMapping
     public ResultResponse<List<ResidentFacilityListRes>> getResidentFacilityList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -36,7 +36,7 @@ public class ResidentFacilityController {
         return ResultResponse.success("입주민 시설 목록 조회 성공", facilityService.getResidentFacilityList(context.getComplexId(), req));
     }
 
-    // API-618 입주민 시설 상세 조회
+    // 입주민 시설 상세 조회
     @GetMapping("/{facilityId}")
     public ResultResponse<ResidentFacilityDetailRes> getResidentFacilityDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -48,7 +48,7 @@ public class ResidentFacilityController {
         return ResultResponse.success("입주민 시설 상세 조회 성공", facilityService.getResidentFacilityDetail(context.getComplexId(), facilityId));
     }
 
-    // 입주민 좌석 상태 조회 — 다른 입주민 개인정보는 응답에 포함하지 않는다.
+    // 입주민 좌석 상태 조회 (개인정보 제외)
     @GetMapping("/{facilityId}/seat-status")
     public ResultResponse<List<ResidentSeatStatusRes>> getResidentSeatStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

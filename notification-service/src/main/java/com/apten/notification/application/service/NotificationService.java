@@ -50,6 +50,7 @@ public class NotificationService {
     private final NotificationPushService notificationPushService;
     private final UserCacheRepository userCacheRepository;
 
+    // 알림 목록 조회
     @Transactional(readOnly = true)
     public NotificationGetPageRes getNotificationList(Long userId, NotificationSearchReq request) {
         validateUserId(userId);
@@ -89,6 +90,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 미읽음 알림 수 조회
     @Transactional(readOnly = true)
     public NotificationUnreadCountRes getUnreadCount(Long userId) {
         validateUserId(userId);
@@ -97,6 +99,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 알림 읽음 처리
     @Transactional
     public NotificationReadRes readNotification(Long userId, Long notificationId) {
         validateUserId(userId);
@@ -111,6 +114,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 전체 알림 읽음 처리
     @Transactional
     public NotificationReadAllRes readAllNotifications(Long userId) {
         validateUserId(userId);
@@ -123,6 +127,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 알림 생성 (외부 HTTP 요청)
     @Transactional
     public NotificationPostRes createNotification(NotificationPostReq request) {
         return createNotification(NotificationCreateCommand.builder()
@@ -138,6 +143,7 @@ public class NotificationService {
                 .build());
     }
 
+    // 알림 생성 (setting 검증 → DB 저장 → 커밋 후 WebSocket/FCM 발송)
     @Transactional
     public NotificationPostRes createNotification(NotificationCreateCommand command) {
         validateCreateCommand(command);
@@ -176,6 +182,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 오래된 읽음 알림 삭제 (30일 기준, 미읽음 제외)
     @Transactional
     public NotificationCleanupRes cleanupOldNotifications() {
         LocalDateTime now = LocalDateTime.now();
@@ -188,6 +195,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 관리자 broadcast 알림 생성 (단지 ADMIN/MANAGER 전체, MASTER 제외)
     @Transactional
     public NotificationAdminBroadcastPostRes createAdminBroadcastNotification(NotificationAdminBroadcastPostReq request) {
         // complexId 기준으로 ACTIVE 상태의 ADMIN, MANAGER를 조회한다
@@ -240,6 +248,7 @@ public class NotificationService {
                 .build();
     }
 
+    // 알림 소유자 확인 (내부 권한 검증용)
     @Transactional(readOnly = true)
     public NotificationOwnerCheckRes checkNotificationOwner(NotificationOwnerCheckReq request) {
         if (request == null || request.getLoginUserId() == null || request.getNotificationId() == null) {

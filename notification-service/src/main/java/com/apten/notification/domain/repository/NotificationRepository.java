@@ -15,16 +15,16 @@ import org.springframework.data.repository.query.Param;
 // 복잡 조회는 infrastructure/mapper의 MyBatis 인터페이스로 분리하는 기준을 따른다
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    // 알림 목록 기본 조회: 본인 알림만 최신순으로 본다
+    // 알림 목록 조회 (기본)
     Page<Notification> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
-    // 읽음/미읽음 필터가 있을 때 사용하는 목록 조회
+    // 알림 목록 조회 (읽음 필터)
     Page<Notification> findByUserIdAndIsReadOrderByCreatedAtDesc(Long userId, Boolean isRead, Pageable pageable);
 
-    // 알림 유형 필터가 있을 때 사용하는 목록 조회
+    // 알림 목록 조회 (유형 필터)
     Page<Notification> findByUserIdAndTypeOrderByCreatedAtDesc(Long userId, NotificationType type, Pageable pageable);
 
-    // 읽음 상태와 유형 필터를 함께 적용할 때 사용하는 목록 조회
+    // 알림 목록 조회 (읽음 + 유형 필터)
     Page<Notification> findByUserIdAndIsReadAndTypeOrderByCreatedAtDesc(
             Long userId,
             Boolean isRead,
@@ -32,13 +32,13 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             Pageable pageable
     );
 
-    // 배지와 WebSocket payload에서 사용할 미읽음 수 조회
+    // 미읽음 알림 수 조회
     long countByUserIdAndIsRead(Long userId, Boolean isRead);
 
-    // 전체 읽음 처리에서 본인 미읽음 알림만 가져온다
+    // 미읽음 알림 목록 조회
     List<Notification> findByUserIdAndIsRead(Long userId, Boolean isRead);
 
-    // 읽음 처리된 알림 중 기준 일시 이전 데이터를 일괄 삭제하고 삭제된 row 수를 반환한다
+    // 기준 일시 이전 읽음 알림 일괄 삭제
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.isRead = true AND n.createdAt < :threshold")
     int deleteByIsReadTrueAndCreatedAtBefore(@Param("threshold") LocalDateTime threshold);

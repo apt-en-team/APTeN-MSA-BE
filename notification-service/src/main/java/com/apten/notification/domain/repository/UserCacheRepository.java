@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 // notification-service의 user cache 저장소
 public interface UserCacheRepository extends JpaRepository<UserCache, Long> {
 
-    // 관리자 알림 대상은 같은 단지의 ACTIVE ADMIN/MANAGER만 조회한다
+    // 단지 내 역할 + 상태 기준 사용자 목록 조회
     List<UserCache> findByComplexIdAndRoleInAndStatus(
             Long complexId,
             Collection<UserCacheRole> roles,

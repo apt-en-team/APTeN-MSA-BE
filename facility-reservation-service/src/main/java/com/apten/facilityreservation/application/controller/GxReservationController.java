@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-// 입주민 GX 예약 API 진입점이다.
+// 입주민 GX 예약 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/gx-reservations")
@@ -24,7 +24,7 @@ public class GxReservationController {
     private final GxReservationService gxReservationService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-640 내 GX 예약 목록 조회
+    // 내 GX 예약 목록 조회
     @GetMapping("/my")
     public ResultResponse<List<MyGxReservationListRes>> getMyGxReservations(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -35,7 +35,7 @@ public class GxReservationController {
         return ResultResponse.success("내 GX 예약 목록 조회 성공", gxReservationService.getMyGxReservations(context.getUserId(), context.getComplexId()));
     }
 
-    // API-637 GX 예약 신청
+    // GX 예약 신청
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<GxReservationPostRes> createGxReservation(
@@ -48,7 +48,7 @@ public class GxReservationController {
         return ResultResponse.success("GX 예약 신청 성공", gxReservationService.createGxReservation(context.getUserId(), context.getComplexId(), req));
     }
 
-    // API-638 GX 대기 순번 조회
+    // GX 대기 순번 조회
     @GetMapping("/{gxReservationId}/waiting")
     public ResultResponse<GxWaitingRes> getWaiting(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -60,7 +60,7 @@ public class GxReservationController {
         return ResultResponse.success("GX 대기 순번 조회 성공", gxReservationService.getWaiting(context.getUserId(), context.getComplexId(), gxReservationId));
     }
 
-    // API-639 GX 예약 취소
+    // GX 예약 취소
     @PatchMapping("/{gxReservationId}/cancel")
     public ResultResponse<GxReservationCancelRes> cancelGxReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

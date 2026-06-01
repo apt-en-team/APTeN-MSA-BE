@@ -9,20 +9,10 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// 좌석 임시 선점 저장소이다.
+// 좌석 임시 선점 저장/조회 Repository
 public interface ReservationTempHoldRepository extends JpaRepository<ReservationTempHold, Long> {
 
-    // 같은 좌석 시간대의 HOLDING 선점 존재 여부를 확인한다.
-    boolean existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndHoldStatus(
-            Long facilityId,
-            Long seatId,
-            LocalDate reservationDate,
-            LocalTime startTime,
-            LocalTime endTime,
-            ReservationHoldStatus holdStatus
-    );
-
-    // 같은 좌석 시간대의 유효한 HOLDING 선점 존재 여부를 확인한다.
+    // 유효 좌석 선점 중복 확인
     boolean existsByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndHoldStatusAndExpiresAtAfter(
             Long facilityId,
             Long seatId,
@@ -33,29 +23,13 @@ public interface ReservationTempHoldRepository extends JpaRepository<Reservation
             LocalDateTime expiresAt
     );
 
-    // 만료 시각이 지난 HOLDING 선점 목록을 조회한다.
-    List<ReservationTempHold> findByExpiresAtBeforeAndHoldStatus(LocalDateTime expiresAt, ReservationHoldStatus holdStatus);
-
-    // HOLDING 상태와 만료 시각 기준 만료 대상 목록을 조회한다.
-    List<ReservationTempHold> findByHoldStatusAndExpiresAtBefore(ReservationHoldStatus holdStatus, LocalDateTime expiresAt);
-
-    // HOLDING 상태이면서 만료 시각이 현재와 같거나 이전인 만료 대상 목록을 조회한다.
+    // 만료 좌석 선점 목록 조회
     List<ReservationTempHold> findByHoldStatusAndExpiresAtLessThanEqual(ReservationHoldStatus holdStatus, LocalDateTime expiresAt);
 
-    // 특정 사용자의 HOLDING 선점을 조회한다.
+    // 사용자 좌석 선점 조회
     Optional<ReservationTempHold> findByIdAndUserIdAndHoldStatus(Long id, Long userId, ReservationHoldStatus holdStatus);
 
-    // 같은 좌석 시간대의 HOLDING 선점 목록을 조회한다.
-    List<ReservationTempHold> findByFacilityIdAndSeatIdAndReservationDateAndStartTimeAndEndTimeAndHoldStatus(
-            Long facilityId,
-            Long seatId,
-            LocalDate reservationDate,
-            LocalTime startTime,
-            LocalTime endTime,
-            ReservationHoldStatus holdStatus
-    );
-
-    // 날짜 기준 유효한 HOLDING 선점을 한 번에 조회한다.
+    // 유효 좌석 선점 일괄 조회
     List<ReservationTempHold> findByFacilityIdAndReservationDateAndHoldStatusAndExpiresAtAfter(
             Long facilityId,
             LocalDate reservationDate,

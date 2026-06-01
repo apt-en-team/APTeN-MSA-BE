@@ -41,12 +41,12 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// GX 예약 신청과 승인, 거절 API 시그니처를 담당하는 서비스이다.
+// GX 예약 신청/승인/거절 관리
 @Service
 @RequiredArgsConstructor
 public class GxReservationService {
 
-    // 완료 처리 배치 크기이다.
+    // 완료 처리 배치 크기
     @Value("${apten.scheduler.gx-complete.batch-size:100}")
     private int gxCompleteBatchSize;
 
@@ -59,7 +59,7 @@ public class GxReservationService {
     private final FacilityRepository facilityRepository;
     private final FacilityNotificationService facilityNotificationService;
 
-    // 내 GX 예약 목록을 조회한다.
+    // 내 GX 예약 목록 조회
     @Transactional(readOnly = true)
     public List<MyGxReservationListRes> getMyGxReservations(Long userId, Long complexId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -103,16 +103,16 @@ public class GxReservationService {
                 .toList();
     }
 
-    // GX 예약을 신청한다.
+    // GX 예약 신청
     @Transactional
     public GxReservationPostRes createGxReservation(Long userId, Long complexId, GxReservationPostReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        // 비관적 락으로 GxProgram 행을 선점해 waitNo 동시 충돌을 방지한다.
+        // 대기 순번 충돌 방지 (비관적 락)
         GxProgram program = gxProgramRepository.findByIdAndComplexIdForUpdate(req.getProgramId(), complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
 
-        // OPEN 상태 프로그램만 신청 가능
+        // OPEN 프로그램 신청 허용
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
             throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
         }
@@ -123,22 +123,22 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // WAITING/CONFIRMED 상태인 신청이 있을 때만 중복으로 간주한다. 취소·거절·완료 후 재신청은 허용한다.
+        // 활성 신청 중복 방지 (취소/거절/완료 후 재신청 허용)
         List<GxReservationStatus> activeStatuses = List.of(GxReservationStatus.WAITING, GxReservationStatus.CONFIRMED);
         if (gxReservationRepository.existsByProgramIdAndUserIdAndStatusIn(req.getProgramId(), userId, activeStatuses)) {
             throw new BusinessException(FacilityReservationErrorCode.GX_ALREADY_APPLIED);
         }
 
-        // householdId 조회 — Kafka 기반 캐시 테이블에서 ACTIVE 세대원 기준으로 추출
+        // 세대 ID 조회 (Kafka 캐시, ACTIVE 세대원)
         HouseholdMemberCache memberCache = householdMemberCacheRepository
                 .findByUserIdAndStatus(userId, "ACTIVE")
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.USER_NOT_FOUND));
 
-        // 전원 대기형 정책: 정원 미만이어도 모든 신청자는 WAITING으로 접수된다.
+        // 전원 WAITING 접수
         long currentWaiting = gxReservationRepository.countByProgramIdAndStatus(req.getProgramId(), GxReservationStatus.WAITING);
         int waitNo = (int) (currentWaiting + 1);
 
-        // DB 유니크 제약(program_id, user_id)으로 INSERT가 불가하므로, 기존 레코드가 있으면 재활성화한다.
+        // 재신청 기존 row 재활성화
         GxReservation reservation = gxReservationRepository
                 .findByProgramIdAndUserId(req.getProgramId(), userId)
                 .map(existing -> {
@@ -154,12 +154,11 @@ public class GxReservationService {
                         .waitNo(waitNo)
                         .build()));
 
-        // 여기까지 왔으면 신규 신청 또는 재신청이 WAITING 상태로 확정된 상태다.
-        // 실제 HTTP 호출은 FacilityNotificationService가 commit 이후 best-effort로 수행한다.
+        // GX 신청 알림 예약 (afterCommit, best-effort)
         facilityNotificationService.notifyGxApplied(userId, complexId, reservation, program);
 
-        // waitNo가 minCount에 정확히 도달한 시점에만 관리자에게 최소 인원 충족 알림을 발송한다
-        // minCount=0은 미설정으로 간주해 알림 대상에서 제외한다
+        // 최소 인원 도달 알림 (최초 1회)
+        // 최소 인원 미설정 제외
         if (program.getMinCount() > 0 && waitNo == program.getMinCount()) {
             facilityNotificationService.notifyGxMinimumReached(complexId, program);
         }
@@ -173,7 +172,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // GX 대기 순번을 조회한다.
+    // GX 대기 순번 조회
     @Transactional(readOnly = true)
     public GxWaitingRes getWaiting(Long userId, Long complexId, Long gxReservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -190,7 +189,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // GX 예약을 취소한다.
+    // GX 예약 취소
     @Transactional
     public GxReservationCancelRes cancelGxReservation(Long userId, Long complexId, Long gxReservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -199,7 +198,7 @@ public class GxReservationService {
                 .findByIdAndUserIdAndComplexId(gxReservationId, userId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
 
-        // CONFIRMED 또는 WAITING 상태만 취소 가능
+        // 활성 신청 취소 허용
         if (reservation.getStatus() != GxReservationStatus.CONFIRMED
                 && reservation.getStatus() != GxReservationStatus.WAITING) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
@@ -207,7 +206,7 @@ public class GxReservationService {
 
         reservation.cancel(GxReservationCancelReason.USER);
 
-        // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
+        // 대기 순번 재정렬 (자동 승격 제외)
         resequenceWaitingNos(reservation.getProgramId());
 
         return GxReservationCancelRes.builder()
@@ -218,7 +217,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // GX 예약을 승인한다.
+    // GX 예약 승인
     @Transactional
     public GxReservationApproveRes approveGxReservation(Long complexId, Long gxReservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -227,13 +226,12 @@ public class GxReservationService {
                 .findByIdAndComplexId(gxReservationId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
 
-        // WAITING 상태만 승인 가능
+        // WAITING 신청 승인 허용
         if (reservation.getStatus() != GxReservationStatus.WAITING) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
 
-        // 낙관적 락(OPTIMISTIC_FORCE_INCREMENT)으로 GxProgram 버전을 선점한다.
-        // 두 관리자가 동시에 승인하면 한 명은 커밋 시점에 버전 충돌로 실패한다.
+        // 관리자 동시 승인 방지 (낙관적 락)
         try {
             GxProgram program = gxProgramRepository
                     .findByIdAndComplexIdWithOptimisticLock(reservation.getProgramId(), complexId)
@@ -246,10 +244,10 @@ public class GxReservationService {
 
             reservation.approve();
 
-            // 승인 상태 저장이 커밋된 뒤 입주민에게 best-effort로 결과 알림을 보낸다
+            // GX 승인 알림 예약 (afterCommit, best-effort)
             facilityNotificationService.notifyGxApproved(reservation.getUserId(), complexId, reservation, program);
 
-            // 승인 후 남은 WAITING 순번을 재정렬한다.
+            // 대기 순번 재정렬
             resequenceWaitingNos(reservation.getProgramId());
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new BusinessException(FacilityReservationErrorCode.GX_CONCURRENT_UPDATE);
@@ -262,7 +260,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // GX 예약을 거절한다.
+    // GX 예약 거절
     @Transactional
     public GxReservationRejectRes rejectGxReservation(Long complexId, Long gxReservationId, GxReservationRejectReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -271,7 +269,7 @@ public class GxReservationService {
                 .findByIdAndComplexId(gxReservationId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
 
-        // WAITING 상태만 거절 가능
+        // WAITING 신청 거절 허용
         if (reservation.getStatus() != GxReservationStatus.WAITING) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
         }
@@ -283,10 +281,10 @@ public class GxReservationService {
 
             reservation.reject(req.getRejectReason());
 
-            // 거절 상태 저장이 커밋된 뒤 입주민에게 best-effort로 결과 알림을 보낸다
+            // GX 거절 알림 예약 (afterCommit, best-effort)
             facilityNotificationService.notifyGxRejected(reservation.getUserId(), complexId, reservation, program);
 
-            // 거절 후 남은 WAITING 순번을 재정렬한다.
+            // 대기 순번 재정렬
             resequenceWaitingNos(reservation.getProgramId());
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new BusinessException(FacilityReservationErrorCode.GX_CONCURRENT_UPDATE);
@@ -300,7 +298,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // 관리자 GX 예약 단건 상세를 조회한다.
+    // 관리자 GX 예약 상세 조회
     @Transactional(readOnly = true)
     public AdminGxReservationDetailRes getAdminGxReservationDetail(Long complexId, Long gxReservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -317,7 +315,7 @@ public class GxReservationService {
                 ? facilityRepository.findById(program.getFacilityId()).orElse(null)
                 : null;
 
-        // 캐시 데이터가 없으면 null로 내려가도 된다
+        // 누락 캐시 null 허용
         UserCache userCache = reservation.getUserId() != null
                 ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
                 : null;
@@ -364,7 +362,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // 관리자가 GX 예약을 강제 취소한다.
+    // 관리자 GX 예약 강제 취소
     @Transactional
     public GxReservationCancelRes cancelGxReservationByAdmin(Long complexId, Long gxReservationId) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
@@ -373,7 +371,7 @@ public class GxReservationService {
                 .findByIdAndComplexId(gxReservationId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_RESERVATION_NOT_FOUND));
 
-        // CONFIRMED 또는 WAITING 상태만 취소 가능
+        // 활성 신청 취소 허용
         if (reservation.getStatus() != GxReservationStatus.CONFIRMED
                 && reservation.getStatus() != GxReservationStatus.WAITING) {
             throw new BusinessException(FacilityReservationErrorCode.INVALID_RESERVATION_STATUS);
@@ -386,10 +384,10 @@ public class GxReservationService {
 
             reservation.cancel(GxReservationCancelReason.ADMIN);
 
-            // 관리자 강제 취소도 입주민에게는 GX 신청 거절 결과로 안내한다
+            // 관리자 취소 결과 알림 (GX 거절)
             facilityNotificationService.notifyGxRejected(reservation.getUserId(), complexId, reservation, program);
 
-            // 전원 대기형 정책: 취소 후 자동 승격 없이 WAITING 순번만 재정렬한다.
+            // 대기 순번 재정렬 (자동 승격 제외)
             resequenceWaitingNos(reservation.getProgramId());
         } catch (ObjectOptimisticLockingFailureException e) {
             throw new BusinessException(FacilityReservationErrorCode.GX_CONCURRENT_UPDATE);
@@ -403,7 +401,7 @@ public class GxReservationService {
                 .build();
     }
 
-    // 종료된 GX 프로그램의 WAITING/CONFIRMED 예약을 COMPLETED로 일괄 전환한다.
+    // 종료 GX 예약 완료 처리
     @Transactional
     public ReservationCompleteRes completeGxReservations() {
         LocalDateTime now = LocalDateTime.now();
@@ -426,8 +424,8 @@ public class GxReservationService {
                 .build();
     }
 
-    // 승인/취소/거절 후 남은 WAITING 순번을 1부터 재정렬한다.
-    private void resequenceWaitingNos(Long programId) {
+    // 대기 순번 재정렬
+    void resequenceWaitingNos(Long programId) {
         List<GxReservation> waitingList = gxReservationRepository
                 .findByProgramIdAndStatusOrderByWaitNoAsc(programId, GxReservationStatus.WAITING);
         for (int i = 0; i < waitingList.size(); i++) {

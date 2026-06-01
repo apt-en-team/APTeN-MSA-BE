@@ -5,9 +5,9 @@ import com.apten.facilityreservation.domain.enums.ComplexCacheStatus;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// 단지 캐시 저장소이다.
+// 단지 캐시 저장/조회 Repository
 public interface ComplexCacheRepository extends JpaRepository<ComplexCache, Long> {
 
-    // 활성 단지만 조회할 때 사용한다.
+    // 활성 단지 조회
     Optional<ComplexCache> findByIdAndStatus(Long id, ComplexCacheStatus status);
 }
