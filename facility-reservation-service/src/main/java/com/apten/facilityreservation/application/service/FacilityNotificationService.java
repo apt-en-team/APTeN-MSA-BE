@@ -161,16 +161,25 @@ public class FacilityNotificationService {
     }
 
     private void sendBestEffort(String operationName, NotificationCreateReq request) {
-        try {
-            notificationInternalClient.createNotification(request);
-        } catch (Exception exception) {
-            // 알림 장애가 예약/취소/GX 신청 성공을 막으면 안 되므로 예외를 다시 던지지 않는다
-            log.warn("{} 생성 실패. receiverUserId={}, targetType={}, targetId={}",
-                    operationName,
-                    request.getReceiverUserId(),
-                    request.getTargetType(),
-                    request.getTargetId(),
-                    exception);
+        // 일시적인 네트워크 오류를 흡수하기 위해 최대 3회 즉시 재시도한다
+        // afterCommit 스레드를 오래 점유하지 않도록 sleep 없이 빠르게 재시도한다
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                notificationInternalClient.createNotification(request);
+                return;
+            } catch (Exception exception) {
+                if (attempt < maxAttempts) {
+                    log.debug("{} 알림 발송 재시도. attempt={}/{}, targetId={}",
+                            operationName, attempt + 1, maxAttempts, request.getTargetId());
+                } else {
+                    // 알림 장애가 예약/취소/GX 신청 성공을 막으면 안 되므로 예외를 다시 던지지 않는다
+                    log.warn("{} 생성 실패 ({}회 시도 후). receiverUserId={}, targetType={}, targetId={}",
+                            operationName, maxAttempts,
+                            request.getReceiverUserId(), request.getTargetType(), request.getTargetId(),
+                            exception);
+                }
+            }
         }
     }
 
