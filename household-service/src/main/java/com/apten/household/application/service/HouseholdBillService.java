@@ -241,7 +241,7 @@ public class HouseholdBillService {
                 complexId,
                 request.getBillYear(),
                 request.getBillMonth(),
-                request.getStatus(),
+                request.resolveStatus(),
                 blankToNull(request.getBuilding()),
                 blankToNull(request.getUnit()),
                 PageRequest.of(pageNumber, pageSize)
