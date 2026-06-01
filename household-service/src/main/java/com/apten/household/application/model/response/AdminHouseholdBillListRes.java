@@ -2,6 +2,7 @@ package com.apten.household.application.model.response;
 
 import com.apten.household.domain.enums.HouseholdBillStatus;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -39,7 +40,18 @@ public class AdminHouseholdBillListRes {
         private String unit;
         private Integer billYear;
         private Integer billMonth;
+        private BigDecimal baseFee;
+        private BigDecimal vehicleFee;
+        private BigDecimal facilityFee;
+        private BigDecimal visitorFee;
         private BigDecimal totalFee;
+        private BigDecimal lateFee;
+        private BigDecimal payableAmount;
+        private LocalDate sendDate;
+        private LocalDate dueDate;
+        private LocalDate overdueStartDate;
+        private LocalDate homeDisplayUntil;
+        private Boolean overdue;
         private HouseholdBillStatus status;
     }
 }

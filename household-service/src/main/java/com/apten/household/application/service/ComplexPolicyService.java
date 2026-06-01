@@ -26,6 +26,16 @@ public class ComplexPolicyService {
     // 단지 활성 상태 확인용 캐시 저장소이다.
     private final ComplexCacheRepository complexCacheRepository;
 
+    @Transactional(readOnly = true)
+    public ComplexPolicyPutRes getComplexPolicy(Long complexId) {
+        if (complexId == null) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+        return complexPolicyRepository.findByComplexId(complexId)
+                .map(this::toResponse)
+                .orElse(null);
+    }
+
     // 기본 관리비 정책을 저장하거나 갱신한다.
     public ComplexPolicyPutRes updateComplexPolicy(Long complexId, ComplexPolicyPutReq req) {
         // 단지 ID와 요청 본문 존재 여부를 검증한다.
@@ -39,6 +49,12 @@ public class ComplexPolicyService {
 
         // 납부기한일은 1일부터 31일 사이만 허용한다.
         validateDueDay(req.getDueDay());
+
+        // 고지서 발송일은 1일부터 31일 사이만 허용한다.
+        validateSendDay(req.getSendDay());
+
+        // 홈 화면 노출 종료일은 1일부터 31일 사이만 허용한다.
+        validateHomeDisplayEndDay(req.getHomeDisplayEndDay());
 
         // 단지 캐시에서 단지 활성 상태를 먼저 확인한다.
         ComplexCache complexCache = complexCacheRepository.findById(complexId)
@@ -57,13 +73,19 @@ public class ComplexPolicyService {
         // TODO 정책 변경 이력 또는 감사 로그 저장이 필요하면 여기서 확장한다.
         ComplexPolicy savedPolicy = complexPolicyRepository.save(complexPolicy);
 
+        return toResponse(savedPolicy);
+    }
+
+    private ComplexPolicyPutRes toResponse(ComplexPolicy policy) {
         return ComplexPolicyPutRes.builder()
-                .complexId(savedPolicy.getComplexId())
-                .baseFee(savedPolicy.getBaseFee())
-                .dueDay(savedPolicy.getDueDay())
-                .lateFeeRate(savedPolicy.getLateFeeRate())
-                .isActive(savedPolicy.getIsActive())
-                .updatedAt(LocalDateTime.now())
+                .complexId(policy.getComplexId())
+                .baseFee(policy.getBaseFee())
+                .dueDay(policy.getDueDay())
+                .sendDay(policy.getSendDay())
+                .homeDisplayEndDay(policy.getHomeDisplayEndDay())
+                .lateFeeRate(policy.getLateFeeRate())
+                .isActive(policy.getIsActive())
+                .updatedAt(policy.getUpdatedAt() != null ? policy.getUpdatedAt() : LocalDateTime.now())
                 .build();
     }
 
@@ -77,6 +99,20 @@ public class ComplexPolicyService {
     // 납부기한일 범위를 검증한다.
     private void validateDueDay(Integer dueDay) {
         if (dueDay == null || dueDay < 1 || dueDay > 31) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    // 고지서 발송일 범위를 검증한다.
+    private void validateSendDay(Integer sendDay) {
+        if (sendDay == null || sendDay < 1 || sendDay > 31) {
+            throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
+        }
+    }
+
+    // 홈 화면 노출 종료일 범위를 검증한다.
+    private void validateHomeDisplayEndDay(Integer homeDisplayEndDay) {
+        if (homeDisplayEndDay == null || homeDisplayEndDay < 1 || homeDisplayEndDay > 31) {
             throw new BusinessException(CommonErrorCode.INVALID_PARAMETER);
         }
     }

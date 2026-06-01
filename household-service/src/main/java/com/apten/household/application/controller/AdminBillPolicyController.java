@@ -8,6 +8,7 @@ import com.apten.household.application.model.response.ComplexPolicyPutRes;
 import com.apten.household.application.service.ComplexPolicyService;
 import com.apten.household.application.service.HouseholdRequestContextResolver;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -27,6 +28,20 @@ public class AdminBillPolicyController {
     private final HouseholdRequestContextResolver householdRequestContextResolver;
 
     //기본 관리비 정책 설정 API-416
+    @GetMapping("/basic")
+    public ResultResponse<ComplexPolicyPutRes> getBillPolicy(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
+            @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
+            @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId
+    ) {
+        HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
+        return ResultResponse.success(
+                "청구 기본 정책 조회 성공",
+                complexPolicyService.getComplexPolicy(context.getComplexId())
+        );
+    }
+
     @PutMapping("/basic")
     public ResultResponse<ComplexPolicyPutRes> updateBillPolicy(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -41,4 +56,5 @@ public class AdminBillPolicyController {
                 complexPolicyService.updateComplexPolicy(context.getComplexId(), req)
         );
     }
+
 }

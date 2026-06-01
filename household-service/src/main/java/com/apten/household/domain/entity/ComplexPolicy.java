@@ -52,6 +52,16 @@ public class ComplexPolicy extends BaseEntity {
     @Column(name = "due_day", nullable = false)
     private Integer dueDay = 25;
 
+    // 매월 고지서 발송 일자이다.
+    @Builder.Default
+    @Column(name = "send_day", nullable = false, columnDefinition = "int default 1")
+    private Integer sendDay = 1;
+
+    // 다음 달 홈 화면 노출 종료 일자이다.
+    @Builder.Default
+    @Column(name = "home_display_end_day", nullable = false, columnDefinition = "int default 5")
+    private Integer homeDisplayEndDay = 5;
+
     // 연체료율이다.
     @Builder.Default
     @Column(name = "late_fee_rate", nullable = false, precision = 5, scale = 2)
@@ -74,6 +84,16 @@ public class ComplexPolicy extends BaseEntity {
             this.dueDay = req.getDueDay();
         }
 
+        // 고지서 발송일을 요청값으로 갱신한다.
+        if (req.getSendDay() != null) {
+            this.sendDay = req.getSendDay();
+        }
+
+        // 홈 화면 노출 종료일을 요청값으로 갱신한다.
+        if (req.getHomeDisplayEndDay() != null) {
+            this.homeDisplayEndDay = req.getHomeDisplayEndDay();
+        }
+
         // 연체료율을 요청값으로 갱신한다.
         if (req.getLateFeeRate() != null) {
             this.lateFeeRate = req.getLateFeeRate();
@@ -84,4 +104,5 @@ public class ComplexPolicy extends BaseEntity {
             this.isActive = req.getIsActive();
         }
     }
+
 }

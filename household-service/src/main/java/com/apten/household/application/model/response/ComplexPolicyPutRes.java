@@ -19,6 +19,12 @@ public class ComplexPolicyPutRes {
     // 납부기한일이다.
     private Integer dueDay;
 
+    // 고지서 발송일이다.
+    private Integer sendDay;
+
+    // 홈 화면 노출 종료일이다.
+    private Integer homeDisplayEndDay;
+
     // 연체료율이다.
     private BigDecimal lateFeeRate;
 

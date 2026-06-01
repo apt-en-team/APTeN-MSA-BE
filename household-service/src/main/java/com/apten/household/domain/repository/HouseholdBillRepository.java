@@ -2,12 +2,14 @@ package com.apten.household.domain.repository;
 
 import com.apten.household.domain.entity.HouseholdBill;
 import com.apten.household.domain.enums.HouseholdBillStatus;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Long> {
 
@@ -27,12 +29,12 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
             ORDER BY b.billYear DESC, b.billMonth DESC, h.building ASC, h.unit ASC
             """)
     Page<HouseholdBill> findAdminBills(
-            Long complexId,
-            Integer billYear,
-            Integer billMonth,
-            HouseholdBillStatus status,
-            String building,
-            String unit,
+            @Param("complexId") Long complexId,
+            @Param("billYear") Integer billYear,
+            @Param("billMonth") Integer billMonth,
+            @Param("status") HouseholdBillStatus status,
+            @Param("building") String building,
+            @Param("unit") String unit,
             Pageable pageable
     );
 
@@ -41,6 +43,7 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
             WHERE b.householdId = :householdId
               AND b.complexId = :complexId
               AND b.status = :status
+              AND (b.sendDate IS NULL OR b.sendDate <= :today)
               AND (:billYear IS NULL OR b.billYear = :billYear)
               AND (:billMonth IS NULL OR b.billMonth = :billMonth)
             ORDER BY b.billYear DESC, b.billMonth DESC
@@ -51,6 +54,7 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
             HouseholdBillStatus status,
             Integer billYear,
             Integer billMonth,
+            LocalDate today,
             Pageable pageable
     );
 }

@@ -24,6 +24,9 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
 
     // 세대 ID와 단지 ID 기준 세대를 조회한다.
     Optional<Household> findByIdAndComplexId(Long id, Long complexId);
+
+    List<Household> findByComplexIdAndIdIn(Long complexId, List<Long> ids);
+
     List<Household> findByComplexIdAndStatus(Long complexId, HouseholdStatus status);
     @Query("""
             SELECT h FROM Household h
