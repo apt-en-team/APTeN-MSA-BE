@@ -1,8 +1,10 @@
 package com.apten.notification.application.controller;
 
 import com.apten.common.response.ResultResponse;
+import com.apten.notification.application.model.request.NotificationAdminBroadcastPostReq;
 import com.apten.notification.application.model.request.NotificationPostReq;
 import com.apten.notification.application.model.request.NotificationPushPostReq;
+import com.apten.notification.application.model.response.NotificationAdminBroadcastPostRes;
 import com.apten.notification.application.model.response.NotificationCleanupRes;
 import com.apten.notification.application.model.response.NotificationPostRes;
 import com.apten.notification.application.model.response.NotificationPushPostRes;
@@ -32,6 +34,15 @@ public class InternalNotificationController {
     public ResultResponse<NotificationPushPostRes> sendPushNotification(@RequestBody NotificationPushPostReq request) {
         // 일반 GX 승인 흐름에서 자동 호출되는 API가 아니라, 별도 푸시 재발송/내부 발송용 진입점이다
         return ResultResponse.success("내부 푸시 발송 성공", notificationDeliveryService.sendPushNotification(request));
+    }
+
+    @PostMapping("/admin-broadcast")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResultResponse<NotificationAdminBroadcastPostRes> createAdminBroadcastNotification(
+            @RequestBody NotificationAdminBroadcastPostReq request) {
+        // complexId 기준 ACTIVE ADMIN/MANAGER 전체에게 각각 알림을 생성한다
+        return ResultResponse.success("관리자 broadcast 알림 생성 성공",
+                notificationService.createAdminBroadcastNotification(request));
     }
 
     @PostMapping("/cleanup")
