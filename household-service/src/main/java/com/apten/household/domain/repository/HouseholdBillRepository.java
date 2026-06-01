@@ -57,4 +57,48 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
             LocalDate today,
             Pageable pageable
     );
+
+    // 특정 세대의 년월 범위 청구 이력을 조회한다.
+    @Query("""
+            SELECT b FROM HouseholdBill b
+            WHERE b.householdId = :householdId
+              AND (b.billYear * 100 + b.billMonth) BETWEEN :fromYm AND :toYm
+            ORDER BY b.billYear ASC, b.billMonth ASC
+            """)
+    List<HouseholdBill> findByHouseholdIdAndYearMonthRange(
+            @Param("householdId") Long householdId,
+            @Param("fromYm") Integer fromYm,
+            @Param("toYm") Integer toYm
+    );
+
+    // 동일 세대 유형의 확정된 청구 이력을 년월 범위로 조회한다.
+    @Query("""
+            SELECT b FROM HouseholdBill b
+            JOIN Household h ON b.householdId = h.id
+            WHERE h.typeId = :typeId
+              AND b.complexId = :complexId
+              AND b.status = :status
+              AND (b.billYear * 100 + b.billMonth) BETWEEN :fromYm AND :toYm
+            """)
+    List<HouseholdBill> findByTypeIdAndYearMonthRange(
+            @Param("typeId") Long typeId,
+            @Param("complexId") Long complexId,
+            @Param("status") HouseholdBillStatus status,
+            @Param("fromYm") Integer fromYm,
+            @Param("toYm") Integer toYm
+    );
+
+    // 세대 ID 목록 기준 확정된 청구 이력을 년월 범위로 조회한다.
+    @Query("""
+            SELECT b FROM HouseholdBill b
+            WHERE b.householdId IN :householdIds
+              AND b.status = :status
+              AND (b.billYear * 100 + b.billMonth) BETWEEN :fromYm AND :toYm
+            """)
+    List<HouseholdBill> findByHouseholdIdsAndYearMonthRange(
+            @Param("householdIds") List<Long> householdIds,
+            @Param("status") HouseholdBillStatus status,
+            @Param("fromYm") Integer fromYm,
+            @Param("toYm") Integer toYm
+    );
 }

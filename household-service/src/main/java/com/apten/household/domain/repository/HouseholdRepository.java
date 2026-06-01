@@ -27,6 +27,8 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
 
     List<Household> findByComplexIdAndIdIn(Long complexId, List<Long> ids);
 
+    List<Household> findByComplexIdAndBuilding(Long complexId, String building);
+
     List<Household> findByComplexIdAndStatus(Long complexId, HouseholdStatus status);
     @Query("""
             SELECT h FROM Household h

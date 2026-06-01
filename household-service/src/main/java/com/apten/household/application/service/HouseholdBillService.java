@@ -10,15 +10,18 @@ import com.apten.household.application.model.request.VisitorFeeReflectReq;
 import com.apten.household.application.model.response.AdminHouseholdBillDetailRes;
 import com.apten.household.application.model.response.AdminHouseholdBillListRes;
 import com.apten.household.application.model.response.BaseFeeReflectRes;
+import com.apten.household.application.model.response.BillComparisonRes;
 import com.apten.household.application.model.response.BillConfirmRes;
 import com.apten.household.application.model.response.BillUnconfirmRes;
 import com.apten.household.application.model.response.FacilityFeeReflectRes;
 import com.apten.household.application.model.response.MyBillListRes;
 import com.apten.household.application.model.response.VehicleFeeReflectRes;
 import com.apten.household.application.model.response.VisitorFeeReflectRes;
+import com.apten.household.domain.entity.BuildingLineType;
 import com.apten.household.domain.entity.ComplexPolicy;
 import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdBill;
+import com.apten.household.domain.entity.HouseholdType;
 import com.apten.household.domain.entity.HouseholdBillItem;
 import com.apten.household.domain.entity.HouseholdMember;
 import com.apten.household.domain.entity.FacilityUsageSnapshot;
@@ -29,12 +32,14 @@ import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
 import com.apten.household.domain.enums.HouseholdStatus;
 import com.apten.household.domain.enums.VehicleSnapshotStatus;
+import com.apten.household.domain.repository.BuildingLineTypeRepository;
 import com.apten.household.domain.repository.ComplexPolicyRepository;
 import com.apten.household.domain.repository.FacilityUsageSnapshotRepository;
 import com.apten.household.domain.repository.HouseholdBillItemRepository;
 import com.apten.household.domain.repository.HouseholdBillRepository;
 import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.HouseholdRepository;
+import com.apten.household.domain.repository.HouseholdTypeRepository;
 import com.apten.household.domain.repository.VisitorUsageSnapshotRepository;
 import com.apten.household.domain.repository.VehicleSnapshotRepository;
 import com.apten.household.exception.HouseholdErrorCode;
@@ -44,6 +49,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -65,6 +71,8 @@ public class HouseholdBillService {
     private final HouseholdBillItemRepository householdBillItemRepository;
     private final HouseholdRepository householdRepository;
     private final HouseholdMemberRepository householdMemberRepository;
+    private final HouseholdTypeRepository householdTypeRepository;
+    private final BuildingLineTypeRepository buildingLineTypeRepository;
     private final VisitorUsageSnapshotRepository visitorUsageSnapshotRepository;
     private final FacilityUsageSnapshotRepository facilityUsageSnapshotRepository;
     private final VehicleSnapshotRepository vehicleSnapshotRepository;
@@ -349,6 +357,177 @@ public class HouseholdBillService {
             throw new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND);
         }
         return getAdminBillDetail(complexId, billId);
+    }
+
+    // 동일 평형 세대와의 최근 6개월 관리비 비교 데이터를 반환한다.
+    @Transactional(readOnly = true)
+    public BillComparisonRes getMyBillComparison(Long userId, Long complexId, Long billId) {
+        HouseholdMember member = householdMemberRepository.findActiveByUserIdAndComplexId(userId, complexId)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
+        HouseholdBill bill = getBillForComplex(complexId, billId);
+        if (!bill.getHouseholdId().equals(member.getHouseholdId())) {
+            throw new BusinessException(HouseholdErrorCode.BILL_NOT_FOUND);
+        }
+
+        Household household = getHouseholdForComplex(complexId, bill.getHouseholdId());
+
+        // typeId가 없으면 building_line_type에서 unit 라인 번호로 보완한다.
+        Long resolvedTypeId = household.getTypeId();
+        if (resolvedTypeId == null) {
+            try {
+                int lineNumber = Integer.parseInt(household.getUnit()) % 10;
+                resolvedTypeId = buildingLineTypeRepository.findActiveByUnitLine(
+                                complexId, household.getBuilding(), lineNumber)
+                        .map(blt -> blt.getTypeId())
+                        .orElse(null);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // 평형 정보 조회
+        BigDecimal areaSize = null;
+        if (resolvedTypeId != null) {
+            areaSize = householdTypeRepository.findById(resolvedTypeId)
+                    .map(HouseholdType::getExclusiveAreaM2)
+                    .orElse(null);
+        }
+
+        // 최근 6개월 범위 계산
+        List<YearMonth> months = buildSixMonths(bill.getBillYear(), bill.getBillMonth());
+        int fromYm = toYearMonthInt(months.get(0));
+        int toYm = toYearMonthInt(months.get(5));
+
+        // 내 세대 청구 이력
+        List<HouseholdBill> myBills = householdBillRepository.findByHouseholdIdAndYearMonthRange(
+                bill.getHouseholdId(), fromYm, toYm);
+        Map<Integer, BigDecimal> myBillMap = myBills.stream()
+                .collect(Collectors.toMap(
+                        b -> b.getBillYear() * 100 + b.getBillMonth(),
+                        HouseholdBill::getTotalFee
+                ));
+
+        List<BigDecimal> myAmounts = months.stream()
+                .map(ym -> myBillMap.getOrDefault(toYearMonthInt(ym), BigDecimal.ZERO))
+                .toList();
+
+        BigDecimal myAverage = calculateAverage(myAmounts);
+
+        // 동일 평형 청구 이력
+        List<BigDecimal> avgAmounts;
+        BigDecimal sameTypeAverage = BigDecimal.ZERO;
+        Integer rank = null;
+        Integer totalHouseholds = null;
+
+        // typeId가 있는 세대 + typeId=null이지만 같은 building_line_type인 세대 모두 포함
+        List<Long> sameTypeHouseholdIds = resolveSameTypeHouseholdIds(
+                complexId, household, resolvedTypeId);
+
+        if (!sameTypeHouseholdIds.isEmpty()) {
+            List<HouseholdBill> sameBills = householdBillRepository.findByHouseholdIdsAndYearMonthRange(
+                    sameTypeHouseholdIds, HouseholdBillStatus.CONFIRMED, fromYm, toYm);
+
+            avgAmounts = months.stream()
+                    .map(ym -> {
+                        int key = toYearMonthInt(ym);
+                        List<BigDecimal> fees = sameBills.stream()
+                                .filter(b -> b.getBillYear() * 100 + b.getBillMonth() == key)
+                                .map(HouseholdBill::getTotalFee)
+                                .toList();
+                        return fees.isEmpty() ? BigDecimal.ZERO : calculateAverage(fees);
+                    })
+                    .toList();
+
+            sameTypeAverage = calculateAverage(avgAmounts);
+
+            // 현재 청구월 기준 순위 계산
+            int currentYm = bill.getBillYear() * 100 + bill.getBillMonth();
+            List<BigDecimal> currentMonthFees = sameBills.stream()
+                    .filter(b -> b.getBillYear() * 100 + b.getBillMonth() == currentYm)
+                    .map(HouseholdBill::getTotalFee)
+                    .sorted()
+                    .toList();
+
+            if (!currentMonthFees.isEmpty()) {
+                totalHouseholds = currentMonthFees.size();
+                BigDecimal myFee = myBillMap.getOrDefault(currentYm, BigDecimal.ZERO);
+                long lowerCount = currentMonthFees.stream()
+                        .filter(fee -> fee.compareTo(myFee) < 0)
+                        .count();
+                rank = (int) lowerCount + 1;
+            }
+        } else {
+            avgAmounts = months.stream().map(ym -> BigDecimal.ZERO).toList();
+            sameTypeAverage = BigDecimal.ZERO;
+        }
+
+        return BillComparisonRes.builder()
+                .areaSize(areaSize)
+                .myAmounts(myAmounts)
+                .myAverage(myAverage)
+                .avgAmounts(avgAmounts)
+                .sameTypeAverage(sameTypeAverage)
+                .rank(rank)
+                .totalHouseholds(totalHouseholds)
+                .build();
+    }
+
+    // typeId가 있는 세대와 null이지만 같은 building_line_type 범위인 세대 IDs를 반환한다.
+    private List<Long> resolveSameTypeHouseholdIds(Long complexId, Household household, Long typeId) {
+        if (typeId == null) return List.of();
+
+        int lineNumber;
+        try {
+            lineNumber = Integer.parseInt(household.getUnit()) % 10;
+        } catch (NumberFormatException e) {
+            return householdRepository.findByComplexIdAndBuilding(complexId, household.getBuilding())
+                    .stream()
+                    .filter(h -> typeId.equals(h.getTypeId()))
+                    .map(Household::getId)
+                    .toList();
+        }
+
+        final int finalLineNumber = lineNumber;
+        BuildingLineType myLineType = buildingLineTypeRepository
+                .findActiveByUnitLine(complexId, household.getBuilding(), lineNumber)
+                .orElse(null);
+
+        return householdRepository.findByComplexIdAndBuilding(complexId, household.getBuilding())
+                .stream()
+                .filter(h -> {
+                    if (typeId.equals(h.getTypeId())) return true;
+                    if (h.getTypeId() == null && myLineType != null) {
+                        try {
+                            int ln = Integer.parseInt(h.getUnit()) % 10;
+                            return ln >= myLineType.getLineStart() && ln <= myLineType.getLineEnd();
+                        } catch (NumberFormatException e) {
+                            return false;
+                        }
+                    }
+                    return false;
+                })
+                .map(Household::getId)
+                .toList();
+    }
+
+    private List<YearMonth> buildSixMonths(int year, int month) {
+        YearMonth current = YearMonth.of(year, month);
+        List<YearMonth> months = new ArrayList<>();
+        for (int i = 5; i >= 0; i--) {
+            months.add(current.minusMonths(i));
+        }
+        return months;
+    }
+
+    private int toYearMonthInt(YearMonth ym) {
+        return ym.getYear() * 100 + ym.getMonthValue();
+    }
+
+    private BigDecimal calculateAverage(List<BigDecimal> amounts) {
+        List<BigDecimal> nonZero = amounts.stream()
+                .filter(a -> a.compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+        if (nonZero.isEmpty()) return BigDecimal.ZERO;
+        return nonZero.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(nonZero.size()), 0, RoundingMode.HALF_UP);
     }
 
     private HouseholdBill getBillForComplex(Long complexId, Long billId) {
