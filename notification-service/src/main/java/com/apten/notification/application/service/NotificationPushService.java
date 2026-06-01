@@ -110,6 +110,7 @@ public class NotificationPushService {
                 linkPath,
                 notification.getTitle() == null ? 0 : notification.getTitle().length(),
                 notification.getContent() == null ? 0 : notification.getContent().length());
+        log.info("[FCM] data.linkPath={}", linkPath);
 
         MulticastMessage message = MulticastMessage.builder()
                 .setNotification(com.google.firebase.messaging.Notification.builder()
@@ -150,7 +151,8 @@ public class NotificationPushService {
         put(data, "targetTypeCode", notification.getTargetType() == null ? null : notification.getTargetType().getCode());
         put(data, "targetTypeValue", notification.getTargetType() == null ? null : notification.getTargetType().getValue());
         put(data, "targetId", notification.getTargetId());
-        put(data, "linkPath", notification.getLinkPath());
+        // Service Worker가 data.linkPath 기준으로 클릭 이동 URL을 만들므로 절대 URL이어야 한다
+        put(data, "linkPath", toAbsoluteLink(notification.getLinkPath()));
         put(data, "payloadJson", notification.getPayloadJson());
         put(data, "createdAt", notification.getCreatedAt());
         return data;
@@ -172,9 +174,11 @@ public class NotificationPushService {
             FirebaseMessagingException exception = response.getException();
             if (isInvalidToken(exception)) {
                 // Firebase가 영구적으로 못 쓰는 토큰이라고 알려주면 다음 발송 대상에서 제외한다
-                activeTokens.get(i).deactivate();
-                log.warn("[FCM] 무효 토큰 비활성화 - tokenId={}, error={}",
-                        activeTokens.get(i).getId(), exception.getMessagingErrorCode());
+                FcmToken invalidToken = activeTokens.get(i);
+                invalidToken.deactivate();
+                fcmTokenRepository.save(invalidToken);
+                log.warn("[FCM] 무효 토큰 비활성화 완료 - tokenId={}, error={}",
+                        invalidToken.getId(), exception.getMessagingErrorCode());
             } else if (exception != null) {
                 log.warn("[FCM] 토큰 발송 실패 - tokenId={}, error={}",
                         activeTokens.get(i).getId(), exception.getMessage());

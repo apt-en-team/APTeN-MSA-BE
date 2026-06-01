@@ -13,7 +13,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 시설 구독 API 진입점이다.
+// 관리자 시설 구독 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/facility-subscriptions")
@@ -22,8 +22,8 @@ public class AdminFacilitySubscriptionController {
     private final FacilitySubscriptionService facilitySubscriptionService;
     private final FacilityRequestContextResolver contextResolver;
 
-    // API-653 관리자 구독 목록 조회
-    // MASTER는 X-Selected-Complex-Id, ADMIN/MANAGER는 X-Complex-Id를 기준으로 단지를 해석한다.
+    // 관리자 구독 목록 조회
+    // 관리자 단지 컨텍스트 해석 (MASTER 선택 단지, ADMIN/MANAGER 소속 단지)
     @GetMapping
     public ResultResponse<List<AdminFacilitySubscriptionListRes>> getAdminSubscriptionList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

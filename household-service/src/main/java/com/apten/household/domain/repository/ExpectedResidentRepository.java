@@ -20,9 +20,18 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             ExpectedResidentStatus status
     );
 
+    List<ExpectedResident> findByComplexIdAndBuildingAndUnitAndStatusNot(
+            Long complexId,
+            String building,
+            String unit,
+            ExpectedResidentStatus status
+    );
+
     List<ExpectedResident> findByHouseholdIdAndStatus(Long householdId, ExpectedResidentStatus status);
 
     List<ExpectedResident> findByHouseholdIdAndStatusNot(Long householdId, ExpectedResidentStatus status);
+
+    List<ExpectedResident> findByHouseholdIdInAndStatusNot(List<Long> householdIds, ExpectedResidentStatus status);
 
     List<ExpectedResident> findByHouseholdId(Long householdId);
 
@@ -58,6 +67,21 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             Long householdId,
             ExpectedResidentStatus status,
             Pageable pageable
+    );
+
+    // 이번 달 입주 카드는 등록입주민 명부의 실제 입주일 기준으로 세대를 집계한다.
+    @Query("""
+            SELECT COUNT(DISTINCT e.householdId) FROM ExpectedResident e
+            WHERE e.complexId = :complexId
+              AND e.status <> :excludedStatus
+              AND e.moveInDate >= :from
+              AND e.moveInDate < :to
+            """)
+    long countDistinctHouseholdsByMoveInDateBetween(
+            @Param("complexId") Long complexId,
+            @Param("excludedStatus") ExpectedResidentStatus excludedStatus,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to
     );
 
     @Query("""

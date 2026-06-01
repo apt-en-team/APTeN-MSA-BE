@@ -11,19 +11,19 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-// 시설 저장소이다.
+// 시설 저장/조회 Repository
 public interface FacilityRepository extends JpaRepository<Facility, Long> {
 
-    // 단지 기준 활성 시설 목록을 조회한다.
+    // 활성 시설 목록 조회
     java.util.List<Facility> findByComplexIdAndIsDeletedFalse(Long complexId);
 
-    // 단지 기준 삭제되지 않은 시설을 상세 조회한다.
+    // 시설 상세 조회 (삭제 제외)
     Optional<Facility> findByIdAndComplexIdAndIsDeletedFalse(Long id, Long complexId);
 
-    // 삭제되지 않은 시설을 조회한다.
+    // 시설 조회 (삭제 제외)
     Optional<Facility> findByIdAndIsDeletedFalse(Long id);
 
-    // 입주민 시설 목록 조회 — isActive=true, isDeleted=false, typeId 선택 필터
+    // 입주민 시설 목록 조회 (활성 + 삭제 제외)
     @Query("""
         SELECT f FROM Facility f
         WHERE f.complexId = :complexId
@@ -37,7 +37,7 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
             @Param("typeId") Long typeId
     );
 
-    // 관리자 시설 목록 조회 - 예약 방식 필터 없음
+    // 관리자 시설 목록 조회
     @Query("""
         SELECT f
         FROM Facility f
@@ -54,7 +54,7 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
             Pageable pageable
     );
 
-    // 관리자 시설 목록 조회 - 예약 방식 필터 포함
+    // 관리자 시설 목록 조회 (예약 방식 필터)
     @Query("""
         SELECT f
         FROM Facility f

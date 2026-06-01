@@ -12,7 +12,7 @@ import com.apten.facilityreservation.application.service.FacilityRequestContextR
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-// 입주민 GX 프로그램 조회 API 진입점이다.
+// 입주민 GX 프로그램 조회 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/gx-programs")
@@ -21,7 +21,7 @@ public class ResidentGxProgramController {
     private final GxProgramService gxProgramService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-635 입주민 GX 프로그램 목록 조회
+    // 입주민 GX 프로그램 목록 조회
     @GetMapping
     public ResultResponse<PageResponse<ResidentGxProgramListRes>> getResidentGxProgramList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -33,7 +33,7 @@ public class ResidentGxProgramController {
         return ResultResponse.success("입주민 GX 프로그램 목록 조회 성공", gxProgramService.getResidentGxProgramList(context.getComplexId(), req));
     }
 
-    // API-636 입주민 GX 프로그램 상세 조회
+    // 입주민 GX 프로그램 상세 조회
     @GetMapping("/{programId}")
     public ResultResponse<ResidentGxProgramDetailRes> getResidentGxProgramDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

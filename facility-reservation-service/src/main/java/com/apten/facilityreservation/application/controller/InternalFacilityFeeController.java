@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// 내부 비용 산정 API 진입점이다.
+// 내부 시설 비용 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/internal/facility-fees")
@@ -20,13 +20,13 @@ public class InternalFacilityFeeController {
 
     private final FacilityFeeService facilityFeeService;
 
-    //시설 이용 비용 산정 API-648
+    // 시설 이용 비용 산정
     @PostMapping("/calculate")
     public ResultResponse<FacilityFeeCalculateRes> calculateFacilityFees(@RequestBody FacilityFeeCalculateReq req) {
         return ResultResponse.success("시설 이용 비용 산정 성공", facilityFeeService.calculateFacilityFees(req));
     }
 
-    //시설 이용 비용 발행 API-649
+    // 시설 이용 비용 발행
     @PostMapping("/publish")
     public ResultResponse<FacilityFeePublishRes> publishFacilityFees(@RequestBody FacilityFeePublishReq req) {
         return ResultResponse.success("시설 이용 비용 발행 성공", facilityFeeService.publishFacilityFees(req));

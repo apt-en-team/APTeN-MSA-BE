@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 시설 정책 원본 관리 API 시그니처를 담당하는 서비스이다.
+// 시설 정책 관리
 @Service
 @RequiredArgsConstructor
 public class FacilityPolicyService {
@@ -82,7 +82,7 @@ public class FacilityPolicyService {
         }
     }
 
-    // 정책 대상 시설을 검증한다.
+    // 정책 대상 시설 검증
     private Facility validatePolicyTargetFacility(Long complexId, FacilityPolicyPutReq req) {
         Facility facility = facilityRepository.findByIdAndComplexIdAndIsDeletedFalse(req.getFacilityId(), complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.FACILITY_NOT_FOUND));
@@ -123,7 +123,7 @@ public class FacilityPolicyService {
         throw new BusinessException(FacilityReservationErrorCode.INVALID_FACILITY_POLICY);
     }
 
-    // 시설 예약 정책 저장
+    // 시설 예약 정책 저장/수정
     @Transactional
     public FacilityPolicyPutRes updateFacilityPolicy(Long complexId, FacilityPolicyPutReq req) {
         // 시설 접근 검증
@@ -205,12 +205,12 @@ public class FacilityPolicyService {
         // 시설 접근 검증
         validateAdminAccess(complexId);
 
-        // 시설 조건 정리
+        // 시설 조회 조건 정리
         Long facilityId = req == null ? null : req.getFacilityId();
 
         List<FacilityPolicy> policies = facilityPolicyRepository.findPolicies(complexId, facilityId);
 
-        // 시설 정책 목록 응답 변환
+        // 시설 정책 응답 변환
         return policies
                 .stream()
                 .filter(policy -> facilityRepository.findByIdAndComplexIdAndIsDeletedFalse(policy.getFacilityId(), complexId)

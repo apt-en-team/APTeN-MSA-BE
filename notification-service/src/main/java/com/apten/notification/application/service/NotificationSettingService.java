@@ -32,6 +32,7 @@ public class NotificationSettingService {
     private final UserCacheRepository userCacheRepository;
     private final NotificationSettingInitService notificationSettingInitService;
 
+    // 알림 설정 조회 (누락 row 기본 ON 보정)
     @Transactional
     public NotificationSettingGetRes getSettings(Long userId, Long complexIdHeader) {
         // 설정 조회는 없는 category row를 기본 ON으로 보정한 뒤 반환한다
@@ -42,6 +43,7 @@ public class NotificationSettingService {
                 .build();
     }
 
+    // 알림 설정 변경
     @Transactional
     public NotificationSettingPatchRes updateSettings(Long userId, Long complexIdHeader, NotificationSettingPatchReq request) {
         // 요청 자체가 비어 있으면 어떤 category를 바꿀지 알 수 없으므로 거부한다
@@ -69,6 +71,7 @@ public class NotificationSettingService {
                 .build();
     }
 
+    // 카테고리 알림 활성 여부 확인
     @Transactional(readOnly = true)
     public boolean isEnabled(Long userId, NotificationCategory category) {
         // SYSTEM처럼 category가 없거나 설정 row가 없으면 정책상 기본 ON이다

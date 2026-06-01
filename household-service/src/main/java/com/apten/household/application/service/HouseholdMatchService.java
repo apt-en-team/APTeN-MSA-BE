@@ -5,6 +5,7 @@ import com.apten.common.exception.CommonErrorCode;
 import com.apten.common.enumcode.EnumMapperType;
 import com.apten.common.kafka.payload.HouseholdMatchRequestEventPayload;
 import com.apten.common.kafka.payload.HouseholdMatchResultEventPayload;
+import com.apten.household.application.model.request.HouseholdMatchBulkApproveReq;
 import com.apten.household.application.model.request.HouseholdMatchListReq;
 import com.apten.household.application.model.request.HouseholdMatchPostReq;
 import com.apten.household.application.model.request.HouseholdMatchRejectReq;
@@ -54,6 +55,13 @@ public class HouseholdMatchService {
     // 세대 매칭 요청을 생성하고 관리자 명부 기준 자동승인을 시도한다.
     public HouseholdMatchPostRes createMatchRequest(HouseholdMatchPostReq request) {
         validateMatchRequest(request);
+        Optional<HouseholdMember> activeMemberOptional = householdMemberRepository.findActiveByUserIdAndComplexId(
+                request.getUserId(),
+                request.getComplexId()
+        );
+        if (activeMemberOptional.isPresent()) {
+            return approveAlreadyActiveMember(request, activeMemberOptional.get());
+        }
         validateDuplicateMatchRequest(request);
 
         Optional<ExpectedResident> expectedResidentOptional = findMatchingExpectedResident(request);
@@ -88,13 +96,18 @@ public class HouseholdMatchService {
     // 수동 승인 대상 매칭 요청 목록을 조회한다.
     @Transactional(readOnly = true)
     public HouseholdMatchListRes getMatchRequestList(Long complexId, HouseholdMatchListReq request) {
-        int pageNumber = request.getPage() != null ? request.getPage() : 0;
-        int pageSize = request.getSize() != null ? request.getSize() : 20;
+        HouseholdMatchListReq resolvedRequest = request == null ? HouseholdMatchListReq.builder().build() : request;
+        int pageNumber = resolvedRequest.getPage() != null ? resolvedRequest.getPage() : 0;
+        int pageSize = resolvedRequest.getSize() != null ? resolvedRequest.getSize() : 20;
+        HouseholdMatchStatus matchStatus = resolvedRequest.getMatchStatus();
+        HouseholdMatchProcessType processType = resolvedRequest.getProcessType() != null
+                ? resolvedRequest.getProcessType()
+                : HouseholdMatchProcessType.MANUAL;
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
         Page<HouseholdMatchRequest> page = findMatchRequests(
                 complexId,
-                request.getMatchStatus(),
-                request.getProcessType(),
+                matchStatus,
+                processType,
                 pageable
         );
 
@@ -109,8 +122,9 @@ public class HouseholdMatchService {
                         .inputBuilding(matchRequest.getInputBuilding())
                         .inputUnit(matchRequest.getInputUnit())
                         .matchedHouseholdId(matchRequest.getMatchedHouseholdId())
-                        .processType(matchRequest.getProcessType().getCode())
-                        .matchStatus(matchRequest.getMatchStatus().getCode())
+                        .expectedResidentRegistered(findRegisteredExpectedResident(matchRequest).isPresent())
+                        .processType(matchRequest.getProcessType().getValue())
+                        .matchStatus(matchRequest.getMatchStatus().getValue())
                         .processedAt(matchRequest.getProcessedAt())
                         .createdAt(matchRequest.getCreatedAt())
                         .build())
@@ -144,11 +158,9 @@ public class HouseholdMatchService {
             throw new BusinessException(HouseholdErrorCode.ALREADY_HOUSEHOLD_MEMBER);
         }
 
-        createMemberAndEvent(household, matchRequest.getUserId(), HouseholdMemberRole.MEMBER);
-        matchRequest.apply(household.getId(), HouseholdMatchProcessType.MANUAL, HouseholdMatchStatus.APPROVED);
-        matchRequest.updateProcessedAt(LocalDateTime.now());
-        matchRequestRepository.save(matchRequest);
-        householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, household.getId()));
+        ExpectedResident expectedResident = findMatchingExpectedResident(matchRequest, household)
+                .orElseThrow(() -> new BusinessException(HouseholdErrorCode.MATCH_EXPECTED_RESIDENT_REQUIRED));
+        approvePendingMatchRequest(matchRequest, expectedResident, household);
 
         return HouseholdMatchApproveRes.builder()
                 .matchRequestId(matchRequestId)
@@ -158,6 +170,15 @@ public class HouseholdMatchService {
     }
 
     // 관리자가 정해진 거절 사유 코드로 세대 매칭 요청을 거절한다.
+    public List<HouseholdMatchApproveRes> approveMatchRequests(Long complexId, HouseholdMatchBulkApproveReq request) {
+        if (request == null || request.getMatchRequestIds() == null || request.getMatchRequestIds().isEmpty()) {
+            throw new BusinessException(HouseholdErrorCode.MATCH_REQUEST_NOT_SELECTED);
+        }
+        return request.getMatchRequestIds().stream()
+                .map(matchRequestId -> approveMatchRequest(complexId, matchRequestId))
+                .toList();
+    }
+
     public HouseholdMatchRejectRes rejectMatchRequest(Long complexId, Long matchRequestId, HouseholdMatchRejectReq request) {
         HouseholdMatchRequest matchRequest = getMatchRequestForComplex(complexId, matchRequestId);
         validatePendingMatchRequest(matchRequest);
@@ -201,6 +222,63 @@ public class HouseholdMatchService {
         householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, household.getId()));
 
         return matchRequest;
+    }
+
+    // 관리자 명부 등록 시 일치하는 대기 요청을 자동 승인한다.
+    private void approvePendingMatchRequest(
+            HouseholdMatchRequest matchRequest,
+            ExpectedResident expectedResident,
+            Household household
+    ) {
+        if (matchRequest.getMatchStatus() != HouseholdMatchStatus.PENDING) {
+            return;
+        }
+        if (expectedResident.getStatus() != ExpectedResidentStatus.AVAILABLE) {
+            return;
+        }
+        if (householdMemberRepository.existsByUserIdAndComplexId(matchRequest.getUserId(), matchRequest.getComplexId())) {
+            return;
+        }
+        createMemberAndEvent(household, matchRequest.getUserId(), expectedResident.getHouseholdRole());
+        expectedResident.markMatched(matchRequest.getUserId());
+        expectedResidentRepository.save(expectedResident);
+        matchRequest.apply(household.getId(), expectedResident.getId(), HouseholdMatchProcessType.MANUAL, HouseholdMatchStatus.APPROVED);
+        matchRequest.updateProcessedAt(LocalDateTime.now());
+        matchRequestRepository.save(matchRequest);
+        householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, household.getId()));
+    }
+
+    // 관리자가 이미 세대원으로 연결해둔 사용자는 회원가입 매칭 이벤트 수신 시 승인 완료로 동기화한다.
+    private HouseholdMatchPostRes approveAlreadyActiveMember(HouseholdMatchPostReq request, HouseholdMember householdMember) {
+        HouseholdMatchRequest matchRequest = matchRequestRepository
+                .findTopByUserIdAndComplexIdAndMatchStatusOrderByCreatedAtDesc(
+                        request.getUserId(),
+                        request.getComplexId(),
+                        HouseholdMatchStatus.APPROVED
+                )
+                .orElseGet(() -> matchRequestRepository.save(HouseholdMatchRequest.builder()
+                        .userId(request.getUserId())
+                        .complexId(request.getComplexId())
+                        .inputName(request.getInputName())
+                        .inputPhone(request.getInputPhone())
+                        .inputBirthDate(request.getInputBirthDate())
+                        .inputBuilding(request.getInputBuilding())
+                        .inputUnit(request.getInputUnit())
+                        .matchedHouseholdId(householdMember.getHouseholdId())
+                        .processType(HouseholdMatchProcessType.AUTO)
+                        .matchStatus(HouseholdMatchStatus.APPROVED)
+                        .processedAt(LocalDateTime.now())
+                        .build()));
+
+        householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, householdMember.getHouseholdId()));
+
+        return HouseholdMatchPostRes.builder()
+                .matchRequestId(matchRequest.getId())
+                .matchedHouseholdId(householdMember.getHouseholdId())
+                .processType(matchRequest.getProcessType().getCode())
+                .matchStatus(matchRequest.getMatchStatus().getCode())
+                .createdAt(matchRequest.getCreatedAt())
+                .build();
     }
 
     private Page<HouseholdMatchRequest> findMatchRequests(
@@ -259,6 +337,38 @@ public class HouseholdMatchService {
     }
 
     // 세대원 저장과 관련 이벤트 적재를 같은 트랜잭션 안에서 처리한다.
+    private Optional<ExpectedResident> findMatchingExpectedResident(HouseholdMatchRequest matchRequest, Household household) {
+        String requestName = normalizeName(matchRequest.getInputName());
+        String requestPhone = normalizePhone(matchRequest.getInputPhone());
+
+        return expectedResidentRepository.findByComplexIdAndBuildingAndUnitAndStatus(
+                        matchRequest.getComplexId(),
+                        household.getBuilding(),
+                        household.getUnit(),
+                        ExpectedResidentStatus.AVAILABLE)
+                .stream()
+                .filter(expectedResident -> normalizeName(expectedResident.getName()).equals(requestName))
+                .filter(expectedResident -> normalizePhone(expectedResident.getPhone()).equals(requestPhone))
+                .filter(expectedResident -> expectedResident.getBirthDate().equals(matchRequest.getInputBirthDate()))
+                .findFirst();
+    }
+
+    private Optional<ExpectedResident> findRegisteredExpectedResident(HouseholdMatchRequest matchRequest) {
+        String requestName = normalizeName(matchRequest.getInputName());
+        String requestPhone = normalizePhone(matchRequest.getInputPhone());
+
+        return expectedResidentRepository.findByComplexIdAndBuildingAndUnitAndStatusNot(
+                        matchRequest.getComplexId(),
+                        matchRequest.getInputBuilding(),
+                        matchRequest.getInputUnit(),
+                        ExpectedResidentStatus.DISABLED)
+                .stream()
+                .filter(expectedResident -> normalizeName(expectedResident.getName()).equals(requestName))
+                .filter(expectedResident -> normalizePhone(expectedResident.getPhone()).equals(requestPhone))
+                .filter(expectedResident -> expectedResident.getBirthDate().equals(matchRequest.getInputBirthDate()))
+                .findFirst();
+    }
+
     private void createMemberAndEvent(Household household, Long userId, HouseholdMemberRole role) {
         HouseholdMemberRole resolvedRole = role == null ? HouseholdMemberRole.MEMBER : role;
         HouseholdMember householdMember = householdMemberRepository.save(HouseholdMember.builder()

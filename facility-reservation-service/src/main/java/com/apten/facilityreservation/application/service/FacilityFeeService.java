@@ -34,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 시설 이용 비용 산정과 발행 API 시그니처를 담당하는 서비스이다.
+// 시설 이용 비용 산정/발행
 @Service
 @RequiredArgsConstructor
 public class FacilityFeeService {
@@ -45,10 +45,10 @@ public class FacilityFeeService {
     private final GxReservationRepository gxReservationRepository;
     private final GxProgramRepository gxProgramRepository;
     private final FacilityUsageMonthlyRepository facilityUsageMonthlyRepository;
-    // outbox는 property 활성화 시에만 bean이 존재한다.
+    // 선택형 Outbox Bean
     private final Optional<FacilityReservationOutboxService> outboxService;
 
-    // 시설 이용 비용을 산정한다.
+    // 시설 이용 비용 산정
     @Transactional
     public FacilityFeeCalculateRes calculateFacilityFees(FacilityFeeCalculateReq req) {
         YearMonth yearMonth = resolveYearMonth(req);
@@ -57,15 +57,14 @@ public class FacilityFeeService {
 
         Map<Long, HouseholdFeeAggregate> aggregateMap = new LinkedHashMap<>();
 
-        // FLAT/PER_PERSON: 구독 기반 월 청구 — 구독 레코드가 청구 기준이며 billingCutoffDay 규칙을 적용한다.
-        // PER_USE: 완료 예약 건수 기반 청구 — 예약 건별로 baseFee를 곱한다.
+        // 요금 유형별 월 청구 분기
         List<Reservation> completedReservations = reservationRepository.findByStatusAndReservationDateBetween(
                 ReservationStatus.COMPLETED,
                 fromDate,
                 toDate
         );
 
-        // PER_USE 전용: (complexId, facilityId) 기준 완료 예약 그룹
+        // 건별 요금 완료 예약 그룹화
         Map<Long, Map<Long, List<Reservation>>> perUseByComplexAndFacility = completedReservations.stream()
                 .filter(r -> r.getHouseholdId() != null)
                 .collect(Collectors.groupingBy(Reservation::getComplexId,
@@ -87,7 +86,7 @@ public class FacilityFeeService {
                 if (feeType != FacilityFeeType.PER_USE) {
                     return;
                 }
-                // PER_USE: 세대별로 완료 예약 건수 × baseFee를 청구한다.
+                // 건별 요금 계산
                 reservations.stream()
                         .collect(Collectors.groupingBy(Reservation::getHouseholdId))
                         .forEach((householdId, group) -> {
@@ -98,8 +97,7 @@ public class FacilityFeeService {
             });
         });
 
-        // FLAT/PER_PERSON: 단지별 구독 레코드에서 당월 청구 대상을 조회한다.
-        // 모든 단지 ID를 PER_USE 처리 결과 + 구독에서 수집한다.
+        // 구독형 요금 대상 조회
         Set<Long> allComplexIds = completedReservations.stream()
                 .map(Reservation::getComplexId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -129,7 +127,7 @@ public class FacilityFeeService {
                 if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
                     continue;
                 }
-                // subscribeCutoffDay / cancelCutoffDay 규칙: 기준일 이후 신청/해지는 당월 미반영
+                // 신청/해지 기준일 적용
                 if (!isBillableInMonth(subscription, yearMonth, policy)) {
                     continue;
                 }
@@ -138,7 +136,7 @@ public class FacilityFeeService {
             }
         }
 
-        // GX는 프로그램 시작일 기준으로 당월 시작 프로그램의 확정 신청 1건을 월 1회 비용으로 본다.
+        // GX 월 비용 계산 (프로그램 시작일 기준)
         List<GxProgram> monthlyGxPrograms = gxProgramRepository.findByStartDateBetween(fromDate, toDate);
         if (!monthlyGxPrograms.isEmpty()) {
             List<Long> gxProgramIds = monthlyGxPrograms.stream().map(GxProgram::getId).toList();
@@ -153,7 +151,7 @@ public class FacilityFeeService {
                     .collect(Collectors.groupingBy(GxReservation::getComplexId));
 
             gxReservationsByComplex.forEach((complexId, reservations) -> {
-                // (세대ID, 프로그램ID) 기준으로 중복 없이 청구한다.
+                // 세대/프로그램 중복 청구 방지
                 Set<HouseholdProgramKey> uniqueProgramKeys = reservations.stream()
                         .map(r -> new HouseholdProgramKey(r.getHouseholdId(), r.getProgramId()))
                         .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -190,7 +188,7 @@ public class FacilityFeeService {
             FacilityUsageMonthly existing = existingByHouseholdId.get(householdId);
 
             if (existing != null) {
-                // 발행된 월 비용은 Household Service 기준 데이터가 되었으므로 산정 배치가 덮어쓰지 않는다.
+                // 발행 완료 비용 덮어쓰기 방지
                 if (Boolean.TRUE.equals(existing.getIsPublished())) {
                     continue;
                 }
@@ -218,17 +216,17 @@ public class FacilityFeeService {
                 .build();
     }
 
-    // 시설 이용 비용을 Household Service로 발행한다.
+    // 시설 이용 비용 발행
     @Transactional
     public FacilityFeePublishRes publishFacilityFees(FacilityFeePublishReq req) {
         YearMonth yearMonth = resolveYearMonth(req.getUsageYear(), req.getUsageMonth());
         List<FacilityUsageMonthly> publishTargets = facilityUsageMonthlyRepository
                 .findByUsageYearAndUsageMonthAndIsPublishedFalse(yearMonth.getYear(), yearMonth.getMonthValue());
 
-        // 이미 발행된 row를 다시 잡으면 Household Service 기준 데이터가 중복 처리될 수 있다.
+        // 중복 발행 방지
         publishTargets.forEach(FacilityUsageMonthly::markPublished);
 
-        // 단지별로 그룹화 후 outbox 이벤트를 저장한다.
+        // 단지별 Outbox 이벤트 적재
         if (!publishTargets.isEmpty()) {
             Map<Long, List<FacilityUsageMonthly>> byComplex = publishTargets.stream()
                     .collect(Collectors.groupingBy(FacilityUsageMonthly::getComplexId));
@@ -248,7 +246,7 @@ public class FacilityFeeService {
                         .items(items)
                         .occurredAt(occurredAt)
                         .build();
-                // outbox bean이 활성화된 경우에만 이벤트를 저장한다.
+                // Outbox 활성 시 이벤트 적재
                 outboxService.ifPresent(service -> service.saveFacilityFeeCalculatedEvent(payload));
             });
         }
@@ -291,26 +289,22 @@ public class FacilityFeeService {
         });
     }
 
-    // 구독 기반 FLAT/PER_PERSON 월 청구 금액을 계산한다.
-    // PER_PERSON은 구독 1건당 1인으로 계산한다 (구독 레코드 자체가 1세대 1시설 단위).
+    // 구독형 월 청구 금액 계산
     private BigDecimal calcSubscriptionFee(FacilityPolicy policy, FacilityFeeType feeType) {
         BigDecimal baseFee = nullSafe(policy.getBaseFee());
         if (feeType == FacilityFeeType.PER_PERSON) {
             return baseFee;
         }
-        // FLAT: baseFee + 초과 인원 요금 옵션 (includedPersonCount=1로 가정)
+        // 기본 요금 + 초과 인원 요금
         return baseFee;
     }
 
-    // subscribeCutoffDay / cancelCutoffDay 규칙에 따라 구독이 당월 청구 대상인지 판별한다.
-    // 각 기준일이 null이면 해당 규칙을 적용하지 않는다 (항상 당월 반영).
-    // 신청: subscribedAt의 일자가 subscribeCutoffDay 초과이면 당월 제외 (익월부터 청구)
-    // 해지: cancelledAt의 일자가 cancelCutoffDay 이하이면 당월 제외 (익월부터 미청구)
+    // 구독 당월 청구 대상 판별 (신청/해지 기준일)
     private boolean isBillableInMonth(FacilitySubscription subscription, YearMonth yearMonth, FacilityPolicy policy) {
         Integer subscribeCutoffDay = policy.getSubscribeCutoffDay();
         Integer cancelCutoffDay = policy.getCancelCutoffDay();
 
-        // 신청일이 이 달인 경우: subscribeCutoffDay 초과 신청은 당월 제외
+        // 신청 기준일 적용
         if (subscribeCutoffDay != null) {
             int maxSubscribeDay = Math.min(subscribeCutoffDay, yearMonth.lengthOfMonth());
             LocalDate subscribeMonth = YearMonth.from(subscription.getSubscribedAt()).atDay(1);
@@ -321,14 +315,14 @@ public class FacilityFeeService {
             }
         }
 
-        // 해지일 검사
+        // 해지 기준일 적용
         if (subscription.getCancelledAt() != null) {
             LocalDate cancelMonth = YearMonth.from(subscription.getCancelledAt()).atDay(1);
-            // 해지일이 이 달 이전이면 당월 미청구
+            // 이전 달 해지 제외
             if (cancelMonth.isBefore(yearMonth.atDay(1))) {
                 return false;
             }
-            // 해지일이 이 달인 경우: cancelCutoffDay 이하 해지는 당월 제외
+            // 당월 해지 기준일 적용
             if (cancelCutoffDay != null && cancelMonth.equals(yearMonth.atDay(1))) {
                 int maxCancelDay = Math.min(cancelCutoffDay, yearMonth.lengthOfMonth());
                 if (subscription.getCancelledAt().getDayOfMonth() <= maxCancelDay) {
@@ -340,7 +334,7 @@ public class FacilityFeeService {
         return true;
     }
 
-    // feeType에 따라 세대-시설 단위 청구 금액을 계산한다. (PER_USE 전용으로 유지)
+    // 건별 요금 금액 계산
     private BigDecimal calcFee(FacilityPolicy policy, List<Reservation> group) {
         BigDecimal baseFee = nullSafe(policy.getBaseFee());
         FacilityFeeType type = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;

@@ -17,6 +17,22 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
     // 단지와 차량번호 기준 가장 최근 로그를 조회한다.
     Optional<ParkingLog> findTopByComplexIdAndLicensePlateOrderByLoggedAtDesc(Long complexId, String licensePlate);
 
+    // 차량 ID 기준 가장 최근 입출차 로그 한 건을 조회한다.
+    Optional<ParkingLog> findTopByVehicleIdOrderByLoggedAtDesc(Long vehicleId);
+
+    // 차량 ID 목록 기준 각 차량의 가장 최근 입출차 로그를 한 번에 조회한다.
+    // 같은 차량의 더 최신 로그가 없는 행만 남겨 vehicleId당 한 건을 보장한다.
+    @Query("""
+            SELECT pl FROM ParkingLog pl
+            WHERE pl.vehicleId IN :vehicleIds
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog pl2
+                WHERE pl2.vehicleId = pl.vehicleId
+                  AND pl2.loggedAt > pl.loggedAt
+              )
+            """)
+    List<ParkingLog> findLatestLogsByVehicleIds(@Param("vehicleIds") List<Long> vehicleIds);
+
     // 단지와 연월 기준 로그 목록을 조회한다.
     List<ParkingLog> findByComplexId(Long complexId);
 
@@ -181,6 +197,84 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
             """)
     long countCurrentUnregistered(@Param("complexId") Long complexId);
 
+    // 현재 단지 활성 구역 내 입차 중인 입주민 등록 차량 수 집계
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.zoneId IN :activeZoneIds
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND p.vehicleId IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentResidentParkedInActiveZones(
+            @Param("complexId") Long complexId,
+            @Param("activeZoneIds") List<Long> activeZoneIds
+    );
+
+    // 현재 단지 활성 구역 내 입차 중인 방문 차량 수 집계
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.zoneId IN :activeZoneIds
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND p.visitorVehicleId IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentVisitorParkedInActiveZones(
+            @Param("complexId") Long complexId,
+            @Param("activeZoneIds") List<Long> activeZoneIds
+    );
+
+    // 현재 단지 활성 구역 내 입차 중인 고정 방문 차량 수 집계
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.zoneId IN :activeZoneIds
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND p.regularVisitorVehicleId IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentRegularVisitorParkedInActiveZones(
+            @Param("complexId") Long complexId,
+            @Param("activeZoneIds") List<Long> activeZoneIds
+    );
+
+    // 현재 단지 활성 구역 내 입차 중인 미등록 차량 수 집계
+    @Query("""
+            SELECT COUNT(p) FROM ParkingLog p
+            WHERE p.complexId = :complexId
+              AND p.zoneId IN :activeZoneIds
+              AND p.entryType = com.apten.parkingvehicle.domain.enums.ParkingEntryType.IN
+              AND p.vehicleId IS NULL
+              AND p.visitorVehicleId IS NULL
+              AND p.regularVisitorVehicleId IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM ParkingLog p2
+                WHERE p2.complexId = p.complexId
+                  AND p2.licensePlate = p.licensePlate
+                  AND p2.loggedAt > p.loggedAt
+              )
+            """)
+    long countCurrentUnregisteredInActiveZones(
+            @Param("complexId") Long complexId,
+            @Param("activeZoneIds") List<Long> activeZoneIds
+    );
+
     // 기간 내 전체 입출차 로그 건수 집계 (입차와 출차 모두 합산)
     @Query("""
             SELECT COUNT(p) FROM ParkingLog p
@@ -189,6 +283,22 @@ public interface ParkingLogRepository extends JpaRepository<ParkingLog, Long> {
               AND p.loggedAt < :toDateTime
             """)
     long countLogsInRange(
+            @Param("complexId") Long complexId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTime") LocalDateTime toDateTime
+    );
+
+    // 단지+기간 안에서 방문차량과 고정 방문차량 입출차 로그만 시간순으로 조회한다.
+    // 월 방문차량 비용 산정 시 메모리에서 visitor_vehicle_id 또는 regular_visitor_vehicle_id 단위로 IN/OUT 짝짓기에 사용한다.
+    @Query("""
+            SELECT pl FROM ParkingLog pl
+            WHERE pl.complexId = :complexId
+              AND pl.loggedAt >= :fromDateTime
+              AND pl.loggedAt < :toDateTime
+              AND (pl.visitorVehicleId IS NOT NULL OR pl.regularVisitorVehicleId IS NOT NULL)
+            ORDER BY pl.licensePlate ASC, pl.loggedAt ASC
+            """)
+    List<ParkingLog> findVisitorLogsForFeeCalculation(
             @Param("complexId") Long complexId,
             @Param("fromDateTime") LocalDateTime fromDateTime,
             @Param("toDateTime") LocalDateTime toDateTime

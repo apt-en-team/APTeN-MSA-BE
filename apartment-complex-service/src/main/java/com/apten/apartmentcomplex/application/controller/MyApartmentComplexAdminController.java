@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-// 일반 관리자용 내 단지 관리 API 진입점이다.
+// 관리자 내 단지 관리 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/apartment-complex")
@@ -32,7 +32,7 @@ public class MyApartmentComplexAdminController {
 
     private final ApartmentComplexService apartmentComplexService;
 
-    // 일반 관리자는 헤더의 complexId 기준으로 자기 단지 기본 정보를 조회한다.
+    // 내 단지 조회 (관리자 컨텍스트 기준)
     @GetMapping("/me")
     public ResultResponse<ApartmentComplexGetDetailRes> getMyApartmentComplex(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -45,7 +45,7 @@ public class MyApartmentComplexAdminController {
         );
     }
 
-    // 일반 관리자는 헤더의 complexId 기준으로 자기 단지 관리자 목록을 조회한다.
+    // 내 단지 관리자 목록 조회
     @GetMapping("/admins")
     public ResultResponse<List<ComplexAdminGetRes>> getMyComplexAdminList(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -58,7 +58,7 @@ public class MyApartmentComplexAdminController {
         );
     }
 
-    // MANAGER는 헤더의 complexId 기준으로 자기 단지 관리자만 등록할 수 있다.
+    // 내 단지 관리자 등록 (MASTER/MANAGER)
     @PostMapping("/admins")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ComplexAdminPostRes> assignAdminToMyComplex(
@@ -73,7 +73,7 @@ public class MyApartmentComplexAdminController {
         );
     }
 
-    // MANAGER는 헤더의 complexId 기준으로 자기 단지 관리자만 수정할 수 있다.
+    // 내 단지 관리자 수정 (MASTER/MANAGER)
     @PatchMapping("/admins/{userId}")
     public ResultResponse<ComplexAdminPatchRes> updateMyComplexAdmin(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
@@ -88,7 +88,7 @@ public class MyApartmentComplexAdminController {
         );
     }
 
-    // MANAGER는 헤더의 complexId 기준으로 자기 단지 관리자만 해제할 수 있다.
+    // 내 단지 관리자 해제 (MASTER/MANAGER)
     @DeleteMapping("/admins/{userId}")
     public ResultResponse<ComplexAdminDeleteRes> unassignAdminFromMyComplex(
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,

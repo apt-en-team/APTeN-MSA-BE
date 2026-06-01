@@ -33,9 +33,15 @@ public interface RegularVisitorVehicleRepository extends JpaRepository<RegularVi
     // 고정 방문차량 단건 + 소유자 동시 조회, 미삭제 조건 포함
     Optional<RegularVisitorVehicle> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
 
-    // 내 고정 방문차량 페이지 조회, 활성 필터 없음
-    Page<RegularVisitorVehicle> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
+    // 내 세대 고정 방문차량 페이지 조회, 활성 필터 없음
+    Page<RegularVisitorVehicle> findByHouseholdIdAndIsDeletedFalse(Long householdId, Pageable pageable);
 
-    // 내 고정 방문차량 페이지 조회, 활성 필터 포함
-    Page<RegularVisitorVehicle> findByUserIdAndIsActiveAndIsDeletedFalse(Long userId, Boolean isActive, Pageable pageable);
+    // 내 세대 고정 방문차량 페이지 조회, 활성 필터 포함
+    Page<RegularVisitorVehicle> findByHouseholdIdAndIsActiveAndIsDeletedFalse(Long householdId, Boolean isActive, Pageable pageable);
+
+    // 단지 고정 방문차량 페이지 조회, 활성 필터 없음
+    Page<RegularVisitorVehicle> findByComplexIdAndIsDeletedFalse(Long complexId, Pageable pageable);
+
+    // 단지 고정 방문차량 페이지 조회, 활성 필터 포함
+    Page<RegularVisitorVehicle> findByComplexIdAndIsActiveAndIsDeletedFalse(Long complexId, Boolean isActive, Pageable pageable);
 }

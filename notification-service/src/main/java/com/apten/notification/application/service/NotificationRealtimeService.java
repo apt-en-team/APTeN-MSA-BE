@@ -22,6 +22,7 @@ public class NotificationRealtimeService {
     private final NotificationWebSocketSessionRegistry sessionRegistry;
     private final ObjectMapper objectMapper;
 
+    // WebSocket 신규 알림 발송
     public void sendNewNotification(Notification notification) {
         // 실시간 전송 실패가 DB 알림 저장 결과를 흔들지 않도록 최상위에서 흡수한다
         try {

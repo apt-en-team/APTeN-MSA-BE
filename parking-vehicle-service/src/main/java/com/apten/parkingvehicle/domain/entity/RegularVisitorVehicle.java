@@ -69,6 +69,10 @@ public class RegularVisitorVehicle extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
+    // 방문 목적
+    @Column(name = "visit_purpose", length = 100)
+    private String visitPurpose;
+
     // 활성 여부
     @Builder.Default
     @Column(name = "is_active", nullable = false)
@@ -91,11 +95,12 @@ public class RegularVisitorVehicle extends BaseEntity {
     }
 
     // 고정 방문차량 기본 정보를 수정한다
-    public void update(String visitorName, String phone, LocalDate startDate, LocalDate endDate, Boolean isActive) {
+    public void update(String visitorName, String phone, LocalDate startDate, LocalDate endDate, Boolean isActive, String visitPurpose) {
         this.visitorName = visitorName;
         this.phone = phone;
         this.startDate = startDate;
         this.endDate = endDate;
         this.isActive = isActive;
+        this.visitPurpose = visitPurpose;
     }
 }

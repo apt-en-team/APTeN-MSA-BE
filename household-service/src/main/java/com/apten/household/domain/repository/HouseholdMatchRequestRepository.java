@@ -52,4 +52,11 @@ public interface HouseholdMatchRequestRepository extends JpaRepository<Household
             String inputBuilding,
             String inputUnit
     );
+
+    Optional<HouseholdMatchRequest> findTopByUserIdAndComplexIdAndMatchStatusOrderByCreatedAtDesc(
+            Long userId,
+            Long complexId,
+            HouseholdMatchStatus matchStatus
+    );
+
 }

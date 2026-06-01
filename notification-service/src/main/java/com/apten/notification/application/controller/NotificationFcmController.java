@@ -20,7 +20,7 @@ public class NotificationFcmController {
 
     private final NotificationFcmService notificationFcmService;
 
-    // HTTPS 전환 후 사용할 FCM 토큰을 미리 저장해 두는 준비 API
+    // FCM 토큰 등록
     @PostMapping("/fcm-tokens")
     public ResultResponse<NotificationFcmTokenPostRes> registerFcmToken(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -30,7 +30,7 @@ public class NotificationFcmController {
         return ResultResponse.success("FCM 토큰 등록 성공", notificationFcmService.registerFcmToken(userId, complexId, request));
     }
 
-    // 로그아웃이나 푸시 수신 해제 시 기존 토큰을 비활성화한다
+    // FCM 토큰 해제
     @DeleteMapping("/fcm-tokens")
     public ResultResponse<NotificationFcmTokenDeleteRes> deleteFcmToken(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -39,7 +39,7 @@ public class NotificationFcmController {
         return ResultResponse.success("FCM 토큰 해제 성공", notificationFcmService.deleteFcmToken(userId, request));
     }
 
-    // 브라우저가 새 FCM 토큰을 발급하면 기존 토큰을 새 값으로 교체한다
+    // FCM 토큰 갱신
     @PatchMapping("/fcm-tokens")
     public ResultResponse<NotificationFcmTokenPatchRes> updateFcmToken(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
