@@ -2,6 +2,7 @@ package com.apten.household.application.model.response;
 
 import com.apten.household.domain.enums.HouseholdBillStatus;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,6 +24,15 @@ public class AdminHouseholdBillListRes {
     // 전체 건수이다.
     private Long totalElements;
 
+    // 선택 기간 기준 전체 청구 건수이다.
+    private Long totalBillCount;
+
+    // 미확정 청구 건수이다.
+    private Long draftCount;
+
+    // 확정 청구 건수이다.
+    private Long confirmedCount;
+
     // 전체 페이지 수이다.
     private Integer totalPages;
 
@@ -39,7 +49,18 @@ public class AdminHouseholdBillListRes {
         private String unit;
         private Integer billYear;
         private Integer billMonth;
+        private BigDecimal baseFee;
+        private BigDecimal vehicleFee;
+        private BigDecimal facilityFee;
+        private BigDecimal visitorFee;
         private BigDecimal totalFee;
+        private BigDecimal lateFee;
+        private BigDecimal payableAmount;
+        private LocalDate sendDate;
+        private LocalDate dueDate;
+        private LocalDate overdueStartDate;
+        private LocalDate homeDisplayUntil;
+        private Boolean overdue;
         private HouseholdBillStatus status;
     }
 }
