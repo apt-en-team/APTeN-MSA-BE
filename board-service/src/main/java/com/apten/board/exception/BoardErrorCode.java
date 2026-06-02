@@ -25,6 +25,9 @@ public enum BoardErrorCode implements ErrorCode {
     // 사용자를 찾을 수 없다.
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "BRD_404_01", "사용자를 찾을 수 없습니다."),
 
+    // 승인 대기 중인 사용자이다.
+    PENDING_APPROVAL(HttpStatus.FORBIDDEN, "BRD_403_05", "세대원 승인 대기 중입니다. 관리자 승인 후 이용 가능합니다."),
+
     // 게시글을 찾을 수 없다.
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "BRD_404_02", "게시글을 찾을 수 없습니다."),
 

@@ -326,6 +326,12 @@ public class VoteService {
     }
 
     private VoteDetailRes toVoteDetailRes(Vote vote) {
+        // 현재 사용자의 참여 이력을 조회한다.
+        Long userId = currentUserIdOrNull();
+        VoteParticipation participation = userId != null
+                ? voteParticipationRepository.findByVoteIdAndUserId(vote.getId(), userId).orElse(null)
+                : null;
+
         return VoteDetailRes.builder()
                 .voteId(vote.getId())
                 .noticeId(vote.getNoticeId())
@@ -340,6 +346,15 @@ public class VoteService {
                 .householdCount(vote.getHouseholdCount())
                 .createdAt(vote.getCreatedAt())
                 .updatedAt(vote.getUpdatedAt())
+                .isParticipated(participation != null)
+                .myChoice(participation != null ? participation.getChoice() : null)
                 .build();
+    }
+
+    // 현재 사용자 ID를 가져온다. 비로그인이면 null을 반환한다.
+    private Long currentUserIdOrNull() {
+        UserContext userContext = UserContextHolder.get();
+        if (userContext == null) return null;
+        return userContext.getUserId();
     }
 }

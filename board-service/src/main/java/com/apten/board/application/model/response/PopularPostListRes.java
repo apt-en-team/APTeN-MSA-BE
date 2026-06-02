@@ -14,4 +14,6 @@ public class PopularPostListRes {
     private final Integer likeCount;
     private final Integer viewCount;
     private final LocalDateTime createdAt;
+    private final String thumbSavedName;
+    private final Boolean hasFile;
 }

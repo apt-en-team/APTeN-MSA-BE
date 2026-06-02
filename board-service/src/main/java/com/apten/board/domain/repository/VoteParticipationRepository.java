@@ -2,6 +2,7 @@ package com.apten.board.domain.repository;
 
 import com.apten.board.domain.entity.VoteParticipation;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 // 투표 참여 저장소이다.
@@ -12,4 +13,7 @@ public interface VoteParticipationRepository extends JpaRepository<VoteParticipa
 
     // 결과 상세 조회에 사용한다.
     List<VoteParticipation> findByVoteId(Long voteId);
+
+    // 현재 사용자의 특정 투표 참여 이력을 조회한다.
+    Optional<VoteParticipation> findByVoteIdAndUserId(Long voteId, Long userId);
 }

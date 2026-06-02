@@ -14,4 +14,6 @@ public class MyPostListRes {
     private final Integer viewCount;
     private final Integer likeCount;
     private final LocalDateTime createdAt;
+    private final String thumbSavedName;
+    private final Boolean hasFile;
 }

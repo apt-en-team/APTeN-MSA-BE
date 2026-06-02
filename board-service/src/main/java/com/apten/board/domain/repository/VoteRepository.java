@@ -3,6 +3,7 @@ package com.apten.board.domain.repository;
 import com.apten.board.domain.entity.Vote;
 import com.apten.board.domain.enums.VoteStatus;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,12 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
                                @Param("open") VoteStatus open,
                                @Param("ready") VoteStatus ready,
                                Pageable pageable);
+
+    // 스케줄러용 — 기간이 지났지만 READY 또는 OPEN 상태인 투표를 조회한다.
+    @Query("SELECT v FROM Vote v WHERE v.endAt < :now AND (v.status = :ready OR v.status = :open)")
+    List<Vote> findExpiredVotes(@Param("now") LocalDateTime now,
+                                @Param("ready") VoteStatus ready,
+                                @Param("open") VoteStatus open);
 
     // 단지 기준 전체 투표 수를 구한다.
     long countByComplexId(Long complexId);
