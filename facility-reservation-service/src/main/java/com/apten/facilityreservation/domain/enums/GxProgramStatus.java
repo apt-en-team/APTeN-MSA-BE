@@ -15,7 +15,7 @@ public enum GxProgramStatus implements EnumMapperType {
     WAITING_CLOSED("04", "모집마감"),
 
     // 프로그램이 취소된 상태이다.
-    CANCELLED("02", "프로그램취소"),
+    CANCELLED("02", "취소됨"),
 
     // 프로그램 기간이 종료된 상태이다.
     CLOSED("03", "종료");
