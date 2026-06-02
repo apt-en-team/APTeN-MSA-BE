@@ -2,6 +2,9 @@ package com.apten.facilityreservation.infrastructure.kafka;
 
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
+import com.apten.common.kafka.KafkaTopics;
+import com.apten.common.kafka.payload.NotificationAdminBroadcastEventPayload;
+import com.apten.common.kafka.payload.NotificationEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
 import com.apten.facilityreservation.infrastructure.kafka.payload.FacilityFeeCalculatedEventPayload;
@@ -61,6 +64,36 @@ public class FacilityReservationOutboxService {
                 .build();
         saveOutboxPayload(FACILITY_FEE_CALCULATED_TOPIC, payload.getComplexId(),
                 EventType.FACILITY_FEE_CALCULATED.name(), envelope);
+    }
+
+    // 입주민 알림 이벤트를 outbox에 저장한다.
+    public void saveNotificationEvent(NotificationEventPayload payload) {
+        EventEnvelope<NotificationEventPayload> envelope = EventEnvelope
+                .<NotificationEventPayload>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(EventType.FACILITY_NOTIFICATION_REQUESTED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("facility-reservation-service")
+                .payload(payload)
+                .build();
+        saveOutboxPayload(KafkaTopics.FACILITY_NOTIFICATION, payload.getTargetId(),
+                EventType.FACILITY_NOTIFICATION_REQUESTED.name(), envelope);
+    }
+
+    // 관리자 broadcast 알림 이벤트를 outbox에 저장한다.
+    public void saveAdminBroadcastNotificationEvent(NotificationAdminBroadcastEventPayload payload) {
+        EventEnvelope<NotificationAdminBroadcastEventPayload> envelope = EventEnvelope
+                .<NotificationAdminBroadcastEventPayload>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(EventType.FACILITY_ADMIN_NOTIFICATION_REQUESTED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("facility-reservation-service")
+                .payload(payload)
+                .build();
+        saveOutboxPayload(KafkaTopics.FACILITY_NOTIFICATION, payload.getComplexId(),
+                EventType.FACILITY_ADMIN_NOTIFICATION_REQUESTED.name(), envelope);
     }
 
     // 공통 outbox row 저장을 처리한다.
