@@ -20,9 +20,22 @@ spring:
     gateway:
       httpclient:
         max-header-size: 65536
+      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
+      server:
+        webmvc:
+          actuator:
+            enabled: true
+          cors:
+            configurations:
+              '[/**]':
+                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
+                allowed-methods: [ "*" ]
+                allowed-headers: [ "*" ]
+                allow-credentials: true
+                max-age: 3600
       routes:
         - id: auth-service-auth
-          uri: http://auth-service-auth:80
+          uri: http://auth-service:80
           predicates:
             - Path=/api/auth/**,/login/**,/oauth2/**
 
@@ -34,13 +47,13 @@ spring:
 
         # MASTER -> MANAGER 생성, MANAGER → ADMIN 생성 API — auth-service로 라우팅
         - id: auth-service-admin
-          uri: http://auth-service-admin:80
+          uri: http://auth-service:80
           predicates:
             - Path=/api/admin/master/managers/**,/api/admin/manager/admins/**
 
         # 내 계정 조회/수정 API — auth-service로 라우팅
         - id: auth-service-users
-          uri: http://auth-service-users:80
+          uri: http://auth-service:80
           predicates:
             - Path=/api/users/**
 
@@ -51,10 +64,10 @@ spring:
         - id: parking-vehicle-service
           uri: http://parking-vehicle-service:80
           predicates:
-            - Path=/parking-vehicles/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
+            - Path=/parking-vehicles/**,/api/vehicles,/api/vehicles/**,/api/visitor-vehicles,/api/visitor-vehicles/**,/api/regular-visitor-vehicles,/api/regular-visitor-vehicles/**,/api/admin/vehicles,/api/admin/vehicles/**,/api/admin/vehicle-stats,/api/admin/vehicle-locations,/api/admin/visitor-vehicles,/api/admin/visitor-vehicles/**,/api/admin/visitor-vehicle-stats,/api/admin/regular-visitor-vehicles,/api/admin/regular-visitor-vehicles/**,/api/admin/vehicle-policies,/api/admin/visitor-policy,/api/admin/vehicle-registration-policies,/api/admin/vehicle-registration-policies/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
 
         - id: facility-reservation-service-admin
-          uri: http://facility-reservation-service-admin:80
+          uri: http://facility-reservation-service:80
           predicates:
             - Path=/api/admin/facilities,/api/admin/facilities/**,/api/admin/facility-types,/api/admin/facility-types/**,/api/admin/facility-policies,/api/admin/facility-policies/**,/api/admin/gx-programs,/api/admin/gx-programs/**,/api/admin/gx-reservations,/api/admin/gx-reservations/**,/api/admin/reservations,/api/admin/reservations/**,/api/admin/facility-seats,/api/admin/facility-seats/**,/api/admin/facility-usage,/api/admin/facility-usage/**,/api/admin/facility-subscriptions,/api/admin/facility-subscriptions/**
 
@@ -74,7 +87,7 @@ spring:
             - Path=/api/notifications/**
 
         - id: notification-service-websocket
-          uri: ws://notification-service-websocket:80
+          uri: ws://notification-service:80
           predicates:
             - Path=/ws/notifications,/ws/notifications/**
 
@@ -92,29 +105,8 @@ gateway:
       - /api/files/serve/**
     jwt-secret: ${JWT_SECRET_KEY}
 
-server:
-  port: ${SERVER_PORT:8080}
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.http.server.reactive: DEBUG
 
-cors:
-  # 운영 기본 origin은 배포 도메인만 허용하고, 필요 시 CORS_ORIGINS로 교체한다.
-  allowed-origins: ${CORS_ORIGINS:https://tc.greenart.n-e.kr}
-
-constants:
-  api:
-    prefix: /api
-
-  cloud:
-    gateway:
-      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
-      server:
-        webmvc:
-          actuator:
-            enabled: true
-          cors:
-            configurations:
-              '[/**]':
-                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
-                allowed-methods: [ "*" ]
-                allowed-headers: [ "*" ]
-                allow-credentials: true
-                max-age: 3600

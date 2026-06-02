@@ -2,10 +2,12 @@ package com.apten.household.domain.repository;
 
 import com.apten.household.domain.entity.HouseholdMember;
 import com.apten.household.domain.enums.HouseholdMemberRole;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 // 세대원 저장과 조회를 담당하는 Repository이다.
 public interface HouseholdMemberRepository extends JpaRepository<HouseholdMember, Long> {
@@ -14,6 +16,17 @@ public interface HouseholdMemberRepository extends JpaRepository<HouseholdMember
     List<HouseholdMember> findByHouseholdId(Long householdId);
 
     // 세대와 사용자 조합으로 세대원 존재 여부를 확인한다.
+    long countByHouseholdIdAndIsActiveTrue(Long householdId);
+
+    @Query("""
+            SELECT m.householdId AS householdId, COUNT(m) AS memberCount
+            FROM HouseholdMember m
+            WHERE m.householdId IN :householdIds
+              AND m.isActive = true
+            GROUP BY m.householdId
+            """)
+    List<HouseholdMemberCountProjection> countActiveMembersByHouseholdIds(@Param("householdIds") Collection<Long> householdIds);
+
     boolean existsByHouseholdIdAndUserId(Long householdId, Long userId);
 
     // 세대와 사용자 조합으로 세대원을 조회한다.

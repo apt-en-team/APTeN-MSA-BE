@@ -1,5 +1,6 @@
 package com.apten.parkingvehicle.application.model.response;
 
+import com.apten.parkingvehicle.domain.enums.ParkingEntryType;
 import com.apten.parkingvehicle.domain.enums.VehicleStatus;
 import com.apten.parkingvehicle.domain.enums.VehicleType;
 import java.time.LocalDateTime;
@@ -13,6 +14,12 @@ public class VehicleListRes {
 
     // 차량 ID이다.
     private Long vehicleId;
+
+    // 등록자 사용자 ID이다.
+    private Long userId;
+
+    // 등록자 이름이다.
+    private String residentName;
 
     // 차량 번호이다.
     private String licensePlate;
@@ -34,4 +41,10 @@ public class VehicleListRes {
 
     // 생성 시각이다.
     private LocalDateTime createdAt;
+
+    // 마지막 입출차 시각이다. 입출차 기록이 없으면 null이다.
+    private LocalDateTime lastLoggedAt;
+
+    // 마지막 입출차 구분이다. 입출차 기록이 없으면 null이다.
+    private ParkingEntryType lastEntryType;
 }

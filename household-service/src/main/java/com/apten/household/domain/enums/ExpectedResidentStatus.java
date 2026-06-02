@@ -10,9 +10,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum ExpectedResidentStatus implements EnumMapperType {
 
-    AVAILABLE("01", "사용가능"),
-    MATCHED("02", "매칭완료"),
-    DISABLED("03", "비활성");
+    AVAILABLE("AVAILABLE", "사용가능"),
+    MATCHED("MATCHED", "매칭완료"),
+    DISABLED("DISABLED", "비활성");
 
     private final String code;
     private final String value;

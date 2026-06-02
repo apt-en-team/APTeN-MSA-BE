@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 주소 검색 API를 제공하는 컨트롤러이다.
+// 주소 검색 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/master/apartment-complexes/address")
@@ -17,7 +17,7 @@ public class AddressSearchController {
 
     private final AddressSearchService addressSearchService;
 
-    //주소 검색 API-211
+    // 주소 검색
     @GetMapping("/search")
     public ResultResponse<AddressSearchPageRes> searchAddress(
             @RequestParam String keyword,

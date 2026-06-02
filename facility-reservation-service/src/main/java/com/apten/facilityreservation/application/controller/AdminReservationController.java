@@ -19,7 +19,7 @@ import com.apten.facilityreservation.application.service.FacilityRequestContextR
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 예약 관리 API 진입점이다.
+// 관리자 예약 관리 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/reservations")
@@ -30,7 +30,7 @@ public class AdminReservationController {
     private final AdminReservationStatsService adminReservationStatsService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-626 관리자 예약 목록 조회
+    // 관리자 예약 목록 조회
     @GetMapping
     public ResultResponse<PageResponse<AdminReservationListRes>> getAdminReservationList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -43,7 +43,7 @@ public class AdminReservationController {
         return ResultResponse.success("관리자 예약 목록 조회 성공", reservationService.getAdminReservationList(context.getComplexId(), req));
     }
 
-    // 관리자 예약 통계 조회 (/{reservationId} 보다 먼저 선언해야 literal 경로가 정확히 매칭된다)
+    // 관리자 예약 통계 조회 (literal 경로 우선)
     @GetMapping("/stats")
     public ResultResponse<AdminReservationStatsRes> getAdminReservationStats(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -55,7 +55,7 @@ public class AdminReservationController {
         return ResultResponse.success("관리자 예약 통계 조회 성공", adminReservationStatsService.getStats(context.getComplexId()));
     }
 
-    // 관리자 예약 통합 개요 조회 — FACILITY/GX 통합 목록 (/{reservationId} 보다 먼저 선언해야 literal 경로가 정확히 매칭된다)
+    // 관리자 예약 통합 개요 조회 (FACILITY/GX, literal 경로 우선)
     @GetMapping("/overview")
     public ResultResponse<PageResponse<AdminReservationOverviewRes>> getAdminReservationOverview(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -68,7 +68,7 @@ public class AdminReservationController {
         return ResultResponse.success("관리자 예약 통합 개요 조회 성공", adminReservationOverviewService.getOverview(context.getComplexId(), req));
     }
 
-    // API-627 관리자 예약 상세 조회
+    // 관리자 예약 상세 조회
     @GetMapping("/{reservationId}")
     public ResultResponse<AdminReservationDetailRes> getAdminReservationDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -81,7 +81,7 @@ public class AdminReservationController {
         return ResultResponse.success("관리자 예약 상세 조회 성공", reservationService.getAdminReservationDetail(context.getComplexId(), reservationId));
     }
 
-    // API-628 관리자 예약 강제 취소
+    // 관리자 예약 강제 취소
     @PatchMapping("/{reservationId}/cancel")
     public ResultResponse<AdminReservationCancelRes> cancelReservationByAdmin(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

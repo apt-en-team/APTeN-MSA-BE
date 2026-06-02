@@ -5,15 +5,13 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-// facility-reservation-service의 household member cache 저장소
+// 세대원 캐시 저장/조회 Repository
 public interface HouseholdMemberCacheRepository extends JpaRepository<HouseholdMemberCache, Long> {
 
-    // 사용자 ID와 활성 상태 기준 현재 세대 소속을 조회한다.
+    // 활성 세대원 캐시 조회
     Optional<HouseholdMemberCache> findByUserIdAndStatus(Long userId, String status);
 
-    // 세대 ID 기준 세대원 목록을 조회한다.
+    // 세대원 캐시 목록 조회
     List<HouseholdMemberCache> findByHouseholdId(Long householdId);
 
-    // 세대 ID 목록 기준 세대원을 배치 조회한다.
-    List<HouseholdMemberCache> findByHouseholdIdIn(List<Long> householdIds);
 }

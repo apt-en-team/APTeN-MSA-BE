@@ -76,6 +76,10 @@ public class VisitorVehicle extends BaseEntity {
     @Column(name = "end_time")
     private LocalTime endTime;
 
+    // 방문 목적
+    @Column(name = "visit_purpose", length = 100)
+    private String visitPurpose;
+
     // 방문차량 상태
     @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
@@ -99,12 +103,13 @@ public class VisitorVehicle extends BaseEntity {
     private LocalDateTime deletedAt;
 
     // 방문차량 기본 정보를 수정한다
-    public void update(String visitorName, String phone, LocalDate visitDate, LocalTime startTime, LocalTime endTime) {
+    public void update(String visitorName, String phone, LocalDate visitDate, LocalTime startTime, LocalTime endTime, String visitPurpose) {
         this.visitorName = visitorName;
         this.phone = phone;
         this.visitDate = visitDate;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.visitPurpose = visitPurpose;
     }
 
     // 방문차량 상태를 변경한다

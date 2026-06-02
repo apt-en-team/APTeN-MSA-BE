@@ -1,7 +1,5 @@
 package com.apten.household.application.model.response;
 
-import com.apten.household.domain.enums.HouseholdMatchProcessType;
-import com.apten.household.domain.enums.HouseholdMatchStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,8 +42,9 @@ public class HouseholdMatchListRes {
         private String inputBuilding;
         private String inputUnit;
         private Long matchedHouseholdId;
-        private HouseholdMatchProcessType processType;
-        private HouseholdMatchStatus matchStatus;
+        private Boolean expectedResidentRegistered;
+        private String processType;
+        private String matchStatus;
         private LocalDateTime processedAt;
         private LocalDateTime createdAt;
     }

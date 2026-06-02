@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 GX 프로그램 API 진입점이다.
+// 관리자 GX 프로그램 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/gx-programs")
@@ -36,7 +36,7 @@ public class AdminGxProgramController {
     private final GxProgramService gxProgramService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-630 GX 프로그램 등록
+    // GX 프로그램 등록
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<GxProgramPostRes> createGxProgram(
@@ -50,7 +50,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 프로그램 등록 성공", gxProgramService.createGxProgram(context.getComplexId(), req));
     }
 
-    // API-631 GX 프로그램 목록 조회
+    // GX 프로그램 목록 조회
     @GetMapping
     public ResultResponse<PageResponse<GxProgramListRes>> getAdminGxProgramList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -63,7 +63,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 프로그램 목록 조회 성공", gxProgramService.getAdminGxProgramList(context.getComplexId(), req));
     }
 
-    // API-632 GX 프로그램 상세 조회
+    // GX 프로그램 상세 조회
     @GetMapping("/{programId}")
     public ResultResponse<GxProgramDetailRes> getAdminGxProgramDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -76,7 +76,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 프로그램 상세 조회 성공", gxProgramService.getAdminGxProgramDetail(context.getComplexId(), programId));
     }
 
-    // API-633 GX 프로그램 수정
+    // GX 프로그램 수정
     @PatchMapping("/{programId}")
     public ResultResponse<GxProgramPatchRes> updateGxProgram(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -90,7 +90,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 프로그램 수정 성공", gxProgramService.updateGxProgram(context.getComplexId(), programId, req));
     }
 
-    // API-634 GX 프로그램 취소
+    // GX 프로그램 취소
     @PatchMapping("/{programId}/cancel")
     public ResultResponse<GxProgramCancelRes> cancelGxProgram(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -104,7 +104,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 프로그램 취소 성공", gxProgramService.cancelGxProgram(context.getComplexId(), programId, req));
     }
 
-    // API-648 GX 모집 마감
+    // GX 모집 마감
     @PatchMapping("/{programId}/close-waiting")
     public ResultResponse<GxCloseWaitingRes> closeWaiting(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -132,7 +132,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 프로그램 신청자 목록 조회 성공", gxProgramService.getAdminGxReservationList(context.getComplexId(), programId, req));
     }
 
-    // API-642 GX 일괄 승인 처리
+    // GX 일괄 승인 처리
     @PostMapping("/{programId}/bulk-approve")
     public ResultResponse<GxBulkApproveRes> bulkApprove(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -146,7 +146,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 일괄 승인 처리 성공", gxProgramService.bulkApprove(context.getComplexId(), programId, req));
     }
 
-    // API-643 GX 최소 인원 검증
+    // GX 최소 인원 검증
     @PostMapping("/{programId}/minimum-check")
     public ResultResponse<GxMinimumCheckRes> checkMinimum(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -159,7 +159,7 @@ public class AdminGxProgramController {
         return ResultResponse.success("GX 최소 인원 검증 성공", gxProgramService.checkMinimum(context.getComplexId(), programId));
     }
 
-    // API-647 GX 현황 조회
+    // GX 현황 조회
     @GetMapping("/{programId}/status")
     public ResultResponse<GxStatusRes> getGxStatus(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

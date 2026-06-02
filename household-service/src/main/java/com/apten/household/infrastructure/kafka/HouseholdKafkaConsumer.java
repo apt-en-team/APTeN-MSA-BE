@@ -6,31 +6,37 @@ import com.apten.common.kafka.KafkaTopics;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.HouseholdMatchRequestEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
+import com.apten.household.application.model.request.FacilityFeeReflectReq;
+import com.apten.household.application.model.request.VehicleFeeReflectReq;
+import com.apten.household.application.model.request.VisitorFeeReflectReq;
+import com.apten.household.application.service.HouseholdBillService;
 import com.apten.household.application.service.HouseholdMatchService;
 import com.apten.household.application.service.HouseholdReferenceCacheService;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-// household-service가 외부 이벤트를 수신해 캐시와 세대 매칭을 처리하는 consumer이다.
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class HouseholdKafkaConsumer {
 
-    // 캐시 반영 전용 서비스이다.
+    private static final String VEHICLE_FEE_CALCULATED_TOPIC = "vehicle.fee.calculated";
+    private static final String FACILITY_FEE_CALCULATED_TOPIC = "facility.fee.calculated";
+    private static final String VISITOR_FEE_CALCULATED_TOPIC = "visitor.fee.calculated";
+
     private final HouseholdReferenceCacheService householdReferenceCacheService;
-
-    // 회원가입 기반 세대 매칭 요청을 처리하는 서비스이다.
     private final HouseholdMatchService householdMatchService;
-
-    // 문자열 JSON 메시지를 공통 envelope DTO로 파싱한다.
+    private final HouseholdBillService householdBillService;
     private final ObjectMapper objectMapper;
 
-    // 사용자 이벤트를 받아 user_cache를 갱신한다.
     @KafkaListener(topics = KafkaTopics.USER, groupId = "household-service-user-cache")
     public void consumeUserEvent(String message) {
         try {
@@ -52,7 +58,6 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    // 단지 이벤트를 받아 complex_cache를 갱신한다.
     @KafkaListener(topics = KafkaTopics.APARTMENT_COMPLEX, groupId = "household-service-complex-cache")
     public void consumeApartmentComplexEvent(String message) {
         try {
@@ -74,7 +79,6 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    // 회원가입 후 세대 매칭 요청 이벤트를 받아 자동승인 또는 승인대기 요청을 생성한다.
     @KafkaListener(topics = KafkaTopics.HOUSEHOLD, groupId = "household-service-match-request")
     public void consumeHouseholdMatchRequestedEvent(String message) {
         try {
@@ -100,7 +104,106 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    // TODO 차량 요약 이벤트 계약이 확정되면 VEHICLE topic consumer를 추가한다.
-    // TODO 시설 이용 요약 이벤트 계약이 확정되면 FACILITY_USAGE topic consumer를 추가한다.
-    // TODO 방문차량 집계 이벤트 계약이 확정되면 VISITOR_USAGE topic consumer를 추가한다.
+    @KafkaListener(topics = VEHICLE_FEE_CALCULATED_TOPIC, groupId = "household-service-vehicle-fee")
+    public void consumeVehicleFeeCalculatedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            List<VehicleFeeReflectReq.Item> items = new ArrayList<>();
+            for (JsonNode item : payload.path("items")) {
+                items.add(VehicleFeeReflectReq.Item.builder()
+                        .householdId(longValue(item, "householdId"))
+                        .vehicleFee(decimalValue(item, "vehicleFee"))
+                        .build());
+            }
+
+            householdBillService.reflectVehicleFee(VehicleFeeReflectReq.builder()
+                    .complexId(longValue(payload, "complexId"))
+                    .billYear(intValue(payload, "billYear"))
+                    .billMonth(intValue(payload, "billMonth"))
+                    .items(items)
+                    .build());
+
+            log.info("Consumed vehicle fee calculated event. complexId={}, billYear={}, billMonth={}, itemCount={}",
+                    longValue(payload, "complexId"), intValue(payload, "billYear"), intValue(payload, "billMonth"), items.size());
+        } catch (Exception exception) {
+            log.error("Failed to consume vehicle fee calculated event. message={}", message, exception);
+        }
+    }
+
+    @KafkaListener(topics = FACILITY_FEE_CALCULATED_TOPIC, groupId = "household-service-facility-fee")
+    public void consumeFacilityFeeCalculatedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            List<FacilityFeeReflectReq.Item> items = new ArrayList<>();
+            for (JsonNode item : payload.path("items")) {
+                items.add(FacilityFeeReflectReq.Item.builder()
+                        .householdId(longValue(item, "householdId"))
+                        .facilityFee(decimalValue(item, "facilityFee"))
+                        .build());
+            }
+
+            householdBillService.reflectFacilityFee(FacilityFeeReflectReq.builder()
+                    .complexId(longValue(payload, "complexId"))
+                    .billYear(intValue(payload, "usageYear"))
+                    .billMonth(intValue(payload, "usageMonth"))
+                    .items(items)
+                    .build());
+
+            log.info("Consumed facility fee calculated event. complexId={}, usageYear={}, usageMonth={}, itemCount={}",
+                    longValue(payload, "complexId"), intValue(payload, "usageYear"), intValue(payload, "usageMonth"), items.size());
+        } catch (Exception exception) {
+            log.error("Failed to consume facility fee calculated event. message={}", message, exception);
+        }
+    }
+
+    @KafkaListener(topics = VISITOR_FEE_CALCULATED_TOPIC, groupId = "household-service-visitor-fee")
+    public void consumeVisitorFeeCalculatedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            List<VisitorFeeReflectReq.Item> items = new ArrayList<>();
+            for (JsonNode item : payload.path("items")) {
+                items.add(VisitorFeeReflectReq.Item.builder()
+                        .householdId(longValue(item, "householdId"))
+                        .totalMinutes(intValue(item, "totalMinutes"))
+                        .totalHours(decimalValue(item, "totalHours"))
+                        .freeMinutes(intValue(item, "freeMinutes"))
+                        .extraMinutes(intValue(item, "extraMinutes"))
+                        .visitorFee(decimalValue(item, "visitorFee"))
+                        .build());
+            }
+
+            householdBillService.reflectVisitorFee(VisitorFeeReflectReq.builder()
+                    .complexId(longValue(payload, "complexId"))
+                    .billYear(intValue(payload, "billYear"))
+                    .billMonth(intValue(payload, "billMonth"))
+                    .items(items)
+                    .build());
+
+            log.info("Consumed visitor fee calculated event. complexId={}, billYear={}, billMonth={}, itemCount={}",
+                    longValue(payload, "complexId"), intValue(payload, "billYear"), intValue(payload, "billMonth"), items.size());
+        } catch (Exception exception) {
+            log.error("Failed to consume visitor fee calculated event. message={}", message, exception);
+        }
+    }
+
+    private JsonNode payloadNode(String message) throws Exception {
+        JsonNode root = objectMapper.readTree(message);
+        JsonNode payload = root.path("payload");
+        return payload.isMissingNode() || payload.isNull() ? root : payload;
+    }
+
+    private Long longValue(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        return value.isMissingNode() || value.isNull() ? null : value.asLong();
+    }
+
+    private Integer intValue(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        return value.isMissingNode() || value.isNull() ? null : value.asInt();
+    }
+
+    private BigDecimal decimalValue(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        return value.isMissingNode() || value.isNull() ? null : new BigDecimal(value.asText());
+    }
 }

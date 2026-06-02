@@ -21,9 +21,14 @@ public class ExpectedResidentRes {
     private String name;
     private String phone;
     private LocalDate birthDate;
+    private LocalDate moveInDate;
     private String relationship;
     private HouseholdMemberRole householdRole;
     private ExpectedResidentStatus status;
+    private String webServiceStatus;
+    private String webServiceStatusName;
+    private String matchProcessType;
+    private String matchProcessTypeName;
     private Long matchedUserId;
     private LocalDateTime matchedAt;
     private LocalDateTime createdAt;
@@ -38,6 +43,7 @@ public class ExpectedResidentRes {
                 .name(expectedResident.getName())
                 .phone(expectedResident.getPhone())
                 .birthDate(expectedResident.getBirthDate())
+                .moveInDate(expectedResident.getMoveInDate())
                 .relationship(expectedResident.getRelationship())
                 .householdRole(expectedResident.getHouseholdRole())
                 .status(expectedResident.getStatus())

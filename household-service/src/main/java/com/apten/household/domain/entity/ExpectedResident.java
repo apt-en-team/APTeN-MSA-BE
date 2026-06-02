@@ -59,6 +59,9 @@ public class ExpectedResident extends BaseEntity {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
+    @Column(name = "move_in_date", nullable = false)
+    private LocalDate moveInDate;
+
     @Column(name = "relationship", length = 30)
     private String relationship;
 
@@ -66,7 +69,7 @@ public class ExpectedResident extends BaseEntity {
     private HouseholdMemberRole householdRole;
 
     @Builder.Default
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "varchar(20)")
     private ExpectedResidentStatus status = ExpectedResidentStatus.AVAILABLE;
 
     @Column(name = "matched_user_id")
@@ -78,7 +81,7 @@ public class ExpectedResident extends BaseEntity {
     @Column(name = "created_by_user_id", nullable = false)
     private Long createdByUserId;
 
-    // 명부가 실제 회원가입 사용자와 매칭되면 사용 완료 상태로 변경한다.
+    // 명부가 실제 회원가입 사용자와 매칭되면 연결 정보만 기록한다.
     public void markMatched(Long userId) {
         this.status = ExpectedResidentStatus.MATCHED;
         this.matchedUserId = userId;
@@ -93,6 +96,7 @@ public class ExpectedResident extends BaseEntity {
             String name,
             String phone,
             LocalDate birthDate,
+            LocalDate moveInDate,
             String relationship,
             HouseholdMemberRole householdRole
     ) {
@@ -102,6 +106,7 @@ public class ExpectedResident extends BaseEntity {
         this.name = name;
         this.phone = phone;
         this.birthDate = birthDate;
+        this.moveInDate = moveInDate;
         this.relationship = relationship;
         this.householdRole = householdRole;
     }
@@ -109,5 +114,7 @@ public class ExpectedResident extends BaseEntity {
     // 관리자 명부를 자동매칭 대상에서 제외한다.
     public void disable() {
         this.status = ExpectedResidentStatus.DISABLED;
+        this.matchedUserId = null;
+        this.matchedAt = null;
     }
 }

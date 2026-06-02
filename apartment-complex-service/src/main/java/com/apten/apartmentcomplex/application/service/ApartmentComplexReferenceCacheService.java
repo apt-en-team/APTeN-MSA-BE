@@ -11,24 +11,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// apartment-complex-service에서 참조 캐시 테이블 upsert를 담당하는 서비스이다.
-// Kafka listener는 수신만 맡고 실제 user_cache 반영은 이 계층이 처리한다.
+// 사용자 참조 캐시 동기화
 @Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class ApartmentComplexReferenceCacheService {
 
-    // user_cache 저장과 갱신을 담당하는 repository이다.
     private final UserCacheRepository userCacheRepository;
 
-    // 생성과 수정 이벤트는 동일한 upsert 규칙으로 user_cache를 반영한다.
+    // 사용자 캐시 저장/갱신
     public void upsertUserCache(UserEventPayload payload) {
-        // 같은 사용자 PK가 이미 있으면 갱신하고 없으면 새 row를 만든다.
+        // 기존 사용자 캐시 재사용
         UserCache userCache = userCacheRepository.findById(payload.getUserId())
                 .orElseGet(() -> UserCache.builder().id(payload.getUserId()).build());
 
-        // payload 기준으로 관리자 검증에 필요한 최소 사용자 정보를 유지한다.
+        // 관리자 검증용 사용자 정보 반영
         userCache.apply(
                 payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId(),
                 payload.getName(),
@@ -39,13 +37,13 @@ public class ApartmentComplexReferenceCacheService {
         userCacheRepository.save(userCache);
     }
 
-    // 비활성화나 삭제성 이벤트는 status를 DELETED로 맞추고 isDeleted를 true로 반영한다.
+    // 사용자 캐시 삭제 상태 반영
     public void markUserCacheDeleted(UserEventPayload payload) {
-        // 기존 row가 없더라도 삭제 상태 캐시를 만들어 이후 검증 결과를 일관되게 유지한다.
+        // 삭제 이벤트 누락 방지용 캐시 생성
         UserCache userCache = userCacheRepository.findById(payload.getUserId())
                 .orElseGet(() -> UserCache.builder().id(payload.getUserId()).build());
 
-        // 삭제성 이벤트는 관리자 소속 지정 대상에서 제외되도록 DELETED 상태로 반영한다.
+        // 관리자 지정 제외 상태 반영
         userCache.apply(
                 payload.getComplexId() != null ? payload.getComplexId() : payload.getApartmentComplexId(),
                 payload.getName(),
@@ -56,35 +54,35 @@ public class ApartmentComplexReferenceCacheService {
         userCacheRepository.save(userCache);
     }
 
-    // eventType에 따라 upsert 또는 삭제 상태 반영을 분기한다.
+    // 사용자 이벤트 유형 분기
     public void handleUserEvent(EventType eventType, UserEventPayload payload) {
-        // 생성과 수정은 동일한 upsert 흐름으로 처리한다.
+        // 생성/수정 이벤트 처리
         if (eventType == EventType.USER_CREATED || eventType == EventType.USER_UPDATED) {
             upsertUserCache(payload);
             return;
         }
 
-        // 비활성화 이벤트는 user_cache를 삭제 상태로 반영한다.
+        // 비활성화/삭제 이벤트 처리
         if (eventType == EventType.USER_DEACTIVATED || eventType == EventType.USER_DELETED) {
             markUserCacheDeleted(payload);
             return;
         }
 
-        // 현재 파일럿 범위 밖 이벤트가 들어오면 저장은 하지 않고 로그만 남긴다.
+        // 미지원 이벤트 로그
         log.warn("Skipped unsupported user event. eventType={}, userId={}", eventType, payload.getUserId());
     }
 
-    // Kafka payload의 role 문자열을 apartment-complex-service 내부 enum으로 변환한다.
+    // 사용자 권한 변환
     private UserCacheRole resolveRole(String role) {
         return UserCacheRole.valueOf(role);
     }
 
-    // Kafka payload의 status 문자열을 apartment-complex-service 내부 enum으로 변환한다.
+    // 사용자 상태 변환
     private UserCacheStatus resolveStatus(String status) {
         return UserCacheStatus.valueOf(status);
     }
 
-    // payload의 삭제 여부 또는 status를 기준으로 isDeleted를 결정한다.
+    // 사용자 삭제 여부 판별
     private boolean resolveIsDeleted(UserEventPayload payload) {
         if (payload.getIsDeleted() != null) {
             return payload.getIsDeleted();

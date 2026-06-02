@@ -8,12 +8,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 // FCM 토큰 준비 구현에서 토큰 원문과 사용자 소유권 기준 조회를 맡는다
 public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
 
-    // 토큰 원문은 전역 unique라 중복 등록 여부를 먼저 확인할 수 있다
+    // 토큰 원문 기준 조회
     Optional<FcmToken> findByTokenValue(String tokenValue);
 
-    // 해제와 갱신은 본인 토큰만 처리해야 하므로 userId와 tokenValue를 함께 본다
+    // 사용자 + 토큰 원문 기준 조회
     Optional<FcmToken> findByUserIdAndTokenValue(Long userId, String tokenValue);
 
-    // HTTPS 활성화 후 실제 FCM 발송 대상 토큰을 조회할 때 사용한다
+    // 사용자 활성 토큰 목록 조회
     List<FcmToken> findByUserIdAndIsActive(Long userId, Boolean isActive);
 }

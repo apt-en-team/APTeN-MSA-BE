@@ -74,16 +74,16 @@ public class HouseholdReferenceCacheService {
 
     // 차량 스냅샷 이벤트를 받아 vehicle_snapshot을 upsert 하는 준비 메서드이다.
     public void upsertVehicleSnapshot(VehicleSnapshotEventPayload payload) {
-        // TODO vehicle_snapshot event 계약이 확정되면 household-service 스냅샷 저장 로직을 연결한다.
+        // vehicle_snapshot event 계약 확정 후 저장 로직을 연결한다.
     }
 
     // 시설 이용 스냅샷 이벤트를 받아 facility_usage_snapshot을 upsert 하는 준비 메서드이다.
     public void upsertFacilityUsageSnapshot(FacilityUsageEventPayload payload) {
-        // TODO facility_usage event 계약이 확정되면 household-service 스냅샷 저장 로직을 연결한다.
+        // facility_usage event 계약 확정 후 저장 로직을 연결한다.
     }
 
     // 방문차량 월 집계 이벤트를 받아 visitor_usage_snapshot을 upsert 하는 준비 메서드이다.
     public void upsertVisitorUsageSnapshot(VisitorUsageEventPayload payload) {
-        // TODO visitor_usage event 계약이 확정되면 household-service 스냅샷 저장 로직을 연결한다.
+        // visitor_usage event 계약 확정 후 저장 로직을 연결한다.
     }
 }

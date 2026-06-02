@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-// 일반 시설 예약 API 진입점이다.
+// 입주민 시설 예약 API
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/reservations")
@@ -33,7 +33,7 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final FacilityRequestContextResolver facilityRequestContextResolver;
 
-    // API-619 예약 가능 시간 조회
+    // 예약 가능 시간 조회
     @GetMapping("/available-times")
     public ResultResponse<List<AvailableTimeListRes>> getAvailableTimeList(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -45,7 +45,7 @@ public class ReservationController {
         return ResultResponse.success("예약 가능 시간 조회 성공", reservationService.getAvailableTimeList(context.getUserId(), context.getComplexId(), req));
     }
 
-    // API-620 좌석 임시 선점
+    // 좌석 임시 선점
     @PostMapping("/seat-holds")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<SeatHoldPostRes> createSeatHold(
@@ -58,7 +58,7 @@ public class ReservationController {
         return ResultResponse.success("좌석 임시 선점 성공", reservationService.createSeatHold(context.getUserId(), context.getComplexId(), req));
     }
 
-    // API-622 예약 생성
+    // 예약 생성
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<ReservationPostRes> createReservation(
@@ -71,7 +71,7 @@ public class ReservationController {
         return ResultResponse.success("예약 생성 성공", reservationService.createReservation(context.getUserId(), context.getComplexId(), req));
     }
 
-    // API-623 내 예약 통합 목록 조회 (일반 시설 + GX 통합, 페이지네이션)
+    // 내 예약 통합 목록 조회 (FACILITY/GX)
     @GetMapping("/my")
     public ResultResponse<PageResponse<MyUnifiedReservationRes>> getMyUnifiedReservations(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -83,7 +83,7 @@ public class ReservationController {
         return ResultResponse.success("내 예약 목록 조회 성공", reservationService.getMyUnifiedReservations(context.getUserId(), context.getComplexId(), req));
     }
 
-    // API-624 내 예약 상세 조회
+    // 내 예약 상세 조회
     @GetMapping("/{reservationId}")
     public ResultResponse<MyReservationDetailRes> getMyReservationDetail(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -95,7 +95,7 @@ public class ReservationController {
         return ResultResponse.success("내 예약 상세 조회 성공", reservationService.getMyReservationDetail(context.getUserId(), context.getComplexId(), reservationId));
     }
 
-    // API-625 예약 취소
+    // 예약 취소
     @PatchMapping("/{reservationId}/cancel")
     public ResultResponse<ReservationCancelRes> cancelReservation(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,

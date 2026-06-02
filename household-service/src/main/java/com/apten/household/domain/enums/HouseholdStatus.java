@@ -2,7 +2,9 @@ package com.apten.household.domain.enums;
 
 import com.apten.common.enumcode.AbstractEnumCodeConverter;
 import com.apten.common.enumcode.EnumMapperType;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import jakarta.persistence.Converter;
+import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +27,19 @@ public enum HouseholdStatus implements EnumMapperType {
 
     // API 응답에 보여줄 상태 value이다.
     private final String value;
+
+    @JsonCreator
+    public static HouseholdStatus from(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return Arrays.stream(values())
+                .filter(status -> status.name().equals(value)
+                        || status.code.equals(value)
+                        || status.value.equals(value))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("일치하는 세대 상태가 없습니다. value=" + value));
+    }
 
     // JPA가 DB code와 enum을 자동 변환한다.
     @Converter(autoApply = true)

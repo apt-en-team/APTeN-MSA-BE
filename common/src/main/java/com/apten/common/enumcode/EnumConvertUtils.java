@@ -12,7 +12,7 @@ public final class EnumConvertUtils {
     // DB에서 읽은 code에 맞는 enum 상수를 찾아 엔티티 필드로 복원한다.
     public static <E extends Enum<E> & EnumMapperType> E ofCode(Class<E> enumClass, String code) {
         return Arrays.stream(enumClass.getEnumConstants())
-                .filter(enumValue -> enumValue.getCode().equals(code))
+                .filter(enumValue -> enumValue.getCode().equals(code) || enumValue.name().equals(code))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("일치하는 enum code가 없습니다. enum="
                         + enumClass.getSimpleName() + ", code=" + code));

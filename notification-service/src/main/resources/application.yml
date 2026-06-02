@@ -22,9 +22,14 @@ constants:
     prefix: /api/notifications
 
 apten:
+  scheduler:
+    notification-cleanup:
+      enabled: ${APTEN_SCHEDULER_NOTIFICATION_CLEANUP_ENABLED:true}
+      cron: ${APTEN_SCHEDULER_NOTIFICATION_CLEANUP_CRON:0 0 3 * * *}
   notification:
     push:
       fcm-enabled: ${APTEN_NOTIFICATION_PUSH_FCM_ENABLED:false}
+      web-base-url: ${APTEN_NOTIFICATION_PUSH_WEB_BASE_URL:https://tc.greenart.n-e.kr}
       firebase:
         credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
         project-id: ${FIREBASE_PROJECT_ID:}

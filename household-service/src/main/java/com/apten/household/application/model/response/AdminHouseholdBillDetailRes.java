@@ -3,6 +3,7 @@ package com.apten.household.application.model.response;
 import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Builder;
@@ -45,6 +46,20 @@ public class AdminHouseholdBillDetailRes {
 
     // 총 비용이다.
     private BigDecimal totalFee;
+
+    private BigDecimal lateFee;
+
+    private BigDecimal payableAmount;
+
+    private LocalDate sendDate;
+
+    private LocalDate dueDate;
+
+    private LocalDate overdueStartDate;
+
+    private LocalDate homeDisplayUntil;
+
+    private Boolean overdue;
 
     // 청구 상태이다.
     private HouseholdBillStatus status;

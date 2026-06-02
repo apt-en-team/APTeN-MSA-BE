@@ -124,7 +124,7 @@ public class HouseholdOutboxService {
             return "ACTIVE";
         }
 
-        // TODO household-service가 세대원 상태 enum을 도입하면 REJECTED/PENDING 등을 구분해 적재한다.
+        // 세대원 상태 enum이 도입되기 전까지 비활성 세대원은 REJECTED로 적재한다.
         return "REJECTED";
     }
 

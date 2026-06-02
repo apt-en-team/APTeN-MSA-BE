@@ -20,6 +20,19 @@ spring:
     gateway:
       httpclient:
         max-header-size: 65536
+      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
+      server:
+        webmvc:
+          actuator:
+            enabled: true
+          cors:
+            configurations:
+              '[/**]':
+                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
+                allowed-methods: [ "*" ]
+                allowed-headers: [ "*" ]
+                allow-credentials: true
+                max-age: 3600
       routes:
         - id: auth-service-auth
           uri: http://localhost:${AUTH_SERVER_PORT}
@@ -48,10 +61,11 @@ spring:
           uri: http://localhost:${HOUSEHOLD_SERVER_PORT}
           predicates:
             - Path=/api/households/**,/api/household-bills/**,/api/admin/households/**,/api/admin/expected-residents/**,/api/admin/household-match-requests/**,/api/admin/household-types/**,/api/admin/building-line-types/**,/api/admin/household-bills/**,/api/admin/household-bill-policies/**
+
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
-            - Path=/parking-vehicles/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
+            - Path=/parking-vehicles/**,/api/vehicles,/api/vehicles/**,/api/visitor-vehicles,/api/visitor-vehicles/**,/api/regular-visitor-vehicles,/api/regular-visitor-vehicles/**,/api/admin/vehicles,/api/admin/vehicles/**,/api/admin/vehicle-stats,/api/admin/vehicle-locations,/api/admin/visitor-vehicles,/api/admin/visitor-vehicles/**,/api/admin/visitor-vehicle-stats,/api/admin/regular-visitor-vehicles,/api/admin/regular-visitor-vehicles/**,/api/admin/vehicle-policies,/api/admin/visitor-policy,/api/admin/vehicle-registration-policies,/api/admin/vehicle-registration-policies/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
 
         - id: facility-reservation-service-admin
           uri: http://localhost:${FACILITY_SERVER_PORT}
@@ -103,18 +117,3 @@ constants:
   api:
     prefix: /api
 
-  cloud:
-    gateway:
-      # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
-      server:
-        webmvc:
-          actuator:
-            enabled: true
-          cors:
-            configurations:
-              '[/**]':
-                allowed-origins: [ "https://tc.greenart.n-e.kr" ]
-                allowed-methods: [ "*" ]
-                allowed-headers: [ "*" ]
-                allow-credentials: true
-                max-age: 3600

@@ -10,6 +10,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -82,10 +83,41 @@ public class HouseholdBill extends BaseEntity {
     @Column(name = "total_fee", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalFee = BigDecimal.ZERO;
 
+    // 연체료율
+    @Builder.Default
+    @Column(name = "late_fee_rate", nullable = false, precision = 5, scale = 2, columnDefinition = "decimal(5,2) default 0")
+    private BigDecimal lateFeeRate = BigDecimal.ZERO;
+
+    // 연체료
+    @Builder.Default
+    @Column(name = "late_fee", nullable = false, precision = 12, scale = 2, columnDefinition = "decimal(12,2) default 0")
+    private BigDecimal lateFee = BigDecimal.ZERO;
+
+    // 실제 납부 금액
+    @Builder.Default
+    @Column(name = "payable_amount", nullable = false, precision = 12, scale = 2, columnDefinition = "decimal(12,2) default 0")
+    private BigDecimal payableAmount = BigDecimal.ZERO;
+
     // 청구 상태
     @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
     private HouseholdBillStatus status = HouseholdBillStatus.DRAFT;
+
+    // 고지서 발송일
+    @Column(name = "send_date")
+    private LocalDate sendDate;
+
+    // 납부 기한일
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
+    // 연체 시작일
+    @Column(name = "overdue_start_date")
+    private LocalDate overdueStartDate;
+
+    // 홈 화면 노출 종료일
+    @Column(name = "home_display_until")
+    private LocalDate homeDisplayUntil;
 
     // 확정 시각
     @Column(name = "confirmed_at")
@@ -104,6 +136,7 @@ public class HouseholdBill extends BaseEntity {
         this.facilityFee = facilityFee;
         this.visitorFee = visitorFee;
         this.totalFee = totalFee;
+        this.payableAmount = totalFee.add(this.lateFee);
     }
 
     // 청구 상태를 변경한다
@@ -115,6 +148,27 @@ public class HouseholdBill extends BaseEntity {
     public void confirm(LocalDateTime confirmedAt) {
         this.status = HouseholdBillStatus.CONFIRMED;
         this.confirmedAt = confirmedAt;
+    }
+
+    // 청구서의 공개, 납부, 연체, 홈 노출 일정을 저장한다.
+    public void applySchedule(
+            LocalDate sendDate,
+            LocalDate dueDate,
+            LocalDate overdueStartDate,
+            LocalDate homeDisplayUntil,
+            BigDecimal lateFeeRate
+    ) {
+        this.sendDate = sendDate;
+        this.dueDate = dueDate;
+        this.overdueStartDate = overdueStartDate;
+        this.homeDisplayUntil = homeDisplayUntil;
+        this.lateFeeRate = lateFeeRate;
+    }
+
+    // 연체료와 실제 납부 금액을 갱신한다
+    public void updateLateFee(BigDecimal lateFee) {
+        this.lateFee = lateFee;
+        this.payableAmount = this.totalFee.add(lateFee);
     }
 
     // 청구 확정을 취소하고 임시 계산 상태로 되돌린다 (FR-426)
