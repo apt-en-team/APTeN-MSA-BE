@@ -160,9 +160,6 @@ public class GxReservationService {
             throw new BusinessException(FacilityReservationErrorCode.GX_WAIT_NO_CONFLICT);
         }
 
-        // GX 신청 알림 예약 (afterCommit, best-effort)
-        facilityNotificationService.notifyGxApplied(userId, complexId, reservation, program);
-
         // 최소 인원 도달 알림 (최초 1회)
         // 최소 인원 미설정 제외
         if (program.getMinCount() > 0 && waitNo == program.getMinCount()) {

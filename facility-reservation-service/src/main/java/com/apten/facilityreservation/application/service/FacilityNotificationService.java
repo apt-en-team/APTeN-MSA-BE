@@ -23,9 +23,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class FacilityNotificationService {
 
     // 알림 유형 코드
-    private static final String TYPE_FACILITY_RESERVED = "FACILITY_RESERVED";
-    private static final String TYPE_FACILITY_CANCELLED = "FACILITY_CANCELLED";
-    private static final String TYPE_GX_APPLIED = "GX_APPLIED";
     private static final String TYPE_GX_APPROVED = "GX_APPROVED";
     private static final String TYPE_GX_REJECTED = "GX_REJECTED";
     private static final String TYPE_GX_MINIMUM_REACHED = "GX_MINIMUM_REACHED";
@@ -37,73 +34,6 @@ public class FacilityNotificationService {
 
     private final NotificationInternalClient notificationInternalClient;
     private final ObjectMapper objectMapper;
-
-    // 시설 예약 완료 알림
-    public void notifyFacilityReserved(Long userId, Long complexId, Reservation reservation, Facility facility) {
-        // 예약 ID 기준 알림 대상 설정
-        NotificationCreateReq request = NotificationCreateReq.builder()
-                .receiverUserId(userId)
-                .complexId(complexId)
-                .type(TYPE_FACILITY_RESERVED)
-                .targetType(TARGET_FACILITY_RESERVATION)
-                .targetId(reservation.getId())
-                .title("시설 예약이 완료되었습니다.")
-                .content(facility.getName() + " 예약이 완료되었습니다.")
-                .linkPath(buildReservationLink(complexId, reservation.getId()))
-                // 시설 예약 부가 정보
-                .payloadJson(toPayloadJson(Map.of(
-                        "facilityId", facility.getId(),
-                        "facilityName", facility.getName(),
-                        "reservationId", reservation.getId()
-                )))
-                .build();
-
-        sendAfterCommit("시설 예약 완료 알림", request);
-    }
-
-    // 시설 예약 취소 알림
-    public void notifyFacilityCancelled(Long userId, Long complexId, Reservation reservation, Facility facility) {
-        // 시설명 조회 실패 기본값
-        String facilityName = facility == null ? "시설" : facility.getName();
-        NotificationCreateReq request = NotificationCreateReq.builder()
-                .receiverUserId(userId)
-                .complexId(complexId)
-                .type(TYPE_FACILITY_CANCELLED)
-                .targetType(TARGET_FACILITY_RESERVATION)
-                .targetId(reservation.getId())
-                .title("시설 예약이 취소되었습니다.")
-                .content(facilityName + " 예약이 취소되었습니다.")
-                .linkPath(buildReservationLink(complexId, reservation.getId()))
-                // 취소 예약 부가 정보
-                .payloadJson(toPayloadJson(Map.of(
-                        "reservationId", reservation.getId()
-                )))
-                .build();
-
-        sendAfterCommit("시설 예약 취소 알림", request);
-    }
-
-    // GX 신청 접수 알림
-    public void notifyGxApplied(Long userId, Long complexId, GxReservation reservation, GxProgram program) {
-        // GX 프로그램 ID 기준 알림 대상 설정
-        NotificationCreateReq request = NotificationCreateReq.builder()
-                .receiverUserId(userId)
-                .complexId(complexId)
-                .type(TYPE_GX_APPLIED)
-                .targetType(TARGET_GX_PROGRAM)
-                .targetId(program.getId())
-                .title("GX 신청이 접수되었습니다.")
-                .content(program.getName() + " 신청이 접수되었습니다.")
-                .linkPath(buildGxReservationLink(complexId, program.getId(), reservation.getId(), reservation.getStatus().name()))
-                .payloadJson(toPayloadJson(Map.of(
-                        "programId", program.getId(),
-                        "gxReservationId", reservation.getId(),
-                        "programName", program.getName()
-                )))
-                .build();
-
-        sendAfterCommit("GX 신청 접수 알림", request);
-    }
 
     // GX 승인 알림
     public void notifyGxApproved(Long userId, Long complexId, GxReservation reservation, GxProgram program) {
@@ -259,12 +189,6 @@ public class FacilityNotificationService {
     private String buildAdminGxLink(Long complexId, Long programId) {
         // 관리자 GX 목록 기준 이동
         return "/admin/gx-programs";
-    }
-
-    // 시설 예약 상세 이동 경로 생성
-    private String buildReservationLink(Long complexId, Long reservationId) {
-        // 입주민 예약 상세 경로
-        return "/resident/" + complexId + "/reservations/" + reservationId;
     }
 
     // 입주민 GX 상세 이동 경로 생성
