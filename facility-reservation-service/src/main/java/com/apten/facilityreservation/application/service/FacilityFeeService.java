@@ -22,7 +22,7 @@ import com.apten.facilityreservation.domain.repository.GxReservationRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import com.apten.facilityreservation.infrastructure.kafka.FacilityReservationOutboxService;
-import com.apten.facilityreservation.infrastructure.kafka.payload.FacilityFeeCalculatedEventPayload;
+import com.apten.common.kafka.payload.FacilityFeeCalculatedEventPayload;
 import java.math.BigDecimal;
 import java.time.DateTimeException;
 import java.time.LocalDate;
