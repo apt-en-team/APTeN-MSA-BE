@@ -11,6 +11,7 @@ import lombok.Getter;
 public class VoteListRes {
     private final Long voteId;
     private final String title;
+    private final String description;
     private final LocalDateTime startAt;
     private final LocalDateTime endAt;
     private final VoteStatus status;
