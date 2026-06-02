@@ -203,11 +203,11 @@ public class GxProgramService {
     }
 
     // GX 프로그램 수정
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public GxProgramPatchRes updateGxProgram(Long complexId, Long programId, GxProgramPatchReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        GxProgram program = getGxProgram(complexId, programId);
+        GxProgram program = lockGxProgram(complexId, programId);
 
         // 취소 프로그램 수정 방지
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
