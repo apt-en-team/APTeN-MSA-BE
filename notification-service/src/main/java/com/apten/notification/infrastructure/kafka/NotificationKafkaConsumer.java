@@ -50,9 +50,9 @@ public class NotificationKafkaConsumer {
         }
     }
 
-    // 시설예약 알림 이벤트를 받아 알림을 생성한다.
-    @KafkaListener(topics = KafkaTopics.FACILITY_NOTIFICATION, groupId = "notification-service-facility")
-    public void consumeFacilityNotificationEvent(String message) {
+    // 알림 생성 요청 이벤트를 받아 알림을 생성한다 (전 서비스 공용 토픽).
+    @KafkaListener(topics = KafkaTopics.NOTIFICATION_REQUEST, groupId = "notification-service-request")
+    public void consumeNotificationRequestEvent(String message) {
         try {
             EventEnvelope<JsonNode> envelope = objectMapper.readValue(
                     message,
@@ -60,24 +60,24 @@ public class NotificationKafkaConsumer {
             );
 
             String eventType = envelope.getEventType() == null ? null : envelope.getEventType().name();
-            log.info("Consumed facility notification event. eventType={}, eventId={}",
+            log.info("Consumed notification request event. eventType={}, eventId={}",
                     eventType, envelope.getEventId());
 
-            if (EventType.FACILITY_NOTIFICATION_REQUESTED.name().equals(eventType)) {
+            if (EventType.NOTIFICATION_REQUESTED.name().equals(eventType)) {
                 NotificationEventPayload payload = objectMapper.treeToValue(
                         envelope.getPayload(), NotificationEventPayload.class);
                 notificationService.createNotification(toPostReq(payload));
 
-            } else if (EventType.FACILITY_ADMIN_NOTIFICATION_REQUESTED.name().equals(eventType)) {
+            } else if (EventType.ADMIN_NOTIFICATION_REQUESTED.name().equals(eventType)) {
                 NotificationAdminBroadcastEventPayload payload = objectMapper.treeToValue(
                         envelope.getPayload(), NotificationAdminBroadcastEventPayload.class);
                 notificationService.createAdminBroadcastNotification(toBroadcastReq(payload));
 
             } else {
-                log.warn("Unknown facility notification eventType={}. message={}", eventType, message);
+                log.warn("Unknown notification request eventType={}. message={}", eventType, message);
             }
         } catch (Exception exception) {
-            log.error("Failed to consume facility notification event. message={}", message, exception);
+            log.error("Failed to consume notification request event. message={}", message, exception);
         }
     }
 

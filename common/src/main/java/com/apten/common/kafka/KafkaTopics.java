@@ -25,8 +25,8 @@ public final class KafkaTopics {
     // 방문차량 월 집계 스냅샷 동기화 topic
     public static final String VISITOR_USAGE = "visitor-usage.v1";
 
-    // 시설예약 알림 이벤트 topic
-    public static final String FACILITY_NOTIFICATION = "facility-notification.v1";
+    // 서비스 → notification-service 알림 생성 요청 topic (전 서비스 공용)
+    public static final String NOTIFICATION_REQUEST = "notification-request.v1";
 
     private KafkaTopics() {
     }

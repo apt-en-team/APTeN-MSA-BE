@@ -34,7 +34,7 @@ public enum EventType {
     HOUSEHOLD_MATCH_APPROVED,
     HOUSEHOLD_MATCH_REJECTED,
 
-    // 시설예약 → notification-service 알림 요청
-    FACILITY_NOTIFICATION_REQUESTED,
-    FACILITY_ADMIN_NOTIFICATION_REQUESTED
+    // 서비스 → notification-service 알림 생성 요청 (전 서비스 공용)
+    NOTIFICATION_REQUESTED,
+    ADMIN_NOTIFICATION_REQUESTED
 }
