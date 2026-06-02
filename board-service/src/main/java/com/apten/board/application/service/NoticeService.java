@@ -10,7 +10,10 @@ import com.apten.board.application.model.response.NoticeListRes;
 import com.apten.board.application.model.response.NoticePatchRes;
 import com.apten.board.application.model.response.PageResponse;
 import com.apten.board.domain.entity.Notice;
+import com.apten.board.domain.entity.NoticeFile;
 import com.apten.board.domain.entity.UserCache;
+import com.apten.board.domain.enums.BoardFileType;
+import com.apten.board.domain.repository.NoticeFileRepository;
 import com.apten.board.domain.repository.NoticeRepository;
 import com.apten.board.domain.repository.UserCacheRepository;
 import com.apten.board.exception.BoardErrorCode;
@@ -26,6 +29,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class NoticeService {
@@ -33,6 +38,7 @@ public class NoticeService {
     private final NoticeRepository noticeRepository;
     private final UserCacheRepository userCacheRepository;
     private final BoardOutboxService boardOutboxService;
+    private final NoticeFileRepository noticeFileRepository;
 
     // 공지 작성
     @Transactional
@@ -140,11 +146,21 @@ public class NoticeService {
                 .map(UserCache::getName)
                 .orElse("알 수 없음");
 
+        List<NoticeFile> files = noticeFileRepository.findByNoticeIdOrderBySortOrderAsc(notice.getId());
+        String thumbSavedName = files.stream()
+                .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                .findFirst()
+                .map(NoticeFile::getSavedName)
+                .orElse(null);
+        boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
+
         return NoticeListRes.builder()
                 .noticeId(notice.getId())
                 .title(notice.getTitle())
                 .writerName(writerName)
                 .createdAt(notice.getCreatedAt())
+                .thumbSavedName(thumbSavedName)
+                .hasFile(hasFile)
                 .build();
     }
 
@@ -162,6 +178,18 @@ public class NoticeService {
                 .content(notice.getContent())
                 .createdAt(notice.getCreatedAt())
                 .updatedAt(notice.getUpdatedAt())
+                .files(noticeFileRepository.findByNoticeIdOrderBySortOrderAsc(notice.getId()).stream()
+                        .map(file -> NoticeDetailRes.FileItem.builder()
+                                .fileId(file.getId())
+                                .noticeId(file.getNoticeId())
+                                .originName(file.getOriginName())
+                                .savedName(file.getSavedName())
+                                .filePath(file.getFilePath())
+                                .fileType(file.getFileType())
+                                .fileSize(file.getFileSize())
+                                .sortOrder(file.getSortOrder())
+                                .build())
+                        .toList())
                 .build();
     }
 

@@ -41,8 +41,8 @@ public class Vote extends BaseEntity {
     @Column(name = "complex_id", nullable = false)
     private Long complexId;
 
-    // 공지 ID이다.
-    @Column(name = "notice_id", nullable = false)
+    // 연결 공지 ID이다. 공지 없이 독립 투표로 생성할 수 있으므로 nullable이다.
+    @Column(name = "notice_id", nullable = true)
     private Long noticeId;
 
     // 제목이다.

@@ -23,4 +23,5 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
 
     // 관리자 통계용 댓글 수를 구한다.
     long countByIsDeletedFalse();
+
 }

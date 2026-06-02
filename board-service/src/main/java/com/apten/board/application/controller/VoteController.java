@@ -28,7 +28,7 @@ public class VoteController {
     // 투표 서비스이다.
     private final VoteService voteService;
 
-    //투표 참여 API-516
+    //투표 참여
     @PostMapping("/{voteId}/participations")
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<VoteParticipationRes> participateVote(
@@ -38,13 +38,13 @@ public class VoteController {
         return ResultResponse.success("투표 참여 성공", voteService.participateVote(voteId, request));
     }
 
-    //투표 목록 조회 API-530
+    //투표 목록 조회
     @GetMapping
     public ResultResponse<PageResponse<VoteListRes>> getVoteList(@ModelAttribute VoteListReq request) {
         return ResultResponse.success("투표 목록 조회 성공", voteService.getVoteList(request));
     }
 
-    //투표 상세 조회 API-531
+    //투표 상세 조회
     @GetMapping("/{voteId}")
     public ResultResponse<VoteDetailRes> getVoteDetail(@PathVariable Long voteId) {
         return ResultResponse.success("투표 상세 조회 성공", voteService.getVoteDetail(voteId));

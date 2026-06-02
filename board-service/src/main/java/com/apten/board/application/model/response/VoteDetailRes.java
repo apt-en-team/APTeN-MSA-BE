@@ -1,5 +1,6 @@
 package com.apten.board.application.model.response;
 
+import com.apten.board.domain.enums.VoteChoice;
 import com.apten.board.domain.enums.VoteStatus;
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -22,4 +23,6 @@ public class VoteDetailRes {
     private final Integer householdCount;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
+    private final boolean isParticipated;
+    private final VoteChoice myChoice;
 }

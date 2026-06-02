@@ -1,25 +1,24 @@
 package com.apten.board.application.model.request;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 // 투표 목록 조회 요청이다.
 @Getter
-@Builder
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class VoteListReq {
 
     // 검색어이다.
     private String keyword;
 
+    // 투표 상태 필터이다. (READY | OPEN | CLOSED)
+    private String status;
+
     // 페이지 번호이다.
-    @Builder.Default
     private Integer page = 0;
 
     // 페이지 크기이다.
-    @Builder.Default
     private Integer size = 20;
 }
