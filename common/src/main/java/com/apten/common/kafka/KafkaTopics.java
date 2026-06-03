@@ -28,6 +28,13 @@ public final class KafkaTopics {
     // 시설 이용 비용 산정 이벤트 topic
     public static final String FACILITY_FEE_CALCULATED = "facility.fee.calculated";
 
+    // board-service 도메인 이벤트 topic
+    public static final String BOARD_NOTICE_CREATED = "notice.created";
+    public static final String BOARD_POST_CREATED = "post.created";
+    public static final String BOARD_COMMENT_CREATED = "comment.created";
+    public static final String BOARD_VOTE_CREATED = "vote.created";
+    public static final String BOARD_VOTE_CLOSED = "vote.closed";
+
     // 서비스 → notification-service 알림 생성 요청 topic (전 서비스 공용)
     public static final String NOTIFICATION_REQUEST = "notification-request.v1";
 
