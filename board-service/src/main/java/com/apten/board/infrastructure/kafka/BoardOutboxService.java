@@ -74,12 +74,13 @@ public class BoardOutboxService {
     }
 
     // 댓글 생성 이벤트를 적재한다.
-    public void saveCommentCreatedEvent(BoardComment comment, Long complexId) {
+    public void saveCommentCreatedEvent(BoardComment comment, Long complexId, Long postAuthorId) {
         CommentCreatedEventPayload payload = CommentCreatedEventPayload.builder()
                 .commentId(comment.getId())
                 .postId(comment.getPostId())
                 .complexId(complexId)
                 .userId(comment.getUserId())
+                .postAuthorId(postAuthorId)
                 .content(comment.getContent())
                 .createdAt(comment.getCreatedAt())
                 .build();
