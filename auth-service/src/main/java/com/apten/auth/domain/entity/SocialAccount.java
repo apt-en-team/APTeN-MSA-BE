@@ -8,6 +8,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +17,12 @@ import lombok.NoArgsConstructor;
 // 소셜 로그인 연동 정보를 저장하는 엔티티
 // 제공자 계정과 내부 회원 계정을 연결할 때 사용한다
 @Entity
-@Table(name = "social_account")
+@Table(
+        name = "social_account",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_social_provider_user_id", columnNames = {"provider", "provider_user_id"})
+        }
+)
 @Getter
 @Builder
 @NoArgsConstructor

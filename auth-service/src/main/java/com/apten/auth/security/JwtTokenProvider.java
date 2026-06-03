@@ -10,6 +10,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import javax.crypto.SecretKey;
@@ -30,6 +31,9 @@ public class JwtTokenProvider {
     // 서명과 검증에 사용할 비밀키
     private final SecretKey secretKey;
 
+    // 시작 시 검증을 위해 보관하는 원본 secret 문자열
+    private final String secret;
+
     // access token 만료 시간
     private final long accessTokenExpirationMillis;
 
@@ -38,13 +42,22 @@ public class JwtTokenProvider {
 
     // 설정값을 받아 토큰 서명에 필요한 키와 만료 시간을 준비한다
     public JwtTokenProvider(
-            @Value("${security.jwt.secret:apten-auth-service-secret-key-for-local-template-123456}") String secret,
+            @Value("${security.jwt.secret}") String secret,
             @Value("${security.jwt.access-token-expiration:3600000}") long accessTokenExpirationMillis,
             @Value("${security.jwt.refresh-token-expiration:1209600000}") long refreshTokenExpirationMillis
     ) {
+        this.secret = secret;
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenExpirationMillis = accessTokenExpirationMillis;
         this.refreshTokenExpirationMillis = refreshTokenExpirationMillis;
+    }
+
+    // 서버 시작 시 JWT secret 검증 — 미설정이거나 32바이트(256비트) 미만이면 기동 차단
+    @PostConstruct
+    private void validateSecret() {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("security.jwt.secret이 설정되지 않았거나 32바이트 미만입니다");
+        }
     }
 
     // 로그인 사용자의 ID, 역할, 단지 ID를 담은 access token을 발급한다
