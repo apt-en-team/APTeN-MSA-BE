@@ -28,6 +28,9 @@ public final class KafkaTopics {
     // 시설 이용 비용 산정 이벤트 topic
     public static final String FACILITY_FEE_CALCULATED = "facility.fee.calculated";
 
+    // 차량 상태 변경 이벤트 topic (등록 승인/거절 결과)
+    public static final String VEHICLE_STATUS_CHANGED = "vehicle.status.changed";
+
     // board-service 도메인 이벤트 topic
     public static final String BOARD_NOTICE_CREATED = "notice.created";
     public static final String BOARD_POST_CREATED = "post.created";
