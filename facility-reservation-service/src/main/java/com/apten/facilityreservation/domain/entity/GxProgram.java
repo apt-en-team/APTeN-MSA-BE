@@ -9,7 +9,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -100,12 +99,6 @@ public class GxProgram extends BaseEntity {
     @Builder.Default
     @Column(name = "waiting_enabled", nullable = false)
     private Boolean waitingEnabled = false;
-
-    // 낙관적 락 버전이다. 관리자 승인/거절/취소 동시 처리 충돌을 감지한다.
-    @Version
-    @Column(name = "version", nullable = false)
-    @Builder.Default
-    private Long version = 0L;
 
     // GX 프로그램 수정 요청을 엔티티에 반영한다.
     public void apply(GxProgramPatchReq req) {

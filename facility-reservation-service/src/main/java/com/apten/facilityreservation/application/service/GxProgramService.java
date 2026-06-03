@@ -51,6 +51,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 // GX 프로그램 관리
@@ -202,11 +203,11 @@ public class GxProgramService {
     }
 
     // GX 프로그램 수정
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public GxProgramPatchRes updateGxProgram(Long complexId, Long programId, GxProgramPatchReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        GxProgram program = getGxProgram(complexId, programId);
+        GxProgram program = lockGxProgram(complexId, programId);
 
         // 취소 프로그램 수정 방지
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
@@ -227,11 +228,11 @@ public class GxProgramService {
     }
 
     // GX 프로그램 취소
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public GxProgramCancelRes cancelGxProgram(Long complexId, Long programId, GxProgramCancelReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        GxProgram program = getGxProgram(complexId, programId);
+        GxProgram program = lockGxProgram(complexId, programId);
 
         // 프로그램 재취소 방지
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
@@ -376,11 +377,11 @@ public class GxProgramService {
     }
 
     // GX 신청 일괄 승인
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public GxBulkApproveRes bulkApprove(Long complexId, Long programId, GxBulkApproveReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        GxProgram program = getGxProgram(complexId, programId);
+        GxProgram program = lockGxProgram(complexId, programId);
 
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
             throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
@@ -460,11 +461,11 @@ public class GxProgramService {
     }
 
     // GX 프로그램 모집 마감
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public GxCloseWaitingRes closeWaiting(Long complexId, Long programId, GxCloseWaitingReq req) {
         featureAccessService.validateEnabled(complexId, FeatureCode.FACILITY);
 
-        GxProgram program = getGxProgram(complexId, programId);
+        GxProgram program = lockGxProgram(complexId, programId);
 
         if (program.getStatus() == GxProgramStatus.CANCELLED) {
             throw new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_CANCELLED);
@@ -568,6 +569,11 @@ public class GxProgramService {
     // 단지 GX 프로그램 조회
     private GxProgram getGxProgram(Long complexId, Long programId) {
         return gxProgramRepository.findByIdAndComplexId(programId, complexId)
+                .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
+    }
+
+    private GxProgram lockGxProgram(Long complexId, Long programId) {
+        return gxProgramRepository.findByIdAndComplexIdForUpdate(programId, complexId)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.GX_PROGRAM_NOT_FOUND));
     }
 

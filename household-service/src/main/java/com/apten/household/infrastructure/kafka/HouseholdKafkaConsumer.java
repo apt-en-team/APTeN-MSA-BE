@@ -29,7 +29,6 @@ import org.springframework.stereotype.Component;
 public class HouseholdKafkaConsumer {
 
     private static final String VEHICLE_FEE_CALCULATED_TOPIC = "vehicle.fee.calculated";
-    private static final String FACILITY_FEE_CALCULATED_TOPIC = "facility.fee.calculated";
     private static final String VISITOR_FEE_CALCULATED_TOPIC = "visitor.fee.calculated";
 
     private final HouseholdReferenceCacheService householdReferenceCacheService;
@@ -130,7 +129,7 @@ public class HouseholdKafkaConsumer {
         }
     }
 
-    @KafkaListener(topics = FACILITY_FEE_CALCULATED_TOPIC, groupId = "household-service-facility-fee")
+    @KafkaListener(topics = KafkaTopics.FACILITY_FEE_CALCULATED, groupId = "household-service-facility-fee")
     public void consumeFacilityFeeCalculatedEvent(String message) {
         try {
             JsonNode payload = payloadNode(message);

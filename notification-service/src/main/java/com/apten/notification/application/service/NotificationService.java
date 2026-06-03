@@ -248,6 +248,51 @@ public class NotificationService {
                 .build();
     }
 
+    // 입주민 broadcast 알림 생성 (단지 USER 전체, 작성자 본인 제외)
+    @Transactional
+    public void createResidentBroadcastNotification(
+            Long complexId, String type, String targetType, Long targetId,
+            String title, String content, String linkPath, Long excludeUserId) {
+
+        List<UserCache> residents = userCacheRepository.findByComplexIdAndRoleAndStatus(
+                complexId, UserCacheRole.USER, UserCacheStatus.ACTIVE
+        );
+
+        if (residents.isEmpty()) {
+            log.info("[Notification] 입주민 broadcast 대상 없음. complexId={}, type={}", complexId, type);
+            return;
+        }
+
+        int createdCount = 0;
+        for (UserCache resident : residents) {
+            // 작성자 본인에게는 알림을 보내지 않는다
+            if (excludeUserId != null && excludeUserId.equals(resident.getId())) {
+                continue;
+            }
+            try {
+                NotificationPostRes result = createNotification(NotificationCreateCommand.builder()
+                        .receiverUserId(resident.getId())
+                        .complexId(complexId)
+                        .type(type)
+                        .targetType(targetType)
+                        .targetId(targetId)
+                        .title(title)
+                        .content(content)
+                        .linkPath(linkPath)
+                        .build());
+                if (result.getNotificationId() != null) {
+                    createdCount++;
+                }
+            } catch (Exception exception) {
+                log.warn("[Notification] 입주민 알림 생성 실패. userId={}, complexId={}, type={}",
+                        resident.getId(), complexId, type, exception);
+            }
+        }
+
+        log.info("[Notification] 입주민 broadcast 완료. complexId={}, type={}, target={}, created={}",
+                complexId, type, residents.size(), createdCount);
+    }
+
     // 알림 소유자 확인 (내부 권한 검증용)
     @Transactional(readOnly = true)
     public NotificationOwnerCheckRes checkNotificationOwner(NotificationOwnerCheckReq request) {

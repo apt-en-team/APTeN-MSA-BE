@@ -4,6 +4,9 @@ import com.apten.common.enums.FeatureCode;
 import com.apten.common.enums.ParkingType;
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.common.kafka.payload.NotificationEventPayload;
+import com.apten.parkingvehicle.infrastructure.kafka.ParkingVehicleOutboxService;
+import java.util.Optional;
 import com.apten.parkingvehicle.application.model.event.ZoneCounterChangedEvent;
 import com.apten.parkingvehicle.application.model.request.*;
 import com.apten.parkingvehicle.application.model.response.*;
@@ -70,6 +73,7 @@ public class ParkingService {
 
     // zone 카운터 변경 SSE 이벤트 발행기
     private final ZoneCounterChangePublisher zoneCounterChangePublisher;
+    private final Optional<ParkingVehicleOutboxService> outboxService;
 
     // 입출차 기록을 조회한다.
     // 단지 컨텍스트로 범위를 제한하고, 기간/차량번호/입출차/차종 필터를 적용해서 페이지로 반환한다.
@@ -401,6 +405,9 @@ public class ParkingService {
                         visitorVehicleRepository.save(v);
                     });
         }
+
+        // 입출차 알림 (등록 차량 / 방문 차량 → 등록한 입주민에게 알림)
+        sendParkingNotification(saved, matchedVehicleId, matchedVisitorVehicleId, matchedRegularVisitorVehicleId, targetComplexId);
 
         // 변경 후 zone 점유 수와 면수를 트랜잭션 안에서 미리 계산 (커밋 후 발행에 사용)
         long zoneOccupied = parkingLogRepository.countCurrentParkedInZone(targetComplexId, zone.getId());
@@ -1228,6 +1235,62 @@ public class ParkingService {
     }
 
     // DB 커밋 후 zone 카운터 변경 SSE 발행 등록 (롤백 시 SSE 미발행)
+    // 입출차 알림 — 등록 차량/방문 차량 매칭 시 등록한 입주민에게 알림 발송
+    private void sendParkingNotification(
+            ParkingLog log,
+            Long matchedVehicleId,
+            Long matchedVisitorVehicleId,
+            Long matchedRegularVisitorVehicleId,
+            Long complexId) {
+
+        outboxService.ifPresent(svc -> {
+            boolean isEntry = log.getEntryType() == ParkingEntryType.IN;
+
+            if (matchedVehicleId != null) {
+                vehicleRepository.findById(matchedVehicleId).ifPresent(v -> svc.saveNotificationEvent(
+                        NotificationEventPayload.builder()
+                                .receiverUserId(v.getUserId())
+                                .complexId(complexId)
+                                .type(isEntry ? "VEHICLE_ENTRY" : "VEHICLE_EXIT")
+                                .targetType("VEHICLE")
+                                .targetId(matchedVehicleId)
+                                .title(isEntry ? "등록 차량이 입차했습니다." : "등록 차량이 출차했습니다.")
+                                .content(log.getLicensePlate() + " 차량이 " + (isEntry ? "입차" : "출차") + "했습니다.")
+                                .linkPath("/resident/" + complexId + "/parking")
+                                .build()
+                ));
+
+            } else if (matchedVisitorVehicleId != null) {
+                visitorVehicleRepository.findById(matchedVisitorVehicleId).ifPresent(v -> svc.saveNotificationEvent(
+                        NotificationEventPayload.builder()
+                                .receiverUserId(v.getUserId())
+                                .complexId(complexId)
+                                .type(isEntry ? "VISITOR_VEHICLE_ENTRY" : "VISITOR_VEHICLE_EXIT")
+                                .targetType("VISITOR_VEHICLE")
+                                .targetId(matchedVisitorVehicleId)
+                                .title(isEntry ? "방문 차량이 입차했습니다." : "방문 차량이 출차했습니다.")
+                                .content(log.getLicensePlate() + " 방문 차량이 " + (isEntry ? "입차" : "출차") + "했습니다.")
+                                .linkPath("/resident/" + complexId + "/parking")
+                                .build()
+                ));
+
+            } else if (matchedRegularVisitorVehicleId != null) {
+                regularVisitorVehicleRepository.findById(matchedRegularVisitorVehicleId).ifPresent(v -> svc.saveNotificationEvent(
+                        NotificationEventPayload.builder()
+                                .receiverUserId(v.getUserId())
+                                .complexId(complexId)
+                                .type(isEntry ? "VISITOR_VEHICLE_ENTRY" : "VISITOR_VEHICLE_EXIT")
+                                .targetType("VISITOR_VEHICLE")
+                                .targetId(matchedRegularVisitorVehicleId)
+                                .title(isEntry ? "고정 방문 차량이 입차했습니다." : "고정 방문 차량이 출차했습니다.")
+                                .content(log.getLicensePlate() + " 방문 차량이 " + (isEntry ? "입차" : "출차") + "했습니다.")
+                                .linkPath("/resident/" + complexId + "/parking")
+                                .build()
+                ));
+            }
+        });
+    }
+
     private void registerZoneCounterPublish(Long complexId, Long zoneId, int zoneOccupied, int zoneTotalSlots) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

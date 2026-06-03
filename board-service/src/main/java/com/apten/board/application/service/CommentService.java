@@ -51,7 +51,7 @@ public class CommentService {
                 .content(request.getContent())
                 .build());
 
-        boardOutboxService.saveCommentCreatedEvent(comment, post.getComplexId());
+        boardOutboxService.saveCommentCreatedEvent(comment, post.getComplexId(), post.getUserId());
 
         return CommentCreateRes.builder()
                 .commentId(comment.getId())

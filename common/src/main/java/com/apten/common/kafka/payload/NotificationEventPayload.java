@@ -1,17 +1,17 @@
-package com.apten.facilityreservation.infrastructure.client.model;
+package com.apten.common.kafka.payload;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// notification-service /internal/notifications/admin-broadcast 요청 DTO
-// complexId 기준 ACTIVE ADMIN/MANAGER 전체에게 알림을 생성할 때 사용한다
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class NotificationAdminBroadcastReq {
+public class NotificationEventPayload {
+
+    private Long receiverUserId;
     private Long complexId;
     private String type;
     private String targetType;

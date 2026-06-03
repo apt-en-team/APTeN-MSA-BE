@@ -51,8 +51,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import com.apten.common.kafka.payload.NotificationEventPayload;
+import com.apten.household.domain.enums.HouseholdMemberRole;
+import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +82,7 @@ public class HouseholdBillService {
     private final FacilityUsageSnapshotRepository facilityUsageSnapshotRepository;
     private final VehicleSnapshotRepository vehicleSnapshotRepository;
     private final ComplexPolicyRepository complexPolicyRepository;
+    private final Optional<HouseholdOutboxService> outboxService;
 
     // 단지 기본 관리비 정책을 해당 월의 입주 세대 청구서에 반영한다.
     public BaseFeeReflectRes reflectBaseFee(Long complexId, BaseFeeReflectReq request) {
@@ -231,6 +236,22 @@ public class HouseholdBillService {
         refreshLateFee(bill, LocalDate.now());
         bill.confirm(confirmedAt);
         householdBillRepository.save(bill);
+
+        // 세대장에게 관리비 발생 알림을 발송한다
+        householdMemberRepository
+                .findByHouseholdIdAndRoleAndIsActiveTrue(bill.getHouseholdId(), HouseholdMemberRole.HEAD)
+                .ifPresent(head -> outboxService.ifPresent(svc -> svc.saveNotificationEvent(
+                        NotificationEventPayload.builder()
+                                .receiverUserId(head.getUserId())
+                                .complexId(bill.getComplexId())
+                                .type("MAINTENANCE_FEE_CREATED")
+                                .targetType("MAINTENANCE_FEE")
+                                .targetId(bill.getId())
+                                .title("관리비가 청구되었습니다.")
+                                .content(bill.getBillYear() + "년 " + bill.getBillMonth() + "월 관리비가 확정되었습니다.")
+                                .linkPath("/resident/" + bill.getComplexId() + "/bills")
+                                .build()
+                )));
 
         return BillConfirmRes.builder()
                 .billId(bill.getId())
