@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 // 댓글 API 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/boards")
+@RequestMapping("/api/boards")
 public class CommentController {
 
     // 댓글 서비스이다.

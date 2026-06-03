@@ -31,4 +31,10 @@ public interface BoardPostRepository extends JpaRepository<BoardPost, Long> {
     long countByComplexIdAndIsDeletedFalse(Long complexId);
 
     Optional<BoardPost> findByIdAndComplexId(Long id, Long complexId);
+
+    Page<BoardPost> findByComplexIdOrderByCreatedAtDesc(Long complexId, Pageable pageable);
+
+    List<BoardPost> findTop10ByComplexIdAndIsDeletedFalseAndLikeCountGreaterThanOrderByLikeCountDescCreatedAtDesc(Long complexId, int likeCount);
+
+    long countByComplexIdAndIsDeletedTrue(Long complexId);
 }

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class VoteCreateReq {
 
-    // 연결할 공지 ID이다.
+    // 연결할 공지 ID이다. 공지 없이 독립 투표로 생성할 수 있으므로 optional이다.
     private Long noticeId;
 
     // 투표 제목이다.

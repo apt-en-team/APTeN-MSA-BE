@@ -22,6 +22,7 @@ public class PostDetailRes {
     private final Boolean liked;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
+    private final Boolean isDeleted;
     private final List<FileItem> files;
 
     @Getter
