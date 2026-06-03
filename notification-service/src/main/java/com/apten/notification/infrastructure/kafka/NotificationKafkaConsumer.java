@@ -224,6 +224,48 @@ public class NotificationKafkaConsumer {
         }
     }
 
+    // 세대 매칭 결과 이벤트 → SIGNUP_APPROVED / SIGNUP_REJECTED 단건 알림
+    @KafkaListener(topics = KafkaTopics.HOUSEHOLD, groupId = "notification-service-household-match")
+    public void consumeHouseholdMatchResultEvent(String message) {
+        try {
+            EventEnvelope<JsonNode> envelope = objectMapper.readValue(
+                    message, new TypeReference<EventEnvelope<JsonNode>>() {}
+            );
+
+            String eventType = envelope.getEventType() == null ? null : envelope.getEventType().name();
+
+            if (!EventType.HOUSEHOLD_MATCH_APPROVED.name().equals(eventType)
+                    && !EventType.HOUSEHOLD_MATCH_REJECTED.name().equals(eventType)) {
+                return;
+            }
+
+            JsonNode payload = envelope.getPayload();
+            Long userId    = longValue(payload, "userId");
+            Long complexId = longValue(payload, "complexId");
+
+            if (userId == null || complexId == null) {
+                log.warn("household match result event missing userId or complexId. message={}", message);
+                return;
+            }
+
+            boolean approved = EventType.HOUSEHOLD_MATCH_APPROVED.name().equals(eventType);
+            notificationService.createNotification(NotificationPostReq.builder()
+                    .receiverUserId(userId)
+                    .complexId(complexId)
+                    .type(approved ? "SIGNUP_APPROVED" : "SIGNUP_REJECTED")
+                    .targetType("USER")
+                    .targetId(userId)
+                    .title(approved ? "입주 신청이 승인되었습니다." : "입주 신청이 반려되었습니다.")
+                    .content(approved ? "단지 입주 신청이 승인되었습니다. 서비스를 이용하실 수 있습니다."
+                                      : "단지 입주 신청이 반려되었습니다. 관리사무소에 문의해 주세요.")
+                    .linkPath("/resident/" + complexId + "/home")
+                    .build());
+
+        } catch (Exception e) {
+            log.error("Failed to consume household match result event. message={}", message, e);
+        }
+    }
+
     // BoardEventEnvelope의 payload 필드를 추출한다 (EventEnvelope와 동일한 구조)
     private JsonNode payloadNode(String message) throws Exception {
         JsonNode root = objectMapper.readTree(message);
