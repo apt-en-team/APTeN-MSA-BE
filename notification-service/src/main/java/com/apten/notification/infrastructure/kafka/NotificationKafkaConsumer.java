@@ -3,6 +3,7 @@ package com.apten.notification.infrastructure.kafka;
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
 import com.apten.common.kafka.KafkaTopics;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.apten.common.kafka.payload.NotificationAdminBroadcastEventPayload;
 import com.apten.common.kafka.payload.NotificationEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
@@ -106,5 +107,132 @@ public class NotificationKafkaConsumer {
                 .linkPath(payload.getLinkPath())
                 .payloadJson(payload.getPayloadJson())
                 .build();
+    }
+
+    // 공지사항 등록 → 단지 입주민 전체 broadcast
+    @KafkaListener(topics = KafkaTopics.BOARD_NOTICE_CREATED, groupId = "notification-service-notice")
+    public void consumeNoticeCreatedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            Long complexId = longValue(payload, "complexId");
+            Long noticeId  = longValue(payload, "noticeId");
+            String title   = payload.path("title").asText();
+
+            notificationService.createResidentBroadcastNotification(
+                    complexId, "NOTICE_CREATED", "NOTICE", noticeId,
+                    "새 공지사항이 등록되었습니다.",
+                    title,
+                    "/resident/" + complexId + "/notices/" + noticeId,
+                    null
+            );
+        } catch (Exception e) {
+            log.error("Failed to consume notice created event. message={}", message, e);
+        }
+    }
+
+    // 게시글 등록 → 단지 입주민 전체 broadcast (작성자 본인 제외)
+    @KafkaListener(topics = KafkaTopics.BOARD_POST_CREATED, groupId = "notification-service-post")
+    public void consumePostCreatedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            Long complexId = longValue(payload, "complexId");
+            Long postId    = longValue(payload, "postId");
+            Long userId    = longValue(payload, "userId");
+            String title   = payload.path("title").asText();
+
+            notificationService.createResidentBroadcastNotification(
+                    complexId, "POST_CREATED", "POST", postId,
+                    "새 게시글이 등록되었습니다.",
+                    title,
+                    "/resident/" + complexId + "/board/" + postId,
+                    userId
+            );
+        } catch (Exception e) {
+            log.error("Failed to consume post created event. message={}", message, e);
+        }
+    }
+
+    // 댓글 등록 → 게시글 작성자 단건 (본인 댓글 제외)
+    @KafkaListener(topics = KafkaTopics.BOARD_COMMENT_CREATED, groupId = "notification-service-comment")
+    public void consumeCommentCreatedEvent(String message) {
+        try {
+            JsonNode payload    = payloadNode(message);
+            Long complexId      = longValue(payload, "complexId");
+            Long postId         = longValue(payload, "postId");
+            Long userId         = longValue(payload, "userId");
+            Long postAuthorId   = longValue(payload, "postAuthorId");
+
+            // 작성자 본인 댓글이면 알림 불필요
+            if (postAuthorId == null || postAuthorId.equals(userId)) {
+                return;
+            }
+
+            notificationService.createNotification(NotificationPostReq.builder()
+                    .receiverUserId(postAuthorId)
+                    .complexId(complexId)
+                    .type("COMMENT_CREATED")
+                    .targetType("COMMENT")
+                    .targetId(longValue(payload, "commentId"))
+                    .title("내 게시글에 댓글이 달렸습니다.")
+                    .content(payload.path("content").asText())
+                    .linkPath("/resident/" + complexId + "/board/" + postId)
+                    .build());
+        } catch (Exception e) {
+            log.error("Failed to consume comment created event. message={}", message, e);
+        }
+    }
+
+    // 투표 생성 → 단지 입주민 전체 broadcast
+    @KafkaListener(topics = KafkaTopics.BOARD_VOTE_CREATED, groupId = "notification-service-vote-created")
+    public void consumeVoteCreatedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            Long complexId   = longValue(payload, "complexId");
+            Long voteId      = longValue(payload, "voteId");
+            String title     = payload.path("title").asText();
+
+            notificationService.createResidentBroadcastNotification(
+                    complexId, "VOTE_CREATED", "VOTE", voteId,
+                    "새 투표가 개설되었습니다.",
+                    title,
+                    "/resident/" + complexId + "/votes/" + voteId,
+                    null
+            );
+        } catch (Exception e) {
+            log.error("Failed to consume vote created event. message={}", message, e);
+        }
+    }
+
+    // 투표 마감 → 단지 입주민 전체 broadcast
+    @KafkaListener(topics = KafkaTopics.BOARD_VOTE_CLOSED, groupId = "notification-service-vote-closed")
+    public void consumeVoteClosedEvent(String message) {
+        try {
+            JsonNode payload = payloadNode(message);
+            Long complexId   = longValue(payload, "complexId");
+            Long voteId      = longValue(payload, "voteId");
+            String title     = payload.path("title").asText();
+
+            notificationService.createResidentBroadcastNotification(
+                    complexId, "VOTE_CLOSED", "VOTE", voteId,
+                    "투표가 마감되었습니다.",
+                    title,
+                    "/resident/" + complexId + "/votes/" + voteId,
+                    null
+            );
+        } catch (Exception e) {
+            log.error("Failed to consume vote closed event. message={}", message, e);
+        }
+    }
+
+    // BoardEventEnvelope의 payload 필드를 추출한다 (EventEnvelope와 동일한 구조)
+    private JsonNode payloadNode(String message) throws Exception {
+        JsonNode root = objectMapper.readTree(message);
+        JsonNode payload = root.path("payload");
+        return payload.isMissingNode() || payload.isNull() ? root : payload;
+    }
+
+    private Long longValue(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        return value.isMissingNode() || value.isNull() ? null : value.asLong();
     }
 }
