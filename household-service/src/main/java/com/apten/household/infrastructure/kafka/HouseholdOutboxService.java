@@ -6,6 +6,7 @@ import com.apten.common.kafka.KafkaTopics;
 import com.apten.common.kafka.payload.HouseholdEventPayload;
 import com.apten.common.kafka.payload.HouseholdMatchResultEventPayload;
 import com.apten.common.kafka.payload.HouseholdMemberEventPayload;
+import com.apten.common.kafka.payload.NotificationEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
 import com.apten.household.domain.entity.Household;
@@ -70,6 +71,12 @@ public class HouseholdOutboxService {
     public void saveHouseholdHeadChangedEvent(HouseholdMember householdMember) {
         // 세대주 변경도 세대원 역할 변경이므로 수정 이벤트로 적재한다.
         saveHouseholdMemberUpdatedEvent(householdMember);
+    }
+
+    // 입주민 단건 알림 이벤트를 notification-service로 발행한다.
+    public void saveNotificationEvent(NotificationEventPayload payload) {
+        saveOutboxEvent(KafkaTopics.NOTIFICATION_REQUEST, EventType.NOTIFICATION_REQUESTED,
+                payload.getTargetId(), payload);
     }
 
     // 세대 매칭 승인 결과 이벤트 적재 준비 메서드이다.
