@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "apten.scheduler.monthly-vehicle-fee.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "apten.scheduler.monthly-vehicle-fee.enabled", havingValue = "true", matchIfMissing = true)
 public class MonthlyVehicleFeeScheduler {
 
     // 단지 캐시 저장소
@@ -27,7 +27,8 @@ public class MonthlyVehicleFeeScheduler {
     private final ParkingFeeCalculationService parkingFeeCalculationService;
 
     // 직전 월 차량 비용 산정을 단지 단위 격리 실행
-    @Scheduled(cron = "${apten.scheduler.monthly-vehicle-fee.cron}")
+    @Scheduled(cron = "0 0 2 2 * *")
+    // ShedLock 분산락 유지 — Redis 연결 실패 시 락 획득 실패로 이번 실행이 조용히 스킵될 수 있다.
     @SchedulerLock(name = "monthly-vehicle-fee", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     public void runMonthlyCalculation() {
         // 직전 월 계산
