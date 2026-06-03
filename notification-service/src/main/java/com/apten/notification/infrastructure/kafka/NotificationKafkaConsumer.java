@@ -224,6 +224,51 @@ public class NotificationKafkaConsumer {
         }
     }
 
+    // 차량 상태 변경 이벤트 → VEHICLE_REGISTRATION_APPROVED / REJECTED 단건 알림
+    @KafkaListener(topics = KafkaTopics.VEHICLE_STATUS_CHANGED, groupId = "notification-service-vehicle-status")
+    public void consumeVehicleStatusChangedEvent(String message) {
+        try {
+            EventEnvelope<JsonNode> envelope = objectMapper.readValue(
+                    message, new TypeReference<EventEnvelope<JsonNode>>() {}
+            );
+            JsonNode payload = envelope.getPayload();
+            String status  = payload.path("status").asText();
+            Long userId    = longValue(payload, "userId");
+            Long complexId = longValue(payload, "complexId");
+            Long vehicleId = longValue(payload, "vehicleId");
+            String plate   = payload.path("licensePlate").asText();
+
+            if (userId == null || complexId == null) return;
+
+            if ("APPROVED".equals(status)) {
+                notificationService.createNotification(NotificationPostReq.builder()
+                        .receiverUserId(userId)
+                        .complexId(complexId)
+                        .type("VEHICLE_REGISTRATION_APPROVED")
+                        .targetType("VEHICLE")
+                        .targetId(vehicleId)
+                        .title("차량 등록이 승인되었습니다.")
+                        .content("차량번호 " + plate + " 등록이 승인되었습니다.")
+                        .linkPath("/resident/" + complexId + "/vehicles")
+                        .build());
+
+            } else if ("REJECTED".equals(status)) {
+                notificationService.createNotification(NotificationPostReq.builder()
+                        .receiverUserId(userId)
+                        .complexId(complexId)
+                        .type("VEHICLE_REGISTRATION_REJECTED")
+                        .targetType("VEHICLE")
+                        .targetId(vehicleId)
+                        .title("차량 등록이 반려되었습니다.")
+                        .content("차량번호 " + plate + " 등록이 반려되었습니다. 관리사무소에 문의해 주세요.")
+                        .linkPath("/resident/" + complexId + "/vehicles")
+                        .build());
+            }
+        } catch (Exception e) {
+            log.error("Failed to consume vehicle status changed event. message={}", message, e);
+        }
+    }
+
     // 세대 매칭 결과 이벤트 → SIGNUP_APPROVED / SIGNUP_REJECTED 단건 알림
     @KafkaListener(topics = KafkaTopics.HOUSEHOLD, groupId = "notification-service-household-match")
     public void consumeHouseholdMatchResultEvent(String message) {
