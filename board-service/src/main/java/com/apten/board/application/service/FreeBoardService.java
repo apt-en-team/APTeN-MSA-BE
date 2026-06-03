@@ -18,7 +18,6 @@ import com.apten.board.application.model.response.PostLikeToggleRes;
 import com.apten.board.application.model.response.PostListRes;
 import com.apten.board.application.model.response.PostPatchRes;
 import com.apten.board.domain.entity.BoardFile;
-import com.apten.board.domain.entity.BoardLike;
 import com.apten.board.domain.entity.BoardPost;
 import com.apten.board.domain.entity.UserCache;
 import com.apten.board.domain.enums.BoardFileType;
@@ -127,7 +126,7 @@ public class FreeBoardService {
                 .build();
     }
 
-    //게시글 상세 조회
+    // 게시글 상세 조회
     @Transactional
     public PostDetailRes getPostDetail(Long postId) {
         BoardPost post = getPost(postId);
@@ -166,8 +165,7 @@ public class FreeBoardService {
                 .build();
     }
 
-
-    //게시글 수정
+    // 게시글 수정
     @Transactional
     public PostPatchRes updatePost(Long postId, PostPatchReq request) {
         BoardPost post = getPost(postId);
@@ -182,7 +180,7 @@ public class FreeBoardService {
                 .build();
     }
 
-    //게시글 삭제
+    // 게시글 삭제
     @Transactional
     public PostDeleteRes deletePost(Long postId) {
         BoardPost post = getPost(postId);
@@ -195,8 +193,7 @@ public class FreeBoardService {
                 .build();
     }
 
-
-    //좋아요 등록 또는 취소
+    // 좋아요 등록 또는 취소
     @Transactional
     public PostLikeToggleRes togglePostLike(Long postId) {
         BoardPost post = getPost(postId);
@@ -221,7 +218,7 @@ public class FreeBoardService {
                 .build();
     }
 
-    //내 게시글 조회
+    // 내 게시글 조회 — thumbSavedName, hasFile 포함
     @Transactional(readOnly = true)
     public PageResponse<MyPostListRes> getMyPostList(MyPostListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
@@ -237,6 +234,14 @@ public class FreeBoardService {
                     String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
                     String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
 
+                    List<BoardFile> files = boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+                    String thumbSavedName = files.stream()
+                            .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                            .findFirst()
+                            .map(BoardFile::getSavedName)
+                            .orElse(null);
+                    boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
+
                     return MyPostListRes.builder()
                             .postId(post.getId())
                             .writerName(writerName)
@@ -245,6 +250,8 @@ public class FreeBoardService {
                             .viewCount(post.getViewCount())
                             .likeCount(post.getLikeCount())
                             .createdAt(post.getCreatedAt())
+                            .thumbSavedName(thumbSavedName)
+                            .hasFile(hasFile)
                             .build();
                 }).toList())
                 .page(page.getNumber())
@@ -255,24 +262,44 @@ public class FreeBoardService {
                 .build();
     }
 
-    //인기글 조회
+    // 인기글 조회 — thumbSavedName, hasFile 포함
     @Transactional(readOnly = true)
     public List<PopularPostListRes> getPopularPostList(PopularPostListReq request) {
-        //TODO 인기글 기준 기간과 정렬 조건을 QueryDSL 또는 Mapper로 최적화
-        return boardPostRepository.findTop10ByComplexIdAndIsDeletedFalseOrderByLikeCountDescCreatedAtDesc(currentComplexId())
+        return boardPostRepository
+                .findTop10ByComplexIdAndIsDeletedFalseAndLikeCountGreaterThanOrderByLikeCountDescCreatedAtDesc(currentComplexId(), 0)
                 .stream()
                 .limit(Math.max(1, request.getSize()))
-                .map(post -> PopularPostListRes.builder()
-                        .postId(post.getId())
-                        .title(post.getTitle())
-                        .likeCount(post.getLikeCount())
-                        .viewCount(post.getViewCount())
-                        .createdAt(post.getCreatedAt())
-                        .build())
+                .map(post -> {
+                    String writerName = userCacheRepository.findById(post.getUserId())
+                            .map(UserCache::getName)
+                            .orElse("알 수 없음");
+
+                    int commentCount = (int) boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId());
+
+                    List<BoardFile> files = boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+                    String thumbSavedName = files.stream()
+                            .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                            .findFirst()
+                            .map(BoardFile::getSavedName)
+                            .orElse(null);
+                    boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
+
+                    return PopularPostListRes.builder()
+                            .postId(post.getId())
+                            .title(post.getTitle())
+                            .writerName(writerName)
+                            .commentCount(commentCount)
+                            .likeCount(post.getLikeCount())
+                            .viewCount(post.getViewCount())
+                            .createdAt(post.getCreatedAt())
+                            .thumbSavedName(thumbSavedName)
+                            .hasFile(hasFile)
+                            .build();
+                })
                 .toList();
     }
 
-    //관리자 게시글 강제 삭제
+    // 관리자 게시글 강제 삭제
     @Transactional
     public AdminPostDeleteRes forceDeletePost(Long postId) {
         BoardPost post = getPost(postId);
@@ -284,10 +311,59 @@ public class FreeBoardService {
                 .build();
     }
 
-    //게시판 통계 조회
+    @Transactional(readOnly = true)
+    public PageResponse<PostListRes> getAdminPostList(PostListReq request) {
+        Pageable pageable = buildPageable(request.getPage(), request.getSize());
+        Page<BoardPost> page = boardPostRepository
+                .findByComplexIdOrderByCreatedAtDesc(currentComplexId(), pageable);
+
+        return PageResponse.<PostListRes>builder()
+                .content(page.getContent().stream().map(this::toAdminPostListRes).toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .build();
+    }
+
+    private PostListRes toAdminPostListRes(BoardPost post) {
+        String writerName = userCacheRepository.findById(post.getUserId())
+                .map(UserCache::getName)
+                .orElse("알 수 없음");
+
+        String rawContent = post.getContent() != null ? post.getContent() : "";
+        String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
+        String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
+        List<BoardFile> files = boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+        String thumbSavedName = files.stream()
+                .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                .findFirst()
+                .map(BoardFile::getSavedName)
+                .orElse(null);
+        boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
+
+        return PostListRes.builder()
+                .postId(post.getId())
+                .userId(post.getUserId())
+                .writerName(writerName)
+                .category(post.getCategory())
+                .title(post.getTitle())
+                .preview(preview)
+                .viewCount(post.getViewCount())
+                .likeCount(post.getLikeCount())
+                .isDeleted(post.getIsDeleted())
+                .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
+                .createdAt(post.getCreatedAt())
+                .thumbSavedName(thumbSavedName)
+                .hasFile(hasFile)
+                .build();
+    }
+
+    // 게시판 통계 조회
     @Transactional(readOnly = true)
     public BoardStatisticsRes getBoardStatistics(BoardStatisticsReq request) {
-        //TODO 기간 조건이 필요하면 createdAt 범위와 복합 쿼리로 최적화
         Long complexId = currentComplexId();
 
         return BoardStatisticsRes.builder()
@@ -295,6 +371,7 @@ public class FreeBoardService {
                 .commentCount(boardCommentRepository.countByIsDeletedFalse())
                 .noticeCount(noticeRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .voteCount(voteRepository.countByComplexId(complexId))
+                .deletedPostCount(boardPostRepository.countByComplexIdAndIsDeletedTrue(complexId))
                 .build();
     }
 
@@ -322,6 +399,7 @@ public class FreeBoardService {
                 .liked(liked)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
+                .isDeleted(post.getIsDeleted())
                 .files(boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId()).stream()
                         .map(file -> PostDetailRes.FileItem.builder()
                                 .fileId(file.getId())
@@ -336,26 +414,31 @@ public class FreeBoardService {
                 .build();
     }
 
-    //현재 사용자 기준 단지 게시글을 조회한다.
     private BoardPost getPost(Long postId) {
         return boardPostRepository.findByIdAndComplexIdAndIsDeletedFalse(postId, currentComplexId())
                 .orElseThrow(() -> new BusinessException(BoardErrorCode.POST_NOT_FOUND));
     }
 
-    //게시글 작성자 검증을 수행한다.
     private void validatePostWriter(BoardPost post) {
         if (!post.getUserId().equals(currentUserId())) {
             throw new BusinessException(BoardErrorCode.POST_WRITER_MISMATCH);
         }
     }
 
-    //현재 요청 사용자 캐시를 조회한다.
     private UserCache getCurrentActiveUser() {
-        return userCacheRepository.findByIdAndStatus(currentUserId(), UserCacheStatus.ACTIVE)
+        Long userId = currentUserId();
+        UserCache user = userCacheRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(BoardErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() == UserCacheStatus.PENDING) {
+            throw new BusinessException(BoardErrorCode.PENDING_APPROVAL);
+        }
+        if (user.getStatus() != UserCacheStatus.ACTIVE) {
+            throw new BusinessException(BoardErrorCode.USER_NOT_FOUND);
+        }
+        return user;
     }
 
-    //현재 사용자 ID를 반환한다.
     private Long currentUserId() {
         UserContext userContext = UserContextHolder.get();
         if (userContext == null || userContext.getUserId() == null) {
@@ -364,7 +447,6 @@ public class FreeBoardService {
         return userContext.getUserId();
     }
 
-    //현재 단지 ID를 반환한다.
     private Long currentComplexId() {
         UserContext userContext = UserContextHolder.get();
         if (userContext == null || userContext.getComplexId() == null) {
@@ -373,7 +455,6 @@ public class FreeBoardService {
         return userContext.getComplexId();
     }
 
-    //컨텍스트 단지 ID가 없으면 사용자 캐시 값을 사용한다.
     private Long resolveCurrentComplexId(UserCache userCache) {
         UserContext userContext = UserContextHolder.get();
         if (userContext != null && userContext.getComplexId() != null) {
@@ -382,23 +463,28 @@ public class FreeBoardService {
         return userCache.getComplexId();
     }
 
-    //페이지 요청을 안전하게 만든다.
     private Pageable buildPageable(Integer page, Integer size) {
         int safePage = page == null || page < 0 ? 0 : page;
         int safeSize = size == null || size <= 0 ? 20 : size;
         return PageRequest.of(safePage, safeSize);
     }
 
-    //게시글 목록 응답으로 변환한다.
     private PostListRes toPostListRes(BoardPost post) {
         String writerName = userCacheRepository.findById(post.getUserId())
                 .map(UserCache::getName)
                 .orElse("알 수 없음");
 
-        // HTML 태그 제거 후 50자 미리보기
         String rawContent = post.getContent() != null ? post.getContent() : "";
         String plainText = rawContent.replaceAll("<[^>]*>", "").trim();
         String preview = plainText.length() > 50 ? plainText.substring(0, 50) + "..." : plainText;
+
+        List<BoardFile> files = boardFileRepository.findByPostIdOrderBySortOrderAsc(post.getId());
+        String thumbSavedName = files.stream()
+                .filter(f -> f.getFileType() == BoardFileType.IMAGE)
+                .findFirst()
+                .map(BoardFile::getSavedName)
+                .orElse(null);
+        boolean hasFile = files.stream().anyMatch(f -> f.getFileType() == BoardFileType.FILE);
 
         return PostListRes.builder()
                 .postId(post.getId())
@@ -411,6 +497,8 @@ public class FreeBoardService {
                 .likeCount(post.getLikeCount())
                 .commentCount(boardCommentRepository.countByPostIdAndIsDeletedFalse(post.getId()))
                 .createdAt(post.getCreatedAt())
+                .thumbSavedName(thumbSavedName)
+                .hasFile(hasFile)
                 .build();
     }
 }

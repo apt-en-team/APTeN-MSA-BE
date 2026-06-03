@@ -11,4 +11,5 @@ public class BoardStatisticsRes {
     private final Long commentCount;
     private final Long noticeCount;
     private final Long voteCount;
+    private final Long deletedPostCount;
 }

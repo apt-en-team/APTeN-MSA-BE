@@ -23,9 +23,6 @@ constants:
 apten:
   outbox:
     enabled: true
-  internal:
-    notification:
-      service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:9081}
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}
@@ -41,3 +38,6 @@ apten:
     gx-approval-reminder:
       enabled: ${APTEN_SCHEDULER_GX_APPROVAL_REMINDER_ENABLED:true}
       cron: ${APTEN_SCHEDULER_GX_APPROVAL_REMINDER_CRON:0 0 9 * * *}
+    facility-reminder:
+      enabled: ${APTEN_SCHEDULER_FACILITY_REMINDER_ENABLED:true}
+      cron: ${APTEN_SCHEDULER_FACILITY_REMINDER_CRON:0 */5 * * * *}

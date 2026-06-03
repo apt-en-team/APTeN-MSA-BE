@@ -275,7 +275,7 @@ public class AuthService {
                 .email(savedUser.getEmail())
                 .name(savedUser.getName())
                 .role(savedUser.getRole().getValue())
-                .status(savedUser.getStatus().getValue())
+                .status(savedUser.getStatus().name())
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -326,7 +326,7 @@ public class AuthService {
                 .email(savedUser.getEmail())
                 .name(savedUser.getName())
                 .role(savedUser.getRole().getValue())
-                .status(savedUser.getStatus().getValue())
+                .status(savedUser.getStatus().name())
                 .createdAt(LocalDateTime.now())
                 .build();
     }

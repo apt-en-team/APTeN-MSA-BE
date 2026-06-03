@@ -3,6 +3,8 @@ spring:
     web-application-type: reactive  # Gateway는 WebFlux 기반 — 리액티브 모드 강제 설정
   application:
     name: gateway-service
+  codec:
+    max-in-memory-size: 200MB
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
@@ -16,6 +18,8 @@ spring:
       - optional:file:../.env[.properties]
   cloud:
     gateway:
+      httpclient:
+        max-header-size: 65536
       # 4.0.x 버전 Servlet Gateway의 핵심 설정 프리픽스
       server:
         webmvc:
@@ -61,7 +65,7 @@ spring:
         - id: parking-vehicle-service
           uri: http://localhost:${PARKING_SERVER_PORT}
           predicates:
-            - Path=/parking-vehicles/**,/api/vehicles,/api/vehicles/**,/api/visitor-vehicles,/api/visitor-vehicles/**,/api/regular-visitor-vehicles,/api/regular-visitor-vehicles/**,/api/admin/vehicles,/api/admin/vehicles/**,/api/admin/vehicle-stats,/api/admin/vehicle-locations,/api/admin/visitor-vehicles,/api/admin/visitor-vehicles/**,/api/admin/visitor-vehicle-stats,/api/admin/regular-visitor-vehicles,/api/admin/regular-visitor-vehicles/**,/api/admin/vehicle-policies,/api/admin/visitor-policy,/api/admin/vehicle-registration-policies,/api/admin/vehicle-registration-policies/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
+            - Path=/parking-vehicles/**,/api/vehicles,/api/vehicles/**,/api/visitor-vehicles,/api/visitor-vehicles/**,/api/regular-visitor-vehicles,/api/regular-visitor-vehicles/**,/api/admin/vehicles,/api/admin/vehicles/**,/api/admin/vehicle-stats,/api/admin/vehicle-locations,/api/admin/visitor-vehicles,/api/admin/visitor-vehicles/**,/api/admin/visitor-vehicle-stats,/api/admin/regular-visitor-vehicles,/api/admin/regular-visitor-vehicles/**,/api/admin/vehicle-policies,/api/admin/visitor-policies,/api/admin/vehicle-registration-policies,/api/admin/vehicle-registration-policies/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
 
         - id: facility-reservation-service-admin
           uri: http://localhost:${FACILITY_SERVER_PORT}
@@ -76,7 +80,7 @@ spring:
         - id: board-service
           uri: http://localhost:${BOARD_SERVER_PORT}
           predicates:
-            - Path=/boards/**,/comments/**,/api/notices,/api/notices/**,/notices/**,/api/admin/notices/**,/api/admin/boards/**
+            - Path=/boards/**,/api/boards/**,/comments/**,/notices/**,/api/notices/**,/api/admin/notices/**,/api/admin/boards/**,/admin/boards/**,/admin/notices/**,/api/files/**,/api/votes/**,/api/admin/votes/**
 
         - id: notification-service
           uri: http://localhost:${NOTIFICATION_SERVER_PORT}
@@ -95,6 +99,7 @@ gateway:
       - /login/**
       - /oauth2/**
       - /api/apartment-complexes/**
+      - /api/files/serve/**
     jwt-secret: ${JWT_SECRET_KEY}
 
 server:
@@ -108,3 +113,6 @@ constants:
   api:
     prefix: /api
 
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE

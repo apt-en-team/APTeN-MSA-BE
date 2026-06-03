@@ -445,9 +445,6 @@ public class ReservationService {
         // 시설 구독 자동 생성
         autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
 
-        // 예약 생성 알림 예약 (afterCommit, best-effort)
-        facilityNotificationService.notifyFacilityReserved(userId, complexId, reservation, facility);
-
         return ReservationPostRes.builder()
                 .reservationId(reservation.getId())
                 .facilityId(reservation.getFacilityId())
@@ -596,11 +593,6 @@ public class ReservationService {
         }
 
         reservation.cancel(ReservationCancelReason.USER);
-
-        // 취소 알림용 시설 조회
-        Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId()).orElse(null);
-        // 예약 취소 알림 예약 (afterCommit, best-effort)
-        facilityNotificationService.notifyFacilityCancelled(userId, complexId, reservation, facility);
 
         return ReservationCancelRes.builder()
                 .reservationId(reservation.getId())

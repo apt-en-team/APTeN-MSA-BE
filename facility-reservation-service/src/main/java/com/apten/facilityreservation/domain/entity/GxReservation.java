@@ -116,6 +116,11 @@ public class GxReservation extends BaseEntity {
         this.waitNo = no;
     }
 
+    // 재정렬 중 유니크 제약과 충돌하지 않도록 기존 순번을 먼저 비운다.
+    public void clearWaitNo() {
+        this.waitNo = null;
+    }
+
     // 취소 또는 거절 후 재신청 시 기존 레코드를 WAITING으로 재활성화한다.
     // DB 유니크 제약(program_id, user_id)으로 INSERT가 불가하므로 UPDATE로 처리한다.
     public void reapply(int waitNo) {

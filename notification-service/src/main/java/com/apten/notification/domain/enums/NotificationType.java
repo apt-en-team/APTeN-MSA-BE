@@ -12,9 +12,6 @@ import lombok.RequiredArgsConstructor;
 public enum NotificationType implements EnumMapperType {
 
     // 1차 WebSocket 대상과 HTTPS 이후 FCM 대상 알림을 같은 enum에서 관리한다
-    FACILITY_RESERVED("01", "시설 예약 완료"),
-    FACILITY_CANCELLED("02", "시설 예약 취소"),
-    GX_APPLIED("03", "GX 신청 접수"),
     GX_MINIMUM_REACHED("04", "GX 최소 인원 충족"),
     GX_APPROVAL_REMINDER("05", "GX 승인 요청 리마인더"),
     SIGNUP_REQUESTED("06", "회원가입 승인 요청"),

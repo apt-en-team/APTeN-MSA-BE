@@ -222,6 +222,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("reservationDate") LocalDate reservationDate
     );
 
+    // 시설 이용 1시간 전 리마인더 대상 조회 (중복 발송 방지를 위해 좁은 시간 창으로 조회)
+    List<Reservation> findByReservationDateAndStartTimeBetweenAndStatus(
+            LocalDate reservationDate,
+            LocalTime startTimeFrom,
+            LocalTime startTimeTo,
+            ReservationStatus status
+    );
+
     // 시설별 예약 수 일괄 집계 (N+1 방지)
     @Query("""
         SELECT r.facilityId, COUNT(r)

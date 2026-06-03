@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 // 게시글 API 컨트롤러이다.
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/boards")
+@RequestMapping("/api/boards")
 public class FreeBoardController {
 
     // 게시글 서비스이다.

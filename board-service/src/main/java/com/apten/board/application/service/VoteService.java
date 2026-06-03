@@ -10,6 +10,7 @@ import com.apten.board.application.model.response.VoteCreateRes;
 import com.apten.board.application.model.response.VoteDeleteRes;
 import com.apten.board.application.model.response.VoteDetailRes;
 import com.apten.board.application.model.response.VoteListRes;
+import com.apten.board.application.model.response.VotePageRes;
 import com.apten.board.application.model.response.VoteParticipationRes;
 import com.apten.board.application.model.response.VotePatchRes;
 import com.apten.board.application.model.response.VoteResultRes;
@@ -20,7 +21,6 @@ import com.apten.board.domain.enums.HouseholdMemberRole;
 import com.apten.board.domain.enums.VoteChoice;
 import com.apten.board.domain.enums.VoteStatus;
 import com.apten.board.domain.repository.HouseholdMemberCacheRepository;
-import com.apten.board.domain.repository.NoticeRepository;
 import com.apten.board.domain.repository.VoteParticipationRepository;
 import com.apten.board.domain.repository.VoteRepository;
 import com.apten.board.exception.BoardErrorCode;
@@ -42,30 +42,17 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class VoteService {
 
-    // 투표 저장소이다.
     private final VoteRepository voteRepository;
-
-    // 공지 저장소이다.
-    private final NoticeRepository noticeRepository;
-
-    // 투표 참여 저장소이다.
     private final VoteParticipationRepository voteParticipationRepository;
-
-    // 세대원 캐시 저장소이다.
     private final HouseholdMemberCacheRepository householdMemberCacheRepository;
-
-    // 투표 outbox 서비스이다.
     private final BoardOutboxService boardOutboxService;
-
-    // 기능 접근 제어 서비스이다.
     private final FeatureAccessService featureAccessService;
 
-    //투표 생성
+    // 투표 생성
     @Transactional
     public VoteCreateRes createVote(VoteCreateReq request) {
         Long complexId = validateVoteFeatureAndGetComplexId();
         validateVoteDate(request.getStartAt(), request.getEndAt());
-        validateNotice(request.getNoticeId(), complexId);
 
         Vote vote = voteRepository.save(Vote.builder()
                 .complexId(complexId)
@@ -89,7 +76,7 @@ public class VoteService {
                 .build();
     }
 
-    //투표 참여
+    // 투표 참여
     @Transactional
     public VoteParticipationRes participateVote(Long voteId, VoteParticipationReq request) {
         validateVoteFeatureAndGetComplexId();
@@ -138,7 +125,7 @@ public class VoteService {
                 .build();
     }
 
-    //투표 결과 조회
+    // 투표 결과 조회
     @Transactional(readOnly = true)
     public VoteResultRes getVoteResult(Long voteId) {
         validateVoteFeatureAndGetComplexId();
@@ -153,17 +140,28 @@ public class VoteService {
                 .build();
     }
 
-    //투표 목록 조회
+    // 입주민 투표 목록 조회
+    // - 투표중 탭: OPEN 상태 + READY이면서 startAt <= now (시작일 지났지만 아직 첫 참여 없는 투표 포함)
+    // - 결과발표 탭: CLOSED 상태
     @Transactional(readOnly = true)
     public PageResponse<VoteListRes> getVoteList(VoteListReq request) {
         Long complexId = validateVoteFeatureAndGetComplexId();
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<Vote> page = voteRepository.findByComplexId(complexId, pageable);
+
+        Page<Vote> page;
+        String status = request.getStatus();
+
+        if ("CLOSED".equals(status)) {
+            page = voteRepository.findByComplexIdAndStatusOrderByCreatedAtDesc(complexId, VoteStatus.CLOSED, pageable);
+        } else {
+            // 기본(투표중 탭): OPEN + 시작일 지난 READY 포함
+            page = voteRepository.findActiveVotes(complexId, LocalDateTime.now(), VoteStatus.OPEN, VoteStatus.READY, pageable);
+        }
 
         return toVotePage(page);
     }
 
-    //투표 상세 조회
+    // 투표 상세 조회
     @Transactional(readOnly = true)
     public VoteDetailRes getVoteDetail(Long voteId) {
         validateVoteFeatureAndGetComplexId();
@@ -171,19 +169,58 @@ public class VoteService {
         return toVoteDetailRes(vote);
     }
 
-    //관리자 투표 목록 조회
+    // 관리자 투표 목록 조회 — 상태별 통계 포함
     @Transactional(readOnly = true)
-    public PageResponse<VoteListRes> getAdminVoteList(VoteListReq request) {
-        return getVoteList(request);
+    public VotePageRes getAdminVoteList(VoteListReq request) {
+        Long complexId = validateVoteFeatureAndGetComplexId();
+        Pageable pageable = buildPageable(request.getPage(), request.getSize());
+
+        Page<Vote> page;
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            VoteStatus status = VoteStatus.valueOf(request.getStatus());
+            page = voteRepository.findByComplexIdAndStatusOrderByCreatedAtDesc(complexId, status, pageable);
+        } else {
+            page = voteRepository.findByComplexIdOrderByCreatedAtDesc(complexId, pageable);
+        }
+
+        long total = voteRepository.countByComplexId(complexId);
+        long open = voteRepository.countByComplexIdAndStatus(complexId, VoteStatus.OPEN);
+        long ready = voteRepository.countByComplexIdAndStatus(complexId, VoteStatus.READY);
+        long closed = voteRepository.countByComplexIdAndStatus(complexId, VoteStatus.CLOSED);
+
+        return VotePageRes.builder()
+                .content(page.getContent().stream().map(vote -> VoteListRes.builder()
+                        .voteId(vote.getId())
+                        .title(vote.getTitle())
+                        .description(vote.getDescription())
+                        .startAt(vote.getStartAt())
+                        .endAt(vote.getEndAt())
+                        .status(vote.getStatus())
+                        .agreeCount(vote.getAgreeCount())
+                        .disagreeCount(vote.getDisagreeCount())
+                        .householdCount(vote.getHouseholdCount())
+                        .build()).toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .summary(VotePageRes.Summary.builder()
+                        .total(total)
+                        .open(open)
+                        .ready(ready)
+                        .closed(closed)
+                        .build())
+                .build();
     }
 
-    //관리자 투표 상세 조회
+    // 관리자 투표 상세 조회
     @Transactional(readOnly = true)
     public VoteDetailRes getAdminVoteDetail(Long voteId) {
         return getVoteDetail(voteId);
     }
 
-    //투표 수정
+    // 투표 수정
     @Transactional
     public VotePatchRes updateVote(Long voteId, VotePatchReq request) {
         validateVoteFeatureAndGetComplexId();
@@ -200,7 +237,7 @@ public class VoteService {
                 .build();
     }
 
-    //투표 삭제
+    // 투표 삭제
     @Transactional
     public VoteDeleteRes deleteVote(Long voteId) {
         validateVoteFeatureAndGetComplexId();
@@ -213,7 +250,7 @@ public class VoteService {
                 .build();
     }
 
-    //투표 종료 처리
+    // 투표 종료 처리
     @Transactional
     public VoteCloseRes closeVote(Long voteId) {
         validateVoteFeatureAndGetComplexId();
@@ -228,34 +265,23 @@ public class VoteService {
                 .build();
     }
 
-    //투표를 조회한다.
     private Vote getVote(Long voteId) {
         return voteRepository.findByIdAndComplexId(voteId, currentComplexId())
                 .orElseThrow(() -> new BusinessException(BoardErrorCode.VOTE_NOT_FOUND));
     }
 
-    //연결 공지 존재 여부를 검증한다.
-    private void validateNotice(Long noticeId, Long complexId) {
-        if (noticeRepository.findByIdAndComplexIdAndIsDeletedFalse(noticeId, complexId).isEmpty()) {
-            throw new BusinessException(BoardErrorCode.NOTICE_NOT_FOUND);
-        }
-    }
-
-    // 현재 단지에서 전자투표 기능 사용 가능 여부를 검증한다.
     private Long validateVoteFeatureAndGetComplexId() {
         Long complexId = currentComplexId();
         featureAccessService.validateEnabled(complexId, FeatureCode.VOTE);
         return complexId;
     }
 
-    //투표 기간 검증이다.
     private void validateVoteDate(LocalDateTime startAt, LocalDateTime endAt) {
         if (startAt == null || endAt == null || endAt.isBefore(startAt)) {
             throw new BusinessException(BoardErrorCode.INVALID_VOTE_DATE);
         }
     }
 
-    //현재 사용자 ID를 가져온다.
     private Long currentUserId() {
         UserContext userContext = UserContextHolder.get();
         if (userContext == null || userContext.getUserId() == null) {
@@ -264,7 +290,6 @@ public class VoteService {
         return userContext.getUserId();
     }
 
-    //현재 단지 ID를 가져온다.
     private Long currentComplexId() {
         UserContext userContext = UserContextHolder.get();
         if (userContext == null || userContext.getComplexId() == null) {
@@ -273,19 +298,18 @@ public class VoteService {
         return userContext.getComplexId();
     }
 
-    //페이지 요청을 안전하게 만든다.
     private Pageable buildPageable(Integer page, Integer size) {
         int safePage = page == null || page < 0 ? 0 : page;
         int safeSize = size == null || size <= 0 ? 20 : size;
         return PageRequest.of(safePage, safeSize);
     }
 
-    //투표 페이지 응답으로 변환한다.
     private PageResponse<VoteListRes> toVotePage(Page<Vote> page) {
         return PageResponse.<VoteListRes>builder()
                 .content(page.getContent().stream().map(vote -> VoteListRes.builder()
                         .voteId(vote.getId())
                         .title(vote.getTitle())
+                        .description(vote.getDescription())
                         .startAt(vote.getStartAt())
                         .endAt(vote.getEndAt())
                         .status(vote.getStatus())
@@ -301,8 +325,13 @@ public class VoteService {
                 .build();
     }
 
-    //투표 상세 응답으로 변환한다.
     private VoteDetailRes toVoteDetailRes(Vote vote) {
+        // 현재 사용자의 참여 이력을 조회한다.
+        Long userId = currentUserIdOrNull();
+        VoteParticipation participation = userId != null
+                ? voteParticipationRepository.findByVoteIdAndUserId(vote.getId(), userId).orElse(null)
+                : null;
+
         return VoteDetailRes.builder()
                 .voteId(vote.getId())
                 .noticeId(vote.getNoticeId())
@@ -317,6 +346,15 @@ public class VoteService {
                 .householdCount(vote.getHouseholdCount())
                 .createdAt(vote.getCreatedAt())
                 .updatedAt(vote.getUpdatedAt())
+                .isParticipated(participation != null)
+                .myChoice(participation != null ? participation.getChoice() : null)
                 .build();
+    }
+
+    // 현재 사용자 ID를 가져온다. 비로그인이면 null을 반환한다.
+    private Long currentUserIdOrNull() {
+        UserContext userContext = UserContextHolder.get();
+        if (userContext == null) return null;
+        return userContext.getUserId();
     }
 }
