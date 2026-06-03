@@ -199,16 +199,22 @@ public class FacilitySubscriptionService {
                     HouseholdCache household = householdMap.get(householdId);
                     long activeCount = subs.stream().filter(s -> s.getStatus() == FacilitySubscriptionStatus.ACTIVE).count();
                     long cancelledCount = subs.size() - activeCount;
+                    String buildingNo = (household != null && household.getBuildingNo() != null)
+                            ? household.getBuildingNo() : "-";
+                    String unitNo = (household != null && household.getUnitNo() != null)
+                            ? household.getUnitNo() : "-";
                     return AdminHouseholdSubscriptionSummaryRes.builder()
                             .householdId(householdId)
-                            .buildingNo(household != null ? household.getBuildingNo() : "-")
-                            .unitNo(household != null ? household.getUnitNo() : "-")
+                            .buildingNo(buildingNo)
+                            .unitNo(unitNo)
                             .activeCount((int) activeCount)
                             .cancelledCount((int) cancelledCount)
                             .build();
                 })
-                .sorted(java.util.Comparator.comparing(AdminHouseholdSubscriptionSummaryRes::getBuildingNo)
-                        .thenComparing(AdminHouseholdSubscriptionSummaryRes::getUnitNo))
+                .sorted(java.util.Comparator.comparing(AdminHouseholdSubscriptionSummaryRes::getBuildingNo,
+                                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        .thenComparing(AdminHouseholdSubscriptionSummaryRes::getUnitNo,
+                                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
                 .toList();
     }
 
