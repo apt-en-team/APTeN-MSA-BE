@@ -13,4 +13,5 @@ public class NoticeListRes {
     private final LocalDateTime createdAt;
     private final String thumbSavedName;
     private final Boolean hasFile;
+    private Boolean isDeleted;
 }
