@@ -394,9 +394,6 @@ public class HouseholdBillService {
     public MyBillListRes.Item getMyHomeBill(Long userId, Long complexId) {
         HouseholdMember member = householdMemberRepository.findActiveByUserIdAndComplexId(userId, complexId)
                 .orElseThrow(() -> new BusinessException(HouseholdErrorCode.HOUSEHOLD_MEMBER_NOT_FOUND));
-        if (member.getRole() != HouseholdMemberRole.HEAD) {
-            return null;
-        }
         getHouseholdForComplex(complexId, member.getHouseholdId());
 
         LocalDate today = LocalDate.now();
