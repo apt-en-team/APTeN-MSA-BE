@@ -77,6 +77,22 @@ public class HouseholdBillService {
     private final ComplexCacheRepository complexCacheRepository;
     private final Optional<HouseholdOutboxService> outboxService;
 
+    // 매일 자정에 발송일이 도달한 DRAFT 청구서를 자동 확정한다.
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @Transactional
+    public void autoConfirmBills() {
+        LocalDate today = LocalDate.now();
+        householdBillRepository.findBySendDateLessThanEqualAndStatus(today, HouseholdBillStatus.DRAFT)
+                .forEach(bill -> {
+                    try {
+                        confirmBill(bill.getComplexId(), bill.getId());
+                        log.info("자동 확정 완료. billId={}, complexId={}", bill.getId(), bill.getComplexId());
+                    } catch (Exception e) {
+                        log.error("자동 확정 실패. billId={}", bill.getId(), e);
+                    }
+                });
+    }
+
     // 매월 1일 자정에 전월 기본 관리비를 모든 활성 단지에 자동 반영한다.
     @Scheduled(cron = "0 0 0 1 * *", zone = "Asia/Seoul")
     @Transactional

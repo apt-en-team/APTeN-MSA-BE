@@ -17,6 +17,8 @@ public interface HouseholdBillRepository extends JpaRepository<HouseholdBill, Lo
 
     boolean existsByComplexIdAndBillYearAndBillMonth(Long complexId, Integer billYear, Integer billMonth);
 
+    List<HouseholdBill> findBySendDateLessThanEqualAndStatus(LocalDate sendDate, HouseholdBillStatus status);
+
     List<HouseholdBill> findByHouseholdIdOrderByBillYearDescBillMonthDesc(Long householdId);
 
     // 청구 ID와 단지 ID 기준 청구를 조회한다.
