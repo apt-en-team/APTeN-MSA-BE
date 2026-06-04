@@ -77,7 +77,7 @@ spring:
             - Path=/api/facilities,/api/facilities/**,/api/reservations,/api/reservations/**,/api/gx-programs,/api/gx-programs/**,/api/gx-reservations,/api/gx-reservations/**,/facilities/**,/facility-reservations/**,/api/facility-subscriptions,/api/facility-subscriptions/**
 
         - id: board-service
-          uri: http://localhost:${BOARD_SERVER_PORT}
+          uri: http://board-service:80
           predicates:
             - Path=/boards/**,/api/boards/**,/comments/**,/notices/**,/api/notices/**,/api/admin/notices/**,/api/admin/boards/**,/admin/boards/**,/admin/notices/**,/api/files/**,/api/votes/**,/api/admin/votes/**
 
