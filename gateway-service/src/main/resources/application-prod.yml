@@ -37,7 +37,7 @@ spring:
         - id: auth-service-auth
           uri: http://auth-service:80
           predicates:
-            - Path=/api/auth/**,/login/**,/oauth2/**
+            - Path=/api/auth/**
 
         # 단지 공개/관리자/입주민 API는 complex-service로 라우팅한다.
         - id: apartment-complex-service
