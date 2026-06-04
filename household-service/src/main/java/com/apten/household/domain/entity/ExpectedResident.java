@@ -111,6 +111,13 @@ public class ExpectedResident extends BaseEntity {
         this.householdRole = householdRole;
     }
 
+    // 매칭된 유저가 탈퇴하면 명부를 다시 매칭 가능 상태로 초기화한다.
+    public void resetMatch() {
+        this.status = ExpectedResidentStatus.AVAILABLE;
+        this.matchedUserId = null;
+        this.matchedAt = null;
+    }
+
     // 관리자 명부를 자동매칭 대상에서 제외한다.
     public void disable() {
         this.status = ExpectedResidentStatus.DISABLED;
