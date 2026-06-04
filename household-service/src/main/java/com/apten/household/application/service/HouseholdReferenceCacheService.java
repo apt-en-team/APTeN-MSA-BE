@@ -3,13 +3,20 @@ package com.apten.household.application.service;
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
 import com.apten.household.domain.entity.ComplexCache;
+import com.apten.household.domain.entity.ExpectedResident;
+import com.apten.household.domain.entity.HouseholdMember;
 import com.apten.household.domain.entity.UserCache;
 import com.apten.household.domain.enums.ComplexCacheStatus;
+import com.apten.household.domain.enums.ExpectedResidentStatus;
 import com.apten.household.domain.enums.UserCacheRole;
 import com.apten.household.domain.enums.UserCacheStatus;
 import com.apten.household.domain.repository.ComplexCacheRepository;
+import com.apten.household.domain.repository.ExpectedResidentRepository;
+import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.UserCacheRepository;
+import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class HouseholdReferenceCacheService {
 
-    // 단지 캐시 저장소이다.
     private final ComplexCacheRepository complexCacheRepository;
-
-    // 사용자 캐시 저장소이다.
     private final UserCacheRepository userCacheRepository;
+    private final ExpectedResidentRepository expectedResidentRepository;
+    private final HouseholdMemberRepository householdMemberRepository;
+    private final HouseholdOutboxService householdOutboxService;
 
     // 단지 이벤트 payload를 받아 complex_cache를 upsert 한다.
     public void upsertComplexCache(ApartmentComplexEventPayload payload) {
@@ -67,6 +74,28 @@ public class HouseholdReferenceCacheService {
 
         // 사용자 캐시를 저장한다.
         userCacheRepository.save(userCache);
+
+        // 탈퇴한 유저의 명부와 세대원을 초기화해 재가입 시 정상 매칭이 가능하게 한다.
+        if (Boolean.TRUE.equals(payload.getIsDeleted())) {
+            resetExpectedResident(payload.getUserId());
+            deactivateHouseholdMember(payload.getUserId());
+        }
+    }
+
+    private void resetExpectedResident(Long userId) {
+        List<ExpectedResident> matched = expectedResidentRepository
+                .findByMatchedUserIdAndStatus(userId, ExpectedResidentStatus.MATCHED);
+        matched.forEach(ExpectedResident::resetMatch);
+        expectedResidentRepository.saveAll(matched);
+    }
+
+    private void deactivateHouseholdMember(Long userId) {
+        householdMemberRepository.findAllByUserIdAndIsActiveTrue(userId)
+                .forEach(member -> {
+                    member.changeActive(false);
+                    householdMemberRepository.save(member);
+                    householdOutboxService.saveHouseholdMemberRemovedEvent(member);
+                });
     }
 
 }
