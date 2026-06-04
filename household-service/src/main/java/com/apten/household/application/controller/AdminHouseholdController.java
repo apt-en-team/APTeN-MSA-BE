@@ -61,7 +61,7 @@ public class AdminHouseholdController {
             @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole,
             @RequestHeader(value = HeaderConstants.X_COMPLEX_ID, required = false) Long complexId,
             @RequestHeader(value = HeaderConstants.X_SELECTED_COMPLEX_ID, required = false) Long selectedComplexId,
-            @RequestBody HouseholdCreateReq request
+            @RequestBody @jakarta.validation.Valid HouseholdCreateReq request
     ) {
         HouseholdRequestContext context = householdRequestContextResolver.resolveAdminContext(userId, userRole, complexId, selectedComplexId);
         return ResultResponse.success("세대 등록 성공", householdService.createHousehold(context.getComplexId(), request));
