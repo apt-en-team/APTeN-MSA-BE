@@ -69,6 +69,13 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             Pageable pageable
     );
 
+    @Query("SELECT e FROM ExpectedResident e WHERE e.complexId = :complexId AND e.name LIKE CONCAT('%', :name, '%') AND e.status <> :status")
+    List<ExpectedResident> findByComplexIdAndNameContainingAndStatusNot(
+            @Param("complexId") Long complexId,
+            @Param("name") String name,
+            @Param("status") ExpectedResidentStatus status
+    );
+
     // 이번 달 입주 카드는 등록입주민 명부의 실제 입주일 기준으로 세대를 집계한다.
     @Query("""
             SELECT COUNT(DISTINCT e.householdId) FROM ExpectedResident e
