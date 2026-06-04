@@ -13,4 +13,10 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     Optional<Notice> findByIdAndComplexIdAndIsDeletedFalse(Long id, Long complexId);
 
     long countByComplexIdAndIsDeletedFalse(Long complexId);
+
+    Page<Notice> findByComplexIdOrderByCreatedAtDesc(Long complexId, Pageable pageable);
+
+    long countByComplexIdAndIsDeletedTrue(Long complexId);
+
+    Optional<Notice> findByIdAndComplexId(Long id, Long complexId);
 }
