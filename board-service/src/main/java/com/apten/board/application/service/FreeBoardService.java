@@ -371,7 +371,10 @@ public class FreeBoardService {
                 .commentCount(boardCommentRepository.countByIsDeletedFalse())
                 .noticeCount(noticeRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .voteCount(voteRepository.countByComplexId(complexId))
-                .deletedPostCount(boardPostRepository.countByComplexIdAndIsDeletedTrue(complexId))
+                .deletedPostCount(
+                        boardPostRepository.countByComplexIdAndIsDeletedTrue(complexId)
+                                + noticeRepository.countByComplexIdAndIsDeletedTrue(complexId)
+                )
                 .build();
     }
 

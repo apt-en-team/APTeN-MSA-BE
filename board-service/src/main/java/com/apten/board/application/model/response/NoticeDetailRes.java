@@ -17,6 +17,7 @@ public class NoticeDetailRes {
     private final String content;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
+    private final Boolean isDeleted;
     private final List<FileItem> files;
 
     @Getter

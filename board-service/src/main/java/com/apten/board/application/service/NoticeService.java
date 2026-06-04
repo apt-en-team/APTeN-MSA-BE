@@ -110,16 +110,28 @@ public class NoticeService {
                 .build();
     }
 
-    // 관리자 공지 목록 조회
+    // 관리자 공지 목록 조회 (삭제된 공지 포함)
     @Transactional(readOnly = true)
     public PageResponse<NoticeListRes> getAdminNoticeList(NoticeListReq request) {
-        return getNoticeList(request);
+        Pageable pageable = buildPageable(request.getPage(), request.getSize());
+        Page<Notice> page = noticeRepository.findByComplexIdOrderByCreatedAtDesc(currentComplexId(), pageable);
+
+        return PageResponse.<NoticeListRes>builder()
+                .content(page.getContent().stream().map(this::toNoticeListRes).toList())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .hasNext(page.hasNext())
+                .build();
     }
 
     // 관리자 공지 상세 조회
     @Transactional(readOnly = true)
     public NoticeDetailRes getAdminNoticeDetail(Long noticeId) {
-        return getNoticeDetail(noticeId);
+        Notice notice = noticeRepository.findByIdAndComplexId(noticeId, currentComplexId())
+                .orElseThrow(() -> new BusinessException(BoardErrorCode.NOTICE_NOT_FOUND));
+        return toNoticeDetailRes(notice);
     }
 
     private Notice getNotice(Long noticeId) {
@@ -161,6 +173,7 @@ public class NoticeService {
                 .createdAt(notice.getCreatedAt())
                 .thumbSavedName(thumbSavedName)
                 .hasFile(hasFile)
+                .isDeleted(notice.getIsDeleted())
                 .build();
     }
 
@@ -178,6 +191,7 @@ public class NoticeService {
                 .content(notice.getContent())
                 .createdAt(notice.getCreatedAt())
                 .updatedAt(notice.getUpdatedAt())
+                .isDeleted(notice.getIsDeleted())
                 .files(noticeFileRepository.findByNoticeIdOrderBySortOrderAsc(notice.getId()).stream()
                         .map(file -> NoticeDetailRes.FileItem.builder()
                                 .fileId(file.getId())
