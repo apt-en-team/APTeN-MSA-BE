@@ -24,6 +24,7 @@ public class HouseholdMatchConsumer {
 
     private final UserRepository userRepository;
     private final ResidentProfileRepository residentProfileRepository;
+    private final AuthOutboxService authOutboxService;
     private final ObjectMapper objectMapper;
 
     // 세대 매칭 승인/거절 이벤트 수신
@@ -42,7 +43,6 @@ public class HouseholdMatchConsumer {
             EventType eventType = envelope.getEventType();
             HouseholdMatchResultEventPayload payload = envelope.getPayload();
 
-            // userId로 회원 조회
             User user = userRepository.findById(payload.getUserId())
                     .orElseGet(() -> {
                         log.warn("HouseholdMatchConsumer — 회원 없음 userId={}", payload.getUserId());
@@ -58,14 +58,20 @@ public class HouseholdMatchConsumer {
                 user.updateStatus(UserStatus.REJECTED);
             }
 
-            // resident_profile.status도 함께 갱신 — user와 resident_profile 상태를 동기화한다
-            residentProfileRepository.findByUserId(user.getId()).ifPresent(resident -> {
-                if (eventType == EventType.HOUSEHOLD_MATCH_APPROVED) {
-                    resident.activate();
-                } else if (eventType == EventType.HOUSEHOLD_MATCH_REJECTED) {
-                    resident.reject();
-                }
-            });
+            // resident_profile.status도 함께 갱신하고 complexId를 확보한다
+            Long complexId = residentProfileRepository.findByUserId(user.getId())
+                    .map(resident -> {
+                        if (eventType == EventType.HOUSEHOLD_MATCH_APPROVED) {
+                            resident.activate();
+                        } else if (eventType == EventType.HOUSEHOLD_MATCH_REJECTED) {
+                            resident.reject();
+                        }
+                        return resident.getComplexId();
+                    })
+                    .orElse(null);
+
+            // 상태 변경을 다른 서비스 UserCache에 전파한다
+            authOutboxService.saveUpdatedEvent(user, complexId);
 
         } catch (Exception e) {
             log.error("HouseholdMatchConsumer 처리 실패 — message={}", message, e);

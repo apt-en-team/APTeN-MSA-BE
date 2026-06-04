@@ -33,6 +33,10 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
     // GX 월 비용 대상 조회
     List<GxProgram> findByStartDateBetween(LocalDate fromDate, LocalDate toDate);
 
+    // 종료일이 지났으나 CLOSED 처리되지 않은 프로그램 조회
+    @Query("SELECT g FROM GxProgram g WHERE g.endDate < :today AND g.status IN :statuses")
+    List<GxProgram> findExpiredPrograms(@Param("today") LocalDate today, @Param("statuses") List<GxProgramStatus> statuses);
+
     // 관리자 GX 프로그램 목록 조회
     @Query("""
         SELECT g FROM GxProgram g

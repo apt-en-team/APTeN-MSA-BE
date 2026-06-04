@@ -7,15 +7,16 @@ import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+// Auth Service 사용자 상태를 notification-service 캐시에서 필요한 범위로 보관한다
 @Getter
 @RequiredArgsConstructor
 public enum UserCacheStatus implements EnumMapperType {
 
-    // Auth Service 사용자 상태를 notification-service 캐시에서 필요한 범위로 보관한다
     PENDING("01", "대기"),
     ACTIVE("02", "활성"),
     REJECTED("03", "반려"),
-    DELETED("04", "삭제");
+    DELETED("04", "삭제"),
+    LOCKED("05", "잠금");
 
     private final String code;
     private final String value;
