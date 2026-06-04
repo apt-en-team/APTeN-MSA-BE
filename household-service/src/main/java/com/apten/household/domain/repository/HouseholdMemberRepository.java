@@ -46,6 +46,8 @@ public interface HouseholdMemberRepository extends JpaRepository<HouseholdMember
     @Query("SELECT m FROM HouseholdMember m JOIN Household h ON m.householdId = h.id WHERE m.userId = :userId AND h.complexId = :complexId AND m.isActive = true")
     Optional<HouseholdMember> findActiveByUserIdAndComplexId(Long userId, Long complexId);
 
+    List<HouseholdMember> findAllByUserIdAndIsActiveTrue(Long userId);
+
     // 세대원 ID가 해당 단지 소속 세대에 속하는지 조회한다.
     @Query("SELECT m FROM HouseholdMember m JOIN Household h ON m.householdId = h.id WHERE m.id = :householdMemberId AND h.complexId = :complexId")
     Optional<HouseholdMember> findByIdAndComplexId(Long householdMemberId, Long complexId);

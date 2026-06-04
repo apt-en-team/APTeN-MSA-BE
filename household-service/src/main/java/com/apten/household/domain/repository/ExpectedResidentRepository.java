@@ -69,6 +69,8 @@ public interface ExpectedResidentRepository extends JpaRepository<ExpectedReside
             Pageable pageable
     );
 
+    List<ExpectedResident> findByMatchedUserIdAndStatus(Long matchedUserId, ExpectedResidentStatus status);
+
     @Query("SELECT e FROM ExpectedResident e WHERE e.complexId = :complexId AND e.name LIKE CONCAT('%', :name, '%') AND e.status <> :status")
     List<ExpectedResident> findByComplexIdAndNameContainingAndStatusNot(
             @Param("complexId") Long complexId,
