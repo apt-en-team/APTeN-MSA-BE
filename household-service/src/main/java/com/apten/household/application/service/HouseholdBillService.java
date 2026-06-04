@@ -18,7 +18,9 @@ import com.apten.household.application.model.response.MyBillListRes;
 import com.apten.household.application.model.response.VehicleFeeReflectRes;
 import com.apten.household.application.model.response.VisitorFeeReflectRes;
 import com.apten.household.domain.entity.BuildingLineType;
+import com.apten.household.domain.entity.ComplexCache;
 import com.apten.household.domain.entity.ComplexPolicy;
+import com.apten.household.domain.enums.ComplexCacheStatus;
 import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.entity.HouseholdBill;
 import com.apten.household.domain.entity.HouseholdType;
@@ -29,6 +31,7 @@ import com.apten.household.domain.enums.HouseholdBillStatus;
 import com.apten.household.domain.enums.HouseholdMemberRole;
 import com.apten.household.domain.enums.HouseholdStatus;
 import com.apten.household.domain.repository.BuildingLineTypeRepository;
+import com.apten.household.domain.repository.ComplexCacheRepository;
 import com.apten.household.domain.repository.ComplexPolicyRepository;
 import com.apten.household.domain.repository.HouseholdBillItemRepository;
 import com.apten.household.domain.repository.HouseholdBillRepository;
@@ -43,10 +46,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
-import com.apten.common.kafka.payload.NotificationEventPayload;
-import com.apten.household.domain.enums.HouseholdMemberRole;
-import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
 import java.util.List;
+import com.apten.common.kafka.payload.NotificationEventPayload;
+import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
+import org.springframework.scheduling.annotation.Scheduled;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -71,7 +74,39 @@ public class HouseholdBillService {
     private final HouseholdTypeRepository householdTypeRepository;
     private final BuildingLineTypeRepository buildingLineTypeRepository;
     private final ComplexPolicyRepository complexPolicyRepository;
+    private final ComplexCacheRepository complexCacheRepository;
     private final Optional<HouseholdOutboxService> outboxService;
+
+    // 매월 1일 자정에 전월 기본 관리비를 모든 활성 단지에 자동 반영한다.
+    @Scheduled(cron = "0 0 0 1 * *", zone = "Asia/Seoul")
+    @Transactional
+    public void autoReflectBaseFee() {
+        YearMonth lastMonth = YearMonth.now().minusMonths(1);
+        int billYear = lastMonth.getYear();
+        int billMonth = lastMonth.getMonthValue();
+
+        complexCacheRepository.findAll().stream()
+                .filter(complex -> complex.getStatus() == ComplexCacheStatus.ACTIVE)
+                .forEach(complex -> {
+                    try {
+                        if (householdBillRepository.existsByComplexIdAndBillYearAndBillMonth(
+                                complex.getId(), billYear, billMonth)) {
+                            log.info("자동 관리비 반영 skip (이미 존재). complexId={}, {}년 {}월",
+                                    complex.getId(), billYear, billMonth);
+                            return;
+                        }
+                        reflectBaseFee(complex.getId(), BaseFeeReflectReq.builder()
+                                .billYear(billYear)
+                                .billMonth(billMonth)
+                                .build());
+                        log.info("자동 관리비 반영 완료. complexId={}, {}년 {}월",
+                                complex.getId(), billYear, billMonth);
+                    } catch (Exception e) {
+                        log.error("자동 관리비 반영 실패. complexId={}, {}년 {}월",
+                                complex.getId(), billYear, billMonth, e);
+                    }
+                });
+    }
 
     // 단지 기본 관리비 정책을 해당 월의 입주 세대 청구서에 반영한다.
     public BaseFeeReflectRes reflectBaseFee(Long complexId, BaseFeeReflectReq request) {
