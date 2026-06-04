@@ -110,33 +110,53 @@ public class ExpectedResidentService {
         validatePatchRequest(context, expectedResidentId, request);
 
         ExpectedResident expectedResident = getExpectedResidentForComplex(context.getComplexId(), expectedResidentId);
-        validateEditableExpectedResident(expectedResident);
+
+        if (expectedResident.getStatus() == ExpectedResidentStatus.DISABLED) {
+            throw new BusinessException(HouseholdErrorCode.EXPECTED_RESIDENT_STATUS_INVALID);
+        }
 
         Long householdId = request.getHouseholdId() != null ? request.getHouseholdId() : expectedResident.getHouseholdId();
         Household household = getHouseholdForComplex(context.getComplexId(), householdId);
 
-        String name = resolveText(request.getName(), expectedResident.getName());
-        String phone = resolveText(request.getPhone(), expectedResident.getPhone());
-        var birthDate = request.getBirthDate() != null ? request.getBirthDate() : expectedResident.getBirthDate();
-        LocalDate moveInDate = request.getMoveInDate() != null ? request.getMoveInDate() : expectedResident.getMoveInDate();
-        String relationship = request.getRelationship() != null ? request.getRelationship() : expectedResident.getRelationship();
         HouseholdMemberRole householdRole = request.getHouseholdRole() != null
                 ? request.getHouseholdRole()
                 : expectedResident.getHouseholdRole();
+        LocalDate moveInDate = request.getMoveInDate() != null ? request.getMoveInDate() : expectedResident.getMoveInDate();
 
-        validateDuplicateExpectedResident(expectedResident.getId(), household.getId(), name, phone, birthDate);
         validateSingleExpectedResidentHead(expectedResident.getId(), household.getId(), householdRole);
-        expectedResident.update(
-                household.getId(),
-                household.getBuilding(),
-                household.getUnit(),
-                name,
-                phone,
-                birthDate,
-                moveInDate,
-                relationship,
-                householdRole
-        );
+
+        if (expectedResident.getStatus() == ExpectedResidentStatus.MATCHED) {
+            // MATCHED 상태에서는 세대 역할과 입주일만 변경을 허용한다.
+            expectedResident.update(
+                    household.getId(),
+                    household.getBuilding(),
+                    household.getUnit(),
+                    expectedResident.getName(),
+                    expectedResident.getPhone(),
+                    expectedResident.getBirthDate(),
+                    moveInDate,
+                    expectedResident.getRelationship(),
+                    householdRole
+            );
+        } else {
+            String name = resolveText(request.getName(), expectedResident.getName());
+            String phone = resolveText(request.getPhone(), expectedResident.getPhone());
+            LocalDate birthDate = request.getBirthDate() != null ? request.getBirthDate() : expectedResident.getBirthDate();
+            String relationship = request.getRelationship() != null ? request.getRelationship() : expectedResident.getRelationship();
+
+            validateDuplicateExpectedResident(expectedResident.getId(), household.getId(), name, phone, birthDate);
+            expectedResident.update(
+                    household.getId(),
+                    household.getBuilding(),
+                    household.getUnit(),
+                    name,
+                    phone,
+                    birthDate,
+                    moveInDate,
+                    relationship,
+                    householdRole
+            );
+        }
 
         ExpectedResident savedExpectedResident = expectedResidentRepository.save(expectedResident);
         occupyHouseholdIfMoveInDateDue(household, savedExpectedResident.getMoveInDate(), LocalDate.now());
@@ -157,6 +177,21 @@ public class ExpectedResidentService {
         if (expectedResident.getStatus() == ExpectedResidentStatus.DISABLED) {
             return toExpectedResidentRes(expectedResident);
         }
+
+        // 매칭된 세대원이 있으면 세대원도 함께 비활성화한다.
+        if (expectedResident.getMatchedUserId() != null) {
+            householdMemberRepository
+                    .findByHouseholdIdAndUserIdAndIsActiveTrue(
+                            expectedResident.getHouseholdId(),
+                            expectedResident.getMatchedUserId()
+                    )
+                    .ifPresent(member -> {
+                        member.changeActive(false);
+                        householdMemberRepository.save(member);
+                        householdOutboxService.saveHouseholdMemberRemovedEvent(member);
+                    });
+        }
+
         expectedResident.disable();
         saveHouseholdHistory(
                 getHouseholdForComplex(context.getComplexId(), expectedResident.getHouseholdId()),
@@ -241,14 +276,21 @@ public class ExpectedResidentService {
 
         WebServiceStatus webServiceStatus = resolveWebServiceStatus(expectedResident, latestMatchRequest);
 
+        // 매칭된 입주민이 있으면 UserCache의 최신 이름/연락처를 우선 표시한다.
+        UserCache matchedUserCache = expectedResident.getMatchedUserId() != null
+                ? userCacheRepository.findById(expectedResident.getMatchedUserId()).orElse(null)
+                : null;
+        String displayName = matchedUserCache != null ? matchedUserCache.getName() : expectedResident.getName();
+        String displayPhone = matchedUserCache != null ? matchedUserCache.getPhone() : expectedResident.getPhone();
+
         return ExpectedResidentRes.builder()
                 .expectedResidentId(expectedResident.getId())
                 .complexId(expectedResident.getComplexId())
                 .householdId(expectedResident.getHouseholdId())
                 .building(expectedResident.getBuilding())
                 .unit(expectedResident.getUnit())
-                .name(expectedResident.getName())
-                .phone(expectedResident.getPhone())
+                .name(displayName)
+                .phone(displayPhone)
                 .birthDate(expectedResident.getBirthDate())
                 .moveInDate(expectedResident.getMoveInDate())
                 .relationship(expectedResident.getRelationship())
@@ -435,12 +477,6 @@ public class ExpectedResidentService {
     private void validateHouseholdComplex(Long complexId, Household household) {
         if (!household.getComplexId().equals(complexId)) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);
-        }
-    }
-
-    private void validateEditableExpectedResident(ExpectedResident expectedResident) {
-        if (expectedResident.getStatus() != ExpectedResidentStatus.AVAILABLE) {
-            throw new BusinessException(HouseholdErrorCode.EXPECTED_RESIDENT_STATUS_INVALID);
         }
     }
 
