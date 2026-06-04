@@ -757,7 +757,10 @@ public class HouseholdBillService {
         LocalDate sendDate = resolveDate(billYear, billMonth, policy.getSendDay());
         LocalDate dueDate = moveWeekendToNextMonday(resolveDate(billYear, billMonth, policy.getDueDay()));
         LocalDate overdueStartDate = dueDate.plusDays(1);
-        LocalDate homeDisplayUntil = resolveNextMonthDate(billYear, billMonth, policy.getHomeDisplayEndDay());
+        // 홈 노출 종료일이 납기일보다 크면 같은 달, 작거나 같으면 익월로 계산한다.
+        LocalDate homeDisplayUntil = policy.getHomeDisplayEndDay() > policy.getDueDay()
+                ? resolveDate(billYear, billMonth, policy.getHomeDisplayEndDay())
+                : resolveNextMonthDate(billYear, billMonth, policy.getHomeDisplayEndDay());
         return new BillingSchedule(sendDate, dueDate, overdueStartDate, homeDisplayUntil);
     }
 
