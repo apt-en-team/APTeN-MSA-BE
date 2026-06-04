@@ -178,10 +178,51 @@ public class HouseholdService {
         int pageSize = request.getSize() != null ? request.getSize() : 20;
         String building = blankToNull(request.getBuilding());
         String unit = blankToNull(request.getUnit());
+        String headName = blankToNull(request.getHeadName());
         PageRequest pageable = PageRequest.of(pageNumber, pageSize);
-        Page<Household> page = request.getStatus() == null
-                ? householdRepository.findByFilters(complexId, building, unit, pageable)
-                : householdRepository.findByFiltersAndStatus(complexId, building, unit, request.getStatus(), pageable);
+
+        // 이름 검색 시 세대주(UserCache)와 등록입주민(ExpectedResident) 양쪽에서 세대 ID를 수집한다.
+        java.util.Set<Long> matchingHouseholdIds = null;
+        if (headName != null) {
+            matchingHouseholdIds = new java.util.HashSet<>();
+
+            List<Long> headUserIds = userCacheRepository.findByNameContaining(headName)
+                    .stream().map(UserCache::getId).toList();
+            if (!headUserIds.isEmpty()) {
+                householdRepository.findByComplexIdAndHeadUserIdIn(complexId, headUserIds)
+                        .stream().map(Household::getId)
+                        .forEach(matchingHouseholdIds::add);
+            }
+
+            expectedResidentRepository
+                    .findByComplexIdAndNameContainingAndStatusNot(complexId, headName, ExpectedResidentStatus.DISABLED)
+                    .stream().map(ExpectedResident::getHouseholdId)
+                    .forEach(matchingHouseholdIds::add);
+
+            // 이름 검색 결과가 없으면 빈 목록을 즉시 반환한다.
+            if (matchingHouseholdIds.isEmpty()) {
+                return HouseholdListRes.builder()
+                        .content(List.of())
+                        .page(pageNumber)
+                        .size(pageSize)
+                        .totalElements(0L)
+                        .totalPages(0)
+                        .hasNext(false)
+                        .summary(buildHouseholdSummary(complexId))
+                        .build();
+            }
+        }
+
+        Page<Household> page;
+        if (matchingHouseholdIds != null) {
+            page = request.getStatus() == null
+                    ? householdRepository.findByFiltersWithIds(complexId, building, unit, matchingHouseholdIds, pageable)
+                    : householdRepository.findByFiltersAndStatusWithIds(complexId, building, unit, matchingHouseholdIds, request.getStatus(), pageable);
+        } else {
+            page = request.getStatus() == null
+                    ? householdRepository.findByFilters(complexId, building, unit, pageable)
+                    : householdRepository.findByFiltersAndStatus(complexId, building, unit, request.getStatus(), pageable);
+        }
         List<Household> households = page.getContent();
         List<Long> householdIds = households.stream()
                 .map(Household::getId)

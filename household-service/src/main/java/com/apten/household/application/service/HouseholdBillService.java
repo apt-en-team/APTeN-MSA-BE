@@ -24,25 +24,17 @@ import com.apten.household.domain.entity.HouseholdBill;
 import com.apten.household.domain.entity.HouseholdType;
 import com.apten.household.domain.entity.HouseholdBillItem;
 import com.apten.household.domain.entity.HouseholdMember;
-import com.apten.household.domain.entity.FacilityUsageSnapshot;
-import com.apten.household.domain.entity.VisitorUsageSnapshot;
-import com.apten.household.domain.entity.VehicleSnapshot;
-import com.apten.household.domain.enums.FacilityUsageStatus;
 import com.apten.household.domain.enums.HouseholdBillItemType;
 import com.apten.household.domain.enums.HouseholdBillStatus;
 import com.apten.household.domain.enums.HouseholdMemberRole;
 import com.apten.household.domain.enums.HouseholdStatus;
-import com.apten.household.domain.enums.VehicleSnapshotStatus;
 import com.apten.household.domain.repository.BuildingLineTypeRepository;
 import com.apten.household.domain.repository.ComplexPolicyRepository;
-import com.apten.household.domain.repository.FacilityUsageSnapshotRepository;
 import com.apten.household.domain.repository.HouseholdBillItemRepository;
 import com.apten.household.domain.repository.HouseholdBillRepository;
 import com.apten.household.domain.repository.HouseholdMemberRepository;
 import com.apten.household.domain.repository.HouseholdRepository;
 import com.apten.household.domain.repository.HouseholdTypeRepository;
-import com.apten.household.domain.repository.VisitorUsageSnapshotRepository;
-import com.apten.household.domain.repository.VehicleSnapshotRepository;
 import com.apten.household.exception.HouseholdErrorCode;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -78,9 +70,6 @@ public class HouseholdBillService {
     private final HouseholdMemberRepository householdMemberRepository;
     private final HouseholdTypeRepository householdTypeRepository;
     private final BuildingLineTypeRepository buildingLineTypeRepository;
-    private final VisitorUsageSnapshotRepository visitorUsageSnapshotRepository;
-    private final FacilityUsageSnapshotRepository facilityUsageSnapshotRepository;
-    private final VehicleSnapshotRepository vehicleSnapshotRepository;
     private final ComplexPolicyRepository complexPolicyRepository;
     private final Optional<HouseholdOutboxService> outboxService;
 
@@ -113,93 +102,34 @@ public class HouseholdBillService {
                 .build();
     }
 
-    // 차량 서비스에서 전달된 차량 스냅샷 기준으로 차량 비용 반영 대상을 준비한다.
+    // 차량 서비스에서 전달된 items 기준으로 세대별 차량 비용을 관리비에 반영한다.
     public VehicleFeeReflectRes reflectVehicleFee(VehicleFeeReflectReq request) {
         validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
 
         List<VehicleFeeReflectReq.Item> items = request.getItems() == null ? List.of() : request.getItems();
-        if (!items.isEmpty()) {
-            items.forEach(item -> reflectVehicleFeeItem(request, item));
-            return VehicleFeeReflectRes.builder()
-                    .complexId(request.getComplexId())
-                    .billYear(request.getBillYear())
-                    .billMonth(request.getBillMonth())
-                    .affectedHouseholdCount(items.size())
-                    .reflectedAt(LocalDateTime.now())
-                    .build();
-        }
-
-        List<VehicleSnapshot> snapshots = vehicleSnapshotRepository.findByComplexIdAndStatusAndIsDeletedFalse(
-                request.getComplexId(),
-                VehicleSnapshotStatus.APPROVED
-        );
-
-        snapshots.stream()
-                .map(VehicleSnapshot::getHouseholdId)
-                .distinct()
-                .forEach(householdId -> {
-                    HouseholdBill bill = getOrCreateBill(request.getComplexId(), householdId, request.getBillYear(), request.getBillMonth());
-                    validateBillEditable(bill);
-                });
+        items.forEach(item -> reflectVehicleFeeItem(request, item));
 
         return VehicleFeeReflectRes.builder()
                 .complexId(request.getComplexId())
                 .billYear(request.getBillYear())
                 .billMonth(request.getBillMonth())
-                .affectedHouseholdCount((int) snapshots.stream()
-                        .map(VehicleSnapshot::getHouseholdId)
-                        .distinct()
-                        .count())
+                .affectedHouseholdCount(items.size())
                 .reflectedAt(LocalDateTime.now())
                 .build();
     }
 
-    // 시설 이용 스냅샷을 월 단위로 합산해 세대별 관리비 항목에 반영한다.
+    // 시설 서비스에서 전달된 items 기준으로 세대별 시설 비용을 관리비에 반영한다.
     public FacilityFeeReflectRes reflectFacilityFee(FacilityFeeReflectReq request) {
         validateReflectRequest(request.getComplexId(), request.getBillYear(), request.getBillMonth());
 
         List<FacilityFeeReflectReq.Item> items = request.getItems() == null ? List.of() : request.getItems();
-        if (!items.isEmpty()) {
-            items.forEach(item -> reflectFacilityFeeItem(request, item));
-            return FacilityFeeReflectRes.builder()
-                    .complexId(request.getComplexId())
-                    .billYear(request.getBillYear())
-                    .billMonth(request.getBillMonth())
-                    .affectedHouseholdCount(items.size())
-                    .reflectedAt(LocalDateTime.now())
-                    .build();
-        }
-
-        LocalDate fromDate = LocalDate.of(request.getBillYear(), request.getBillMonth(), 1);
-        LocalDate toDate = fromDate.withDayOfMonth(fromDate.lengthOfMonth());
-        Map<Long, BigDecimal> feeByHousehold = facilityUsageSnapshotRepository
-                .findByComplexIdAndUsageDateBetweenAndStatus(
-                        request.getComplexId(),
-                        fromDate,
-                        toDate,
-                        FacilityUsageStatus.COMPLETED
-                )
-                .stream()
-                .collect(Collectors.groupingBy(
-                        FacilityUsageSnapshot::getHouseholdId,
-                        Collectors.reducing(BigDecimal.ZERO, FacilityUsageSnapshot::getUsageFee, BigDecimal::add)
-                ));
-
-        feeByHousehold.forEach((householdId, facilityFee) -> {
-            getHouseholdForComplex(request.getComplexId(), householdId);
-            HouseholdBill bill = getOrCreateBill(request.getComplexId(), householdId, request.getBillYear(), request.getBillMonth());
-            validateBillEditable(bill);
-            BigDecimal amount = defaultAmount(facilityFee);
-            updateBillAmounts(bill, bill.getBaseFee(), bill.getVehicleFee(), amount, bill.getVisitorFee());
-            householdBillRepository.save(bill);
-            upsertBillItem(bill.getId(), HouseholdBillItemType.FACILITY_FEE, HouseholdBillItemType.FACILITY_FEE.getValue(), amount, "시설 이용 월별 반영");
-        });
+        items.forEach(item -> reflectFacilityFeeItem(request, item));
 
         return FacilityFeeReflectRes.builder()
                 .complexId(request.getComplexId())
                 .billYear(request.getBillYear())
                 .billMonth(request.getBillMonth())
-                .affectedHouseholdCount(feeByHousehold.size())
+                .affectedHouseholdCount(items.size())
                 .reflectedAt(LocalDateTime.now())
                 .build();
     }
@@ -739,34 +669,12 @@ public class HouseholdBillService {
         upsertBillItem(bill.getId(), HouseholdBillItemType.FACILITY_FEE, HouseholdBillItemType.FACILITY_FEE.getValue(), facilityFee, "시설 이용 월별 반영");
     }
 
-    // 방문차량 한 세대분 사용량을 스냅샷과 청구 항목에 함께 반영한다.
+    // 방문차량 한 세대분 사용량을 청구 항목에 반영한다.
     private VisitorFeeReflectRes.Item reflectVisitorFeeItem(VisitorFeeReflectReq request, VisitorFeeReflectReq.Item item) {
         if (item == null || item.getHouseholdId() == null) {
             throw new BusinessException(HouseholdErrorCode.HOUSEHOLD_NOT_FOUND);
         }
         getHouseholdForComplex(request.getComplexId(), item.getHouseholdId());
-
-        VisitorUsageSnapshot snapshot = visitorUsageSnapshotRepository
-                .findByHouseholdIdAndUsageYearAndUsageMonth(item.getHouseholdId(), request.getBillYear(), request.getBillMonth())
-                .orElseGet(() -> VisitorUsageSnapshot.builder()
-                        .householdId(item.getHouseholdId())
-                        .complexId(request.getComplexId())
-                        .usageYear(request.getBillYear())
-                        .usageMonth(request.getBillMonth())
-                        .build());
-
-        snapshot.apply(
-                item.getHouseholdId(),
-                request.getComplexId(),
-                request.getBillYear(),
-                request.getBillMonth(),
-                defaultInt(item.getTotalMinutes()),
-                defaultAmount(item.getTotalHours()),
-                defaultInt(item.getFreeMinutes()),
-                defaultInt(item.getExtraMinutes()),
-                defaultAmount(item.getVisitorFee())
-        );
-        visitorUsageSnapshotRepository.save(snapshot);
 
         HouseholdBill bill = getOrCreateBill(request.getComplexId(), item.getHouseholdId(), request.getBillYear(), request.getBillMonth());
         validateBillEditable(bill);

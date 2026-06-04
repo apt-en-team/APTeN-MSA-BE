@@ -1,10 +1,7 @@
 package com.apten.household.application.service;
 
 import com.apten.common.kafka.payload.ApartmentComplexEventPayload;
-import com.apten.common.kafka.payload.FacilityUsageEventPayload;
 import com.apten.common.kafka.payload.UserEventPayload;
-import com.apten.common.kafka.payload.VehicleSnapshotEventPayload;
-import com.apten.common.kafka.payload.VisitorUsageEventPayload;
 import com.apten.household.domain.entity.ComplexCache;
 import com.apten.household.domain.entity.UserCache;
 import com.apten.household.domain.enums.ComplexCacheStatus;
@@ -72,18 +69,4 @@ public class HouseholdReferenceCacheService {
         userCacheRepository.save(userCache);
     }
 
-    // 차량 스냅샷 이벤트를 받아 vehicle_snapshot을 upsert 하는 준비 메서드이다.
-    public void upsertVehicleSnapshot(VehicleSnapshotEventPayload payload) {
-        // vehicle_snapshot event 계약 확정 후 저장 로직을 연결한다.
-    }
-
-    // 시설 이용 스냅샷 이벤트를 받아 facility_usage_snapshot을 upsert 하는 준비 메서드이다.
-    public void upsertFacilityUsageSnapshot(FacilityUsageEventPayload payload) {
-        // facility_usage event 계약 확정 후 저장 로직을 연결한다.
-    }
-
-    // 방문차량 월 집계 이벤트를 받아 visitor_usage_snapshot을 upsert 하는 준비 메서드이다.
-    public void upsertVisitorUsageSnapshot(VisitorUsageEventPayload payload) {
-        // visitor_usage event 계약 확정 후 저장 로직을 연결한다.
-    }
 }
