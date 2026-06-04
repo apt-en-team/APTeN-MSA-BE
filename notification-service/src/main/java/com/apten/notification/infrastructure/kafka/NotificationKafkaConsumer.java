@@ -122,7 +122,7 @@ public class NotificationKafkaConsumer {
                     complexId, "NOTICE_CREATED", "NOTICE", noticeId,
                     "새 공지사항이 등록되었습니다.",
                     title,
-                    "/resident/" + complexId + "/notices/" + noticeId,
+                    "/resident/" + complexId + "/notice/" + noticeId,
                     null
             );
         } catch (Exception e) {
@@ -195,7 +195,7 @@ public class NotificationKafkaConsumer {
                     complexId, "VOTE_CREATED", "VOTE", voteId,
                     "새 투표가 개설되었습니다.",
                     title,
-                    "/resident/" + complexId + "/votes/" + voteId,
+                    "/resident/" + complexId + "/vote/" + voteId,
                     null
             );
         } catch (Exception e) {
@@ -216,7 +216,7 @@ public class NotificationKafkaConsumer {
                     complexId, "VOTE_CLOSED", "VOTE", voteId,
                     "투표가 마감되었습니다.",
                     title,
-                    "/resident/" + complexId + "/votes/" + voteId,
+                    "/resident/" + complexId + "/vote/" + voteId,
                     null
             );
         } catch (Exception e) {
