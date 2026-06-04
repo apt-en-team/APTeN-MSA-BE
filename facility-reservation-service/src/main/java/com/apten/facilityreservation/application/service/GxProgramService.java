@@ -546,9 +546,15 @@ public class GxProgramService {
                     .build();
         }).toList();
 
-        int page = Math.max(req.getPage(), 0);
-        int size = req.getSize() > 0 ? req.getSize() : 20;
-        return buildPageResponse(items, page, size);
+        return buildPageResponse(items, 0, Math.max(items.size(), 1));
+    }
+
+    // 종료일이 지난 GX 프로그램을 CLOSED 상태로 일괄 변경한다.
+    @Transactional
+    public void closeExpiredPrograms() {
+        List<GxProgramStatus> closeable = List.of(GxProgramStatus.OPEN, GxProgramStatus.WAITING_CLOSED);
+        List<GxProgram> expired = gxProgramRepository.findExpiredPrograms(LocalDate.now(), closeable);
+        expired.forEach(GxProgram::close);
     }
 
     // GX 승인 리마인더 발송 (OPEN + WAITING)
