@@ -248,27 +248,40 @@ public class HouseholdMatchService {
         householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, household.getId()));
     }
 
-    // 관리자가 이미 세대원으로 연결해둔 사용자는 회원가입 매칭 이벤트 수신 시 승인 완료로 동기화한다.
+    // 관리자 명부 등록 시 이미 세대원으로 연결해둔 사용자는 회원가입 매칭 이벤트 수신 시 승인 완료로 동기화한다.
     private HouseholdMatchPostRes approveAlreadyActiveMember(HouseholdMatchPostReq request, HouseholdMember householdMember) {
-        HouseholdMatchRequest matchRequest = matchRequestRepository
+        Optional<HouseholdMatchRequest> existingApproved = matchRequestRepository
                 .findTopByUserIdAndComplexIdAndMatchStatusOrderByCreatedAtDesc(
                         request.getUserId(),
                         request.getComplexId(),
                         HouseholdMatchStatus.APPROVED
-                )
-                .orElseGet(() -> matchRequestRepository.save(HouseholdMatchRequest.builder()
-                        .userId(request.getUserId())
-                        .complexId(request.getComplexId())
-                        .inputName(request.getInputName())
-                        .inputPhone(request.getInputPhone())
-                        .inputBirthDate(request.getInputBirthDate())
-                        .inputBuilding(request.getInputBuilding())
-                        .inputUnit(request.getInputUnit())
-                        .matchedHouseholdId(householdMember.getHouseholdId())
-                        .processType(HouseholdMatchProcessType.AUTO)
-                        .matchStatus(HouseholdMatchStatus.APPROVED)
-                        .processedAt(LocalDateTime.now())
-                        .build()));
+                );
+
+        // 이미 APPROVED 매칭이 존재하면 재발행 없이 반환 — HOUSEHOLD_MATCH_REQUESTED 재수신 시 중복 알림 방지
+        if (existingApproved.isPresent()) {
+            HouseholdMatchRequest matchRequest = existingApproved.get();
+            return HouseholdMatchPostRes.builder()
+                    .matchRequestId(matchRequest.getId())
+                    .matchedHouseholdId(householdMember.getHouseholdId())
+                    .processType(matchRequest.getProcessType().getCode())
+                    .matchStatus(matchRequest.getMatchStatus().getCode())
+                    .createdAt(matchRequest.getCreatedAt())
+                    .build();
+        }
+
+        HouseholdMatchRequest matchRequest = matchRequestRepository.save(HouseholdMatchRequest.builder()
+                .userId(request.getUserId())
+                .complexId(request.getComplexId())
+                .inputName(request.getInputName())
+                .inputPhone(request.getInputPhone())
+                .inputBirthDate(request.getInputBirthDate())
+                .inputBuilding(request.getInputBuilding())
+                .inputUnit(request.getInputUnit())
+                .matchedHouseholdId(householdMember.getHouseholdId())
+                .processType(HouseholdMatchProcessType.AUTO)
+                .matchStatus(HouseholdMatchStatus.APPROVED)
+                .processedAt(LocalDateTime.now())
+                .build());
 
         householdOutboxService.saveMatchApprovedEvent(buildMatchResultPayload(matchRequest, householdMember.getHouseholdId()));
 
