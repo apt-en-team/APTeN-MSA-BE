@@ -19,7 +19,7 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
     Optional<BoardComment> findByIdAndIsDeletedFalse(Long id);
 
     // 작성자 기준으로 삭제되지 않은 댓글을 페이지 조회한다.
-    Page<BoardComment> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
+    Page<BoardComment> findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     // 관리자 통계용 댓글 수를 구한다.
     long countByIsDeletedFalse();
