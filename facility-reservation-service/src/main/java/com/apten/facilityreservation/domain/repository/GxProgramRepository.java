@@ -27,11 +27,6 @@ public interface GxProgramRepository extends JpaRepository<GxProgram, Long> {
     @Query("SELECT g FROM GxProgram g WHERE g.id = :id AND g.complexId = :complexId")
     Optional<GxProgram> findByIdAndComplexIdForUpdate(@Param("id") Long id, @Param("complexId") Long complexId);
 
-    // GX 프로그램 조회 (낙관적 락, 관리자 처리 충돌 감지)
-    @Lock(LockModeType.OPTIMISTIC_FORCE_INCREMENT)
-    @Query("SELECT g FROM GxProgram g WHERE g.id = :id AND g.complexId = :complexId")
-    Optional<GxProgram> findByIdAndComplexIdWithOptimisticLock(@Param("id") Long id, @Param("complexId") Long complexId);
-
     // GX 프로그램 일괄 조회 (N+1 방지)
     List<GxProgram> findByIdIn(List<Long> ids);
 

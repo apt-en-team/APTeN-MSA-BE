@@ -27,14 +27,29 @@ public interface GxReservationRepository extends JpaRepository<GxReservation, Lo
     // GX 대기 목록 조회 (순번)
     List<GxReservation> findByProgramIdAndStatusOrderByWaitNoAsc(Long programId, GxReservationStatus status);
 
+    // GX 대기 목록 조회 (신청순, 순번 재정렬 기준)
+    List<GxReservation> findByProgramIdAndStatusOrderByCreatedAtAscIdAsc(Long programId, GxReservationStatus status);
+
     // 사용자 GX 예약 조회
     Optional<GxReservation> findByProgramIdAndUserId(Long programId, Long userId);
 
     // 사용자 GX 예약 조회 (소유권 + 단지)
     Optional<GxReservation> findByIdAndUserIdAndComplexId(Long id, Long userId, Long complexId);
 
+    // 사용자 GX 예약의 프로그램 ID 조회 (프로그램 락 선점용)
+    @Query("SELECT r.programId FROM GxReservation r WHERE r.id = :id AND r.userId = :userId AND r.complexId = :complexId")
+    Optional<Long> findProgramIdByIdAndUserIdAndComplexId(
+            @Param("id") Long id,
+            @Param("userId") Long userId,
+            @Param("complexId") Long complexId
+    );
+
     // 관리자 GX 예약 조회 (단지)
     Optional<GxReservation> findByIdAndComplexId(Long id, Long complexId);
+
+    // 관리자 GX 예약의 프로그램 ID 조회 (프로그램 락 선점용)
+    @Query("SELECT r.programId FROM GxReservation r WHERE r.id = :id AND r.complexId = :complexId")
+    Optional<Long> findProgramIdByIdAndComplexId(@Param("id") Long id, @Param("complexId") Long complexId);
 
     // 사용자 GX 예약 목록 조회
     List<GxReservation> findByUserIdAndComplexId(Long userId, Long complexId);

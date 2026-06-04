@@ -24,6 +24,7 @@ import com.apten.common.constants.SecurityConstants;
 import com.apten.common.response.ResultResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 // 인증 API 진입점 — 로그인, 회원가입, 토큰, 비밀번호, SMS 인증 처리
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -69,7 +71,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public ResultResponse<AuthSocialSignupPostRes> socialSignup(
             @Valid @RequestBody AuthSocialSignupPostReq request) {
-        System.out.println("provider 확인: " + request.getProvider());
+        log.info("소셜 가입 요청. provider={}", request.getProvider());
         return ResultResponse.success("소셜 회원가입 성공", authService.socialSignup(request));
     }
 

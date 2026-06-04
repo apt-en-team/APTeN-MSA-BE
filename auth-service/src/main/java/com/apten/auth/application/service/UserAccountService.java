@@ -118,7 +118,7 @@ public class UserAccountService {
                 .building(residentProfile == null ? null : residentProfile.getBuilding())
                 .unit(residentProfile == null ? null : residentProfile.getUnit())
                 .role(user.getRole().getValue())
-                .status(user.getStatus().getValue())
+                .status(user.getStatus().name())
                 .signupType(user.getSignupType().name())
                 .complexId(resolveComplexId(user))
                 .createdAt(user.getCreatedAt())

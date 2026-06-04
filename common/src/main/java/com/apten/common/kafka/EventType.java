@@ -32,5 +32,9 @@ public enum EventType {
 
     HOUSEHOLD_MATCH_REQUESTED,
     HOUSEHOLD_MATCH_APPROVED,
-    HOUSEHOLD_MATCH_REJECTED
+    HOUSEHOLD_MATCH_REJECTED,
+
+    // 서비스 → notification-service 알림 생성 요청 (전 서비스 공용)
+    NOTIFICATION_REQUESTED,
+    ADMIN_NOTIFICATION_REQUESTED
 }

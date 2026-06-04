@@ -2,6 +2,9 @@ package com.apten.parkingvehicle.infrastructure.kafka;
 
 import com.apten.common.kafka.EventEnvelope;
 import com.apten.common.kafka.EventType;
+import com.apten.common.kafka.KafkaTopics;
+import com.apten.common.kafka.payload.NotificationAdminBroadcastEventPayload;
+import com.apten.common.kafka.payload.NotificationEventPayload;
 import com.apten.common.kafka.payload.ParkingSpotChangedEventPayload;
 import com.apten.common.outbox.Outbox;
 import com.apten.common.outbox.OutboxRepository;
@@ -161,6 +164,18 @@ public class ParkingVehicleOutboxService {
                 .occurredAt(LocalDateTime.now())
                 .build();
         saveOutboxEvent(REGULAR_VISITOR_VEHICLE_NOTIFICATION_TOPIC, action, entity.getId(), payload);
+    }
+
+    // 입주민 단건 알림 이벤트를 notification-service로 발행한다.
+    public void saveNotificationEvent(NotificationEventPayload payload) {
+        saveOutboxEvent(KafkaTopics.NOTIFICATION_REQUEST, EventType.NOTIFICATION_REQUESTED.name(),
+                payload.getTargetId(), payload);
+    }
+
+    // 관리자 broadcast 알림 이벤트를 notification-service로 발행한다.
+    public void saveAdminBroadcastNotificationEvent(NotificationAdminBroadcastEventPayload payload) {
+        saveOutboxEvent(KafkaTopics.NOTIFICATION_REQUEST, EventType.ADMIN_NOTIFICATION_REQUESTED.name(),
+                payload.getTargetId(), payload);
     }
 
     // payload를 JSON으로 저장하고 outbox row를 생성한다.

@@ -16,4 +16,11 @@ public interface UserCacheRepository extends JpaRepository<UserCache, Long> {
             Collection<UserCacheRole> roles,
             UserCacheStatus status
     );
+
+    // 단지 내 입주민(USER) 전체 조회
+    List<UserCache> findByComplexIdAndRoleAndStatus(
+            Long complexId,
+            UserCacheRole role,
+            UserCacheStatus status
+    );
 }

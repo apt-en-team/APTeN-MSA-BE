@@ -2,6 +2,7 @@ package com.apten.parkingvehicle.application.service;
 
 import com.apten.common.exception.BusinessException;
 import com.apten.common.exception.CommonErrorCode;
+import com.apten.common.kafka.payload.NotificationAdminBroadcastEventPayload;
 import com.apten.parkingvehicle.application.model.request.AdminVehicleListReq;
 import com.apten.parkingvehicle.application.model.request.VehicleCreateReq;
 import com.apten.parkingvehicle.application.model.request.VehicleListReq;
@@ -138,6 +139,20 @@ public class VehicleService {
         // 동시 신청으로 사전 검사를 둘 다 통과한 경우 유니크 제약 위반 안전망
         try {
             Vehicle saved = vehicleRepository.save(entity);
+
+            // 관리자에게 차량 등록 승인 요청 알림 발송
+            parkingVehicleOutboxService.saveAdminBroadcastNotificationEvent(
+                    NotificationAdminBroadcastEventPayload.builder()
+                            .complexId(complexId)
+                            .type("VEHICLE_REGISTRATION_REQUESTED")
+                            .targetType("VEHICLE")
+                            .targetId(saved.getId())
+                            .title("차량 등록 승인 요청이 있습니다.")
+                            .content("차량번호 " + licensePlate + " 등록 승인 요청이 접수되었습니다.")
+                            .linkPath("/admin/vehicles")
+                            .build()
+            );
+
             return VehicleCreateRes.builder()
                     .vehicleId(saved.getId())
                     .licensePlate(saved.getLicensePlate())

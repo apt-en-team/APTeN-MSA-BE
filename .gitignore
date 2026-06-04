@@ -36,3 +36,7 @@ application-secret.yaml
 */src/main/resources/application-local.yaml
 */src/main/resources/application-secret.yml
 */src/main/resources/application-secret.yaml
+
+# Local test scripts and generated database notes
+/scripts/
+/docs/database/

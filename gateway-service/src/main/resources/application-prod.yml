@@ -64,7 +64,7 @@ spring:
         - id: parking-vehicle-service
           uri: http://parking-vehicle-service:80
           predicates:
-            - Path=/parking-vehicles/**,/api/vehicles,/api/vehicles/**,/api/visitor-vehicles,/api/visitor-vehicles/**,/api/regular-visitor-vehicles,/api/regular-visitor-vehicles/**,/api/admin/vehicles,/api/admin/vehicles/**,/api/admin/vehicle-stats,/api/admin/vehicle-locations,/api/admin/visitor-vehicles,/api/admin/visitor-vehicles/**,/api/admin/visitor-vehicle-stats,/api/admin/regular-visitor-vehicles,/api/admin/regular-visitor-vehicles/**,/api/admin/vehicle-policies,/api/admin/visitor-policy,/api/admin/vehicle-registration-policies,/api/admin/vehicle-registration-policies/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
+            - Path=/parking-vehicles/**,/api/vehicles,/api/vehicles/**,/api/visitor-vehicles,/api/visitor-vehicles/**,/api/regular-visitor-vehicles,/api/regular-visitor-vehicles/**,/api/admin/vehicles,/api/admin/vehicles/**,/api/admin/vehicle-stats,/api/admin/vehicle-locations,/api/admin/visitor-vehicles,/api/admin/visitor-vehicles/**,/api/admin/visitor-vehicle-stats,/api/admin/regular-visitor-vehicles,/api/admin/regular-visitor-vehicles/**,/api/admin/vehicle-policies,/api/admin/visitor-policies,/api/admin/vehicle-registration-policies,/api/admin/vehicle-registration-policies/**,/api/admin/parking-logs,/api/admin/parking-logs/**,/api/admin/parking/**,/api/parking/**
 
         - id: facility-reservation-service-admin
           uri: http://facility-reservation-service:80
@@ -100,6 +100,10 @@ gateway:
       - /api/apartment-complexes/**
       - /api/files/serve/**
     jwt-secret: ${JWT_SECRET_KEY}
+
+# nginx 등 리버스 프록시가 설정한 X-Forwarded-* 헤더를 신뢰해 원본 요청 정보 복원
+server:
+  forward-headers-strategy: FRAMEWORK
 
 logging:
   level:
