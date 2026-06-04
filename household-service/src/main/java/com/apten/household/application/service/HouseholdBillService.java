@@ -230,7 +230,7 @@ public class HouseholdBillService {
                                 .targetId(bill.getId())
                                 .title("관리비가 청구되었습니다.")
                                 .content(bill.getBillYear() + "년 " + bill.getBillMonth() + "월 관리비가 확정되었습니다.")
-                                .linkPath("/resident/" + bill.getComplexId() + "/bills")
+                                .linkPath("/resident/" + bill.getComplexId() + "/bill")
                                 .build()
                 )));
 
