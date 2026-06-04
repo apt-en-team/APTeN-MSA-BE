@@ -24,6 +24,9 @@ public class HouseholdListReq {
     // 호 조건이다.
     private String unit;
 
+    // 세대주 이름 조건이다.
+    private String headName;
+
     // 세대 상태 조건이다.
     private HouseholdStatus status;
 

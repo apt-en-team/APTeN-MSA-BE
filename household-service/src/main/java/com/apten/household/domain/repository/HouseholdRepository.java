@@ -3,6 +3,7 @@ package com.apten.household.domain.repository;
 import com.apten.household.domain.entity.Household;
 import com.apten.household.domain.enums.HouseholdStatus;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -35,12 +36,46 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
             WHERE h.complexId = :complexId
               AND (:building IS NULL OR h.building = :building)
               AND (:unit IS NULL OR h.unit = :unit)
+              AND (h.id IN :householdIds)
+            ORDER BY h.status ASC, h.building ASC, h.unit ASC
+            """)
+    Page<Household> findByFiltersWithIds(
+            @Param("complexId") Long complexId,
+            @Param("building") String building,
+            @Param("unit") String unit,
+            @Param("householdIds") Collection<Long> householdIds,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT h FROM Household h
+            WHERE h.complexId = :complexId
+              AND (:building IS NULL OR h.building = :building)
+              AND (:unit IS NULL OR h.unit = :unit)
             ORDER BY h.status ASC, h.building ASC, h.unit ASC
             """)
     Page<Household> findByFilters(
             @Param("complexId") Long complexId,
             @Param("building") String building,
             @Param("unit") String unit,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT h FROM Household h
+            WHERE h.complexId = :complexId
+              AND (:building IS NULL OR h.building = :building)
+              AND (:unit IS NULL OR h.unit = :unit)
+              AND (h.id IN :householdIds)
+              AND h.status = :status
+            ORDER BY h.status ASC, h.building ASC, h.unit ASC
+            """)
+    Page<Household> findByFiltersAndStatusWithIds(
+            @Param("complexId") Long complexId,
+            @Param("building") String building,
+            @Param("unit") String unit,
+            @Param("householdIds") Collection<Long> householdIds,
+            @Param("status") HouseholdStatus status,
             Pageable pageable
     );
 
@@ -59,6 +94,8 @@ public interface HouseholdRepository extends JpaRepository<Household, Long> {
             @Param("status") HouseholdStatus status,
             Pageable pageable
     );
+
+    List<Household> findByComplexIdAndHeadUserIdIn(Long complexId, Collection<Long> headUserIds);
 
     long countByComplexId(Long complexId);
 
