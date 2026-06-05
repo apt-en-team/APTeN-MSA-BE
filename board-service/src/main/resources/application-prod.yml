@@ -33,4 +33,4 @@ apten:
     enabled: true
 
 file:
-  upload-dir: /home/download
+  upload-dir: /home/download/board
