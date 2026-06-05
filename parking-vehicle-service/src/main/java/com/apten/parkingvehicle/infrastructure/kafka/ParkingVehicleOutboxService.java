@@ -168,14 +168,30 @@ public class ParkingVehicleOutboxService {
 
     // 입주민 단건 알림 이벤트를 notification-service로 발행한다.
     public void saveNotificationEvent(NotificationEventPayload payload) {
+        EventEnvelope<NotificationEventPayload> envelope = EventEnvelope.<NotificationEventPayload>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(EventType.NOTIFICATION_REQUESTED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("parking-vehicle-service")
+                .payload(payload)
+                .build();
         saveOutboxEvent(KafkaTopics.NOTIFICATION_REQUEST, EventType.NOTIFICATION_REQUESTED.name(),
-                payload.getTargetId(), payload);
+                payload.getTargetId(), envelope);
     }
 
     // 관리자 broadcast 알림 이벤트를 notification-service로 발행한다.
     public void saveAdminBroadcastNotificationEvent(NotificationAdminBroadcastEventPayload payload) {
+        EventEnvelope<NotificationAdminBroadcastEventPayload> envelope = EventEnvelope.<NotificationAdminBroadcastEventPayload>builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType(EventType.ADMIN_NOTIFICATION_REQUESTED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("parking-vehicle-service")
+                .payload(payload)
+                .build();
         saveOutboxEvent(KafkaTopics.NOTIFICATION_REQUEST, EventType.ADMIN_NOTIFICATION_REQUESTED.name(),
-                payload.getTargetId(), payload);
+                payload.getTargetId(), envelope);
     }
 
     // payload를 JSON으로 저장하고 outbox row를 생성한다.
