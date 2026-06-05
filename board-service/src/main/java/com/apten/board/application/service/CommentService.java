@@ -115,7 +115,7 @@ public class CommentService {
     @Transactional(readOnly = true)
     public PageResponse<MyCommentListRes> getMyCommentList(MyCommentListReq request) {
         Pageable pageable = buildPageable(request.getPage(), request.getSize());
-        Page<BoardComment> page = boardCommentRepository.findByUserIdAndIsDeletedFalse(currentUserId(), pageable);
+        Page<BoardComment> page = boardCommentRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(currentUserId(), pageable);
 
         return PageResponse.<MyCommentListRes>builder()
                 .content(page.getContent().stream().map(comment -> {

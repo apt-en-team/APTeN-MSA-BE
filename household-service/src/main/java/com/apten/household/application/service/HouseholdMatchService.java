@@ -5,6 +5,7 @@ import com.apten.common.exception.CommonErrorCode;
 import com.apten.common.enumcode.EnumMapperType;
 import com.apten.common.kafka.payload.HouseholdMatchRequestEventPayload;
 import com.apten.common.kafka.payload.HouseholdMatchResultEventPayload;
+import com.apten.common.kafka.payload.NotificationAdminBroadcastEventPayload;
 import com.apten.household.application.model.request.HouseholdMatchBulkApproveReq;
 import com.apten.household.application.model.request.HouseholdMatchListReq;
 import com.apten.household.application.model.request.HouseholdMatchPostReq;
@@ -317,9 +318,9 @@ public class HouseholdMatchService {
         return matchRequestRepository.findByComplexId(complexId, pageable);
     }
 
-    // 자동승인 기준에 맞지 않으면 관리자 수동 승인 대기로 저장한다.
+    // 수동 승인 대기로 저장하고 관리자에게 입주 신청 접수 알림을 발행한다.
     private HouseholdMatchRequest createPendingMatchRequest(HouseholdMatchPostReq request) {
-        return matchRequestRepository.save(HouseholdMatchRequest.builder()
+        HouseholdMatchRequest matchRequest = matchRequestRepository.save(HouseholdMatchRequest.builder()
                 .userId(request.getUserId())
                 .complexId(request.getComplexId())
                 .inputName(request.getInputName())
@@ -330,6 +331,21 @@ public class HouseholdMatchService {
                 .processType(HouseholdMatchProcessType.MANUAL)
                 .matchStatus(HouseholdMatchStatus.PENDING)
                 .build());
+
+        // 자동매칭 실패 시 수동 승인이 필요하므로 관리자에게 알린다
+        householdOutboxService.saveAdminBroadcastNotificationEvent(
+                NotificationAdminBroadcastEventPayload.builder()
+                        .complexId(request.getComplexId())
+                        .type("SIGNUP_REQUESTED")
+                        .targetType("USER")
+                        .targetId(request.getUserId())
+                        .title("입주 신청이 접수되었습니다.")
+                        .content(request.getInputName() + " 님의 입주 신청이 접수되었습니다. 승인 여부를 확인해 주세요.")
+                        .linkPath("/admin/household/match-requests")
+                        .build()
+        );
+
+        return matchRequest;
     }
 
     // 관리자 명부에서 가입자 입력값과 일치하는 사용 가능한 row를 찾는다.
