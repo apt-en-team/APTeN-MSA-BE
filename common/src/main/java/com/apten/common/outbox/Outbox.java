@@ -63,6 +63,16 @@ public class Outbox {
         this.createdAt = LocalDateTime.now();
     }
 
+    // relay가 Kafka 전송 직전에 PROCESSING으로 변경해 다음 주기에서 중복 발행을 막는다.
+    public void markProcessing() {
+        this.status = OutboxStatus.PROCESSING;
+    }
+
+    // PROCESSING 상태에서 일정 시간이 지난 stuck 행을 INIT으로 되돌릴 때 사용한다.
+    public void markInit() {
+        this.status = OutboxStatus.INIT;
+    }
+
     // Kafka 전송 실패 시 relay가 재조회 대상에서 제외되도록 FAILED로 변경한다.
     public void markFailed() {
         this.status = OutboxStatus.FAILED;
