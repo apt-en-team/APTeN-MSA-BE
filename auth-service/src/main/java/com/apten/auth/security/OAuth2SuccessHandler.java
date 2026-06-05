@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
 
     // principal을 받아 실제 토큰 응답을 조합하는 서비스
     private final AuthService authService;
@@ -37,7 +41,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
             // 신규 소셜 사용자 — 추가 정보 입력 페이지로 리다이렉트
             if ("NEW".equals(principal.getStatus())) {
-                String redirectUrl = "http://localhost:5173/social/signup"
+                String redirectUrl = frontendUrl + "/social/signup"
                         + "?email=" + principal.getEmail()
                         + "&name=" + java.net.URLEncoder.encode(principal.getDisplayName(), "UTF-8")
                         + "&provider=" + principal.getProvider();
@@ -74,7 +78,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             }
 
             // 토큰과 사용자 정보를 쿼리 파라미터로 프론트에 전달
-            String redirectUrl = "http://localhost:5173/social/callback"
+            String redirectUrl = frontendUrl + "/social/callback"
                     + "?accessToken=" + tokenResponse.getAccessToken()
                     + "&refreshToken=" + tokenResponse.getRefreshToken()
                     + "&userId=" + tokenResponse.getUserId()

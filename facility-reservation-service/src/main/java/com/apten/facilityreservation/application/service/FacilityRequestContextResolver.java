@@ -50,7 +50,8 @@ public class FacilityRequestContextResolver {
         UserRole userRole = parseUserRole(userRoleHeader);
         validateUserId(userId);
 
-        if (userRole != UserRole.USER) {
+        // MASTER는 입주민 화면 미리보기 목적으로 resident API 접근 허용
+        if (userRole != UserRole.USER && userRole != UserRole.MASTER) {
             throw new BusinessException(CommonErrorCode.FORBIDDEN);
         }
 

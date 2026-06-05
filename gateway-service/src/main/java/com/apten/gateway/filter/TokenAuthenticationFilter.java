@@ -106,8 +106,14 @@ public class TokenAuthenticationFilter implements WebFilter {
                             headers.set(HeaderConstants.X_USER_ROLE, userRole.name());
 
                             // [단지 ID 조건부 추가] claim 존재 시에만 추가
+                            // MASTER는 JWT에 complexId 없음 → X-Selected-Complex-Id로 보정
                             if (complexId != null) {
                                 headers.set(HeaderConstants.X_COMPLEX_ID, String.valueOf(complexId));
+                            } else if (UserRole.MASTER.equals(userRole)) {
+                                String selectedComplexId = super.getHeaders().getFirst(HeaderConstants.X_SELECTED_COMPLEX_ID);
+                                if (selectedComplexId != null) {
+                                    headers.set(HeaderConstants.X_COMPLEX_ID, selectedComplexId);
+                                }
                             }
 
                             return HttpHeaders.readOnlyHttpHeaders(headers);
