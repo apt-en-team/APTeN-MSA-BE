@@ -45,7 +45,7 @@ public class Outbox {
 
     // relay가 아직 보낼 이벤트인지 실패 이벤트인지 판단하는 상태값이다.
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(20)")
     private OutboxStatus status;
 
     // outbox row가 생성된 시각이며 오래된 이벤트부터 전송할 때 사용한다.
