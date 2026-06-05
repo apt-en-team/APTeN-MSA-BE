@@ -25,7 +25,7 @@ apten:
     enabled: true
   bootstrap:
     facility-type:
-      enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:true}
+      enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:false}
   scheduler:
     reservation-complete:
       enabled: ${APTEN_SCHEDULER_RESERVATION_COMPLETE_ENABLED:true}
