@@ -38,7 +38,7 @@ public class SecurityConfig {
                 // OAuth2 소셜 로그인 설정 연결
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(auth -> auth.baseUri("/api/auth/oauth2/authorization"))
-                        .redirectionEndpoint( redirect -> redirect.baseUri("/login/oauth2/code/*"))
+                        .redirectionEndpoint( redirect -> redirect.baseUri("/api/auth/login/oauth2/code/*"))
                         .userInfoEndpoint(userInfo -> userInfo
                                 // 공급자별 사용자 정보를 읽고 내부 User와 연결하는 서비스
                                 .userService(customOAuth2UserService)
