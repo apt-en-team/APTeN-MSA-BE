@@ -87,9 +87,16 @@ public class ParkingVehicleOutboxService {
                 .licensePlate(vehicle.getLicensePlate())
                 .status(vehicle.getStatus().name())
                 .isDeleted(vehicle.getIsDeleted())
-                .occurredAt(java.time.LocalDateTime.now())
                 .build();
-        saveOutboxEvent(VEHICLE_STATUS_CHANGED_TOPIC, "VEHICLE_STATUS_CHANGED", vehicle.getId(), payload);
+        EventEnvelope<VehicleStatusChangedEventPayload> envelope = EventEnvelope.<VehicleStatusChangedEventPayload>builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .eventType(EventType.VEHICLE_STATUS_CHANGED)
+                .version(1)
+                .occurredAt(Instant.now())
+                .producer("parking-vehicle-service")
+                .payload(payload)
+                .build();
+        saveOutboxEvent(VEHICLE_STATUS_CHANGED_TOPIC, EventType.VEHICLE_STATUS_CHANGED.name(), vehicle.getId(), envelope);
     }
 
     // 차량 비용 산정 이벤트를 outbox에 적재한다.

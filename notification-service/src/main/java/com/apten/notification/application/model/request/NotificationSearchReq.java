@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 // 알림 목록 조회 요청 DTO
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
