@@ -15,6 +15,8 @@ import com.apten.notification.domain.repository.FcmTokenRepository;
 import com.apten.notification.domain.repository.UserCacheRepository;
 import com.apten.notification.exception.NotificationErrorCode;
 import java.time.LocalDateTime;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class NotificationFcmService {
+
+    // 모바일 + 크롬 동시 사용을 허용하되 그 이상 쌓이면 오래된 것부터 비활성화
+    private static final int MAX_ACTIVE_TOKENS_PER_USER = 2;
 
     private final FcmTokenRepository fcmTokenRepository;
     private final UserCacheRepository userCacheRepository;
@@ -61,6 +66,7 @@ public class NotificationFcmService {
                 now
         );
         fcmTokenRepository.save(token);
+        evictExcessTokens(userId);
         log.info("[FCM] 토큰 등록/갱신 완료. userId={}, prefix={}", userId, tokenPrefix(request.getToken()));
 
         return NotificationFcmTokenPostRes.builder()
@@ -154,6 +160,18 @@ public class NotificationFcmService {
     private String tokenPrefix(String token) {
         if (token == null || token.isBlank()) return "(없음)";
         return token.length() > 25 ? token.substring(0, 25) + "..." : token;
+    }
+
+    // 활성 토큰이 MAX 초과 시 마지막 사용이 가장 오래된 것부터 비활성화
+    private void evictExcessTokens(Long userId) {
+        List<FcmToken> activeTokens = fcmTokenRepository.findByUserIdAndIsActiveTrueOrderByLastUsedAtAsc(userId);
+        int excess = activeTokens.size() - MAX_ACTIVE_TOKENS_PER_USER;
+        if (excess <= 0) return;
+        for (int i = 0; i < excess; i++) {
+            activeTokens.get(i).deactivate();
+            fcmTokenRepository.save(activeTokens.get(i));
+        }
+        log.info("[FCM] 초과 토큰 비활성화. userId={}, deactivated={}", userId, excess);
     }
 
     private FcmDeviceType parseDeviceType(String deviceType) {

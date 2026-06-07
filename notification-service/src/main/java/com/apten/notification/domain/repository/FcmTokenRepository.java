@@ -16,4 +16,7 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
 
     // 사용자 활성 토큰 목록 조회
     List<FcmToken> findByUserIdAndIsActive(Long userId, Boolean isActive);
+
+    // 사용자 활성 토큰 오래된 순 조회 (초과분 비활성화용)
+    List<FcmToken> findByUserIdAndIsActiveTrueOrderByLastUsedAtAsc(Long userId);
 }
