@@ -1,6 +1,5 @@
 package com.apten.parkingvehicle.infrastructure.kafka.payload;
 
-import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,7 +32,4 @@ public class VehicleStatusChangedEventPayload {
 
     // 삭제 여부이다.
     private Boolean isDeleted;
-
-    // 발생 시각이다.
-    private LocalDateTime occurredAt;
 }
