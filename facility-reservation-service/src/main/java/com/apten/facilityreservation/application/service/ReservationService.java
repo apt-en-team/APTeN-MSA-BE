@@ -752,7 +752,12 @@ public class ReservationService {
         // 강제 취소 처리 (마감 무관)
         reservation.cancel(ReservationCancelReason.ADMIN);
 
-        // TODO: 예약 강제 취소 알림 발행 (가은 담당)
+        if (reservation.getUserId() != null) {
+            Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId()).orElse(null);
+            String facilityName = facility != null ? facility.getName() : "시설";
+            facilityNotificationService.notifyReservationForceCancelled(
+                    reservation.getUserId(), complexId, reservation.getId(), facilityName);
+        }
 
         return AdminReservationCancelRes.builder()
                 .reservationId(reservation.getId())
