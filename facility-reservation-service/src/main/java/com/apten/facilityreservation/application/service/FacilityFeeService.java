@@ -19,6 +19,7 @@ import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepos
 import com.apten.facilityreservation.domain.repository.FacilityUsageMonthlyRepository;
 import com.apten.facilityreservation.domain.repository.GxProgramRepository;
 import com.apten.facilityreservation.domain.repository.GxReservationRepository;
+import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
 import com.apten.facilityreservation.exception.FacilityReservationErrorCode;
 import com.apten.facilityreservation.infrastructure.kafka.FacilityReservationOutboxService;
@@ -45,6 +46,7 @@ public class FacilityFeeService {
     private final GxReservationRepository gxReservationRepository;
     private final GxProgramRepository gxProgramRepository;
     private final FacilityUsageMonthlyRepository facilityUsageMonthlyRepository;
+    private final HouseholdMemberCacheRepository householdMemberCacheRepository;
     // 선택형 Outbox Bean
     private final Optional<FacilityReservationOutboxService> outboxService;
 
@@ -131,7 +133,7 @@ public class FacilityFeeService {
                 if (!isBillableInMonth(subscription, yearMonth, policy)) {
                     continue;
                 }
-                BigDecimal fee = calcSubscriptionFee(policy, feeType);
+                BigDecimal fee = calcSubscriptionFee(policy, feeType, subscription.getHouseholdId());
                 addFee(aggregateMap, complexId, subscription.getHouseholdId(), fee);
             }
         }
@@ -290,12 +292,19 @@ public class FacilityFeeService {
     }
 
     // 구독형 월 청구 금액 계산
-    private BigDecimal calcSubscriptionFee(FacilityPolicy policy, FacilityFeeType feeType) {
+    private BigDecimal calcSubscriptionFee(FacilityPolicy policy, FacilityFeeType feeType, Long householdId) {
         BigDecimal baseFee = nullSafe(policy.getBaseFee());
+        int memberCount = householdMemberCacheRepository.findByHouseholdId(householdId).size();
         if (feeType == FacilityFeeType.PER_PERSON) {
-            return baseFee;
+            // 세대원 수 × 인당 요금
+            return baseFee.multiply(BigDecimal.valueOf(Math.max(1, memberCount)));
         }
-        // 기본 요금 + 초과 인원 요금
+        // FLAT: 기본료 + 기준 인원 초과분 × 추가 요금
+        if (policy.getIncludedPersonCount() != null && policy.getExtraPersonFee() != null) {
+            long extraPersons = Math.max(0, memberCount - policy.getIncludedPersonCount());
+            BigDecimal extraFee = nullSafe(policy.getExtraPersonFee()).multiply(BigDecimal.valueOf(extraPersons));
+            return baseFee.add(extraFee);
+        }
         return baseFee;
     }
 
