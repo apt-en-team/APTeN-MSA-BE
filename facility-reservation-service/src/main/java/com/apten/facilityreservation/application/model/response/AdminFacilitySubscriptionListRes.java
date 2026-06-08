@@ -19,6 +19,12 @@ public class AdminFacilitySubscriptionListRes {
     // 세대 ID이다.
     private Long householdId;
 
+    // 구독 신청한 세대원 userId이다.
+    private Long userId;
+
+    // 구독 신청자 이름이다.
+    private String subscriberName;
+
     // 시설 ID이다.
     private Long facilityId;
 

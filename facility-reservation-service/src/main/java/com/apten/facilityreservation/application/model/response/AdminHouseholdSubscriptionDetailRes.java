@@ -51,6 +51,12 @@ public class AdminHouseholdSubscriptionDetailRes {
         // 구독 ID이다.
         private Long subscriptionId;
 
+        // 구독 신청자 userId이다.
+        private Long userId;
+
+        // 구독 신청자 이름이다.
+        private String subscriberName;
+
         // 시설 ID이다.
         private Long facilityId;
 

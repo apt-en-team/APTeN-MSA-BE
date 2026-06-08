@@ -443,7 +443,7 @@ public class ReservationService {
         }
 
         // 시설 구독 자동 생성
-        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
+        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), userId, memberCache.getHouseholdId(), reservation.getReservationDate());
 
         return ReservationPostRes.builder()
                 .reservationId(reservation.getId())
@@ -850,9 +850,9 @@ public class ReservationService {
         }
     }
 
-    // 시설 구독 자동 생성
-    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long householdId, java.time.LocalDate subscribedAt) {
-        if (householdId == null) {
+    // 시설 구독 자동 생성 (userId 기준 개인 구독)
+    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long userId, Long householdId, java.time.LocalDate subscribedAt) {
+        if (householdId == null || userId == null) {
             return;
         }
         FacilityPolicy policy = facilityPolicyRepository
@@ -865,20 +865,22 @@ public class ReservationService {
         if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
             return;
         }
-        if (facilitySubscriptionRepository.existsByHouseholdIdAndFacilityIdAndStatus(
-                householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
+        // 개인 단위 중복 체크
+        if (facilitySubscriptionRepository.existsByUserIdAndFacilityIdAndStatus(
+                userId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
             return;
         }
         // 구독 재생성 유예기간 확인
         java.util.Optional<FacilitySubscription> recentCancelled = facilitySubscriptionRepository
-                .findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
-                        householdId, facilityId, FacilitySubscriptionStatus.CANCELLED);
+                .findTopByUserIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
+                        userId, facilityId, FacilitySubscriptionStatus.CANCELLED);
         if (recentCancelled.isPresent() && isCancelledInGracePeriod(recentCancelled.get(), policy)) {
             return;
         }
         facilitySubscriptionRepository.save(FacilitySubscription.builder()
                 .complexId(complexId)
                 .householdId(householdId)
+                .userId(userId)
                 .facilityId(facilityId)
                 .subscribedAt(subscribedAt)
                 .build());

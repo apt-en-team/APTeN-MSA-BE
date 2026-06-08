@@ -12,31 +12,37 @@ import org.springframework.data.repository.query.Param;
 // 시설 구독 저장/조회 Repository
 public interface FacilitySubscriptionRepository extends JpaRepository<FacilitySubscription, Long> {
 
-    // 시설 구독 중복 확인
-    boolean existsByHouseholdIdAndFacilityIdAndStatus(
-            Long householdId,
+    // 개인 구독 중복 확인 (userId 기준)
+    boolean existsByUserIdAndFacilityIdAndStatus(
+            Long userId,
             Long facilityId,
             FacilitySubscriptionStatus status
     );
 
-    // 활성 시설 구독 조회
-    Optional<FacilitySubscription> findByHouseholdIdAndFacilityIdAndStatus(
-            Long householdId,
+    // 개인 활성 구독 조회 (해지 시 사용)
+    Optional<FacilitySubscription> findByUserIdAndFacilityIdAndStatus(
+            Long userId,
             Long facilityId,
             FacilitySubscriptionStatus status
     );
 
-    // 입주민 시설 구독 목록 조회 (최근 구독순)
-    List<FacilitySubscription> findByHouseholdIdAndComplexIdOrderBySubscribedAtDesc(
-            Long householdId,
+    // 입주민 나의 구독 목록 조회 (userId 기준, 최근 구독순)
+    List<FacilitySubscription> findByUserIdAndComplexIdOrderBySubscribedAtDesc(
+            Long userId,
             Long complexId
     );
 
-    // 최근 해지 구독 조회 (유예기간 판단)
-    Optional<FacilitySubscription> findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
-            Long householdId,
+    // 최근 해지 구독 조회 (유예기간 판단, userId 기준)
+    Optional<FacilitySubscription> findTopByUserIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
+            Long userId,
             Long facilityId,
             FacilitySubscriptionStatus status
+    );
+
+    // 관리자 - 세대 구독 전체 조회 (세대 상세/요금 집계용)
+    List<FacilitySubscription> findByHouseholdIdAndComplexIdOrderBySubscribedAtDesc(
+            Long householdId,
+            Long complexId
     );
 
     // 관리자 시설 구독 목록 조회 (최근 구독순)
