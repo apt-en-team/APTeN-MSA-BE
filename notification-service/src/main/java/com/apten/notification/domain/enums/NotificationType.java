@@ -19,6 +19,7 @@ public enum NotificationType implements EnumMapperType {
     GX_APPROVED("08", "GX 승인"),
     GX_REJECTED("09", "GX 거절"),
     FACILITY_REMINDER("10", "시설 이용 전 리마인더"),
+    RESERVATION_FORCE_CANCELLED("25", "예약 강제 취소"),
     VEHICLE_REGISTRATION_APPROVED("11", "차량 등록 승인"),
     VEHICLE_REGISTRATION_REJECTED("12", "차량 등록 반려"),
     VEHICLE_ENTRY("13", "등록 차량 입차"),
