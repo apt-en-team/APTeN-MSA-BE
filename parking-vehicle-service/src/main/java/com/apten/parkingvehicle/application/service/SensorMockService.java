@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,15 @@ public class SensorMockService {
 
     // 일괄 등록 최대 항목 수
     private static final int BULK_MAX_SIZE = 100;
+
+    // zone 분산락 TTL (ms)
+    private static final long ZONE_LOCK_TTL_MS = 3000L;
+
+    // zone 분산락 획득 최대 시도 횟수
+    private static final int ZONE_LOCK_MAX_ATTEMPTS = 25;
+
+    // zone 분산락 재시도 대기 (ms)
+    private static final long ZONE_LOCK_RETRY_SLEEP_MS = 20L;
 
     private final SensorStatusRepository sensorStatusRepository;
     private final ParkingSensorRepository parkingSensorRepository;
@@ -127,27 +137,59 @@ public class SensorMockService {
         }
     }
 
-    // 센서 상태를 반대 상태로 전환한다.
+    // 센서 상태를 반대 상태로 전환한다. 같은 zone 동시 토글을 분산락으로 직렬화해 카운터 경합을 차단한다.
     public SensorStatus toggleSensor(String sensorCode) {
         if (!sensorStatusRepository.exists(sensorCode)) {
             throw new IllegalStateException("등록되지 않은 센서: " + sensorCode);
         }
-        SensorStatus current = sensorStatusRepository.getStatus(sensorCode);
-        SensorStatus next = (current == SensorStatus.OCCUPIED) ? SensorStatus.VACANT : SensorStatus.OCCUPIED;
 
-        // 사용불가 자리는 카운터에 영향을 주지 않도록 활성 여부를 먼저 조회한다
-        Long complexId = Long.valueOf(sensorStatusRepository.getSensorHash(sensorCode)
-                .get(SensorStatusRepository.FIELD_COMPLEX_ID));
-        boolean affectCounter = Boolean.TRUE.equals(resolveSensorActive(complexId, sensorCode));
-        sensorStatusRepository.updateStatus(sensorCode, next, affectCounter);
+        // zone/complex 식별자는 락 키와 활성 판정에 필요하므로 Hash에서 먼저 확보한다
+        Map<String, String> hash = sensorStatusRepository.getSensorHash(sensorCode);
+        Long zoneId = Long.valueOf(hash.get(SensorStatusRepository.FIELD_ZONE_ID));
+        Long complexId = Long.valueOf(hash.get(SensorStatusRepository.FIELD_COMPLEX_ID));
 
-        // 토글 후 최신 Hash와 zone 카운터로 페이로드를 구성해 발행한다.
-        ParkingSpotChangedEvent event = buildSpotChangedEvent(sensorCode);
-        if (event != null) {
-            sensorChangePublisher.publish(event);
-            parkingVehicleOutboxService.saveParkingSpotChangedEvent(event);
+        String token = UUID.randomUUID().toString();
+        // 락 경합 시 상태 변경 없이 현재 상태 반환 — 재동기화 스케줄러가 카운터 정합을 유지한다
+        if (!acquireZoneLock(zoneId, token)) {
+            return sensorStatusRepository.getStatus(sensorCode);
         }
-        return next;
+
+        try {
+            SensorStatus current = sensorStatusRepository.getStatus(sensorCode);
+            SensorStatus next = (current == SensorStatus.OCCUPIED) ? SensorStatus.VACANT : SensorStatus.OCCUPIED;
+
+            // 사용불가 자리는 카운터에 영향을 주지 않도록 활성 여부를 먼저 조회한다
+            boolean affectCounter = Boolean.TRUE.equals(resolveSensorActive(complexId, sensorCode));
+            boolean changed = sensorStatusRepository.updateStatus(sensorCode, next, affectCounter);
+
+            // 실제 전이가 일어난 경우에만 최신 Hash와 zone 카운터로 페이로드를 구성해 발행한다.
+            if (changed) {
+                ParkingSpotChangedEvent event = buildSpotChangedEvent(sensorCode);
+                if (event != null) {
+                    sensorChangePublisher.publish(event);
+                    parkingVehicleOutboxService.saveParkingSpotChangedEvent(event);
+                }
+            }
+            return next;
+        } finally {
+            sensorStatusRepository.unlockZone(zoneId, token);
+        }
+    }
+
+    // zone 분산락을 짧게 재시도하며 획득한다.
+    private boolean acquireZoneLock(Long zoneId, String token) {
+        for (int attempt = 0; attempt < ZONE_LOCK_MAX_ATTEMPTS; attempt++) {
+            if (sensorStatusRepository.tryLockZone(zoneId, token, ZONE_LOCK_TTL_MS)) {
+                return true;
+            }
+            try {
+                Thread.sleep(ZONE_LOCK_RETRY_SLEEP_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return false;
     }
 
     // 센서 Hash 전체를 조회한다.
