@@ -177,13 +177,13 @@ public class SensorStatusRepository {
         });
     }
 
-    // zone 점유 카운터 조회
+    // zone 점유 카운터 조회 — 음수 방지
     public Long getZoneOccupied(Long zoneId) {
         String raw = redisTemplate.opsForValue().get(buildZoneOccupiedKey(zoneId));
         if (raw == null) {
             return 0L;
         }
-        return Long.valueOf(raw);
+        return Math.max(0L, Long.valueOf(raw));
     }
 
     // zone 점유 카운터 +1 (자리 활성화 보정용)
@@ -193,7 +193,13 @@ public class SensorStatusRepository {
 
     // zone 점유 카운터 -1 (자리 비활성화 보정용)
     public void decrementZoneOccupied(Long zoneId) {
-        redisTemplate.opsForValue().decrement(buildZoneOccupiedKey(zoneId));
+        String key = buildZoneOccupiedKey(zoneId);
+        String raw = redisTemplate.opsForValue().get(key);
+        // 현재 값이 0 이하면 decrement 건너뜀 — Redis 카운터 음수 누적 방지
+        if (raw != null && Long.parseLong(raw) <= 0) {
+            return;
+        }
+        redisTemplate.opsForValue().decrement(key);
     }
 
     // zone 카운터 일괄 조회. 키 없는 zone은 0L로 채워 반환
