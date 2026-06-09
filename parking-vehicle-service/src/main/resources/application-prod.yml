@@ -31,6 +31,9 @@ apten:
     parking-mock:
       enabled: ${APTEN_SCHEDULER_PARKING_MOCK_ENABLED:true}
       fixed-delay-ms: ${APTEN_SCHEDULER_PARKING_MOCK_FIXED_DELAY_MS:7000}
+    zone-counter-reconcile:
+      enabled: ${APTEN_SCHEDULER_ZONE_COUNTER_RECONCILE_ENABLED:true}
+      fixed-delay-ms: ${APTEN_SCHEDULER_ZONE_COUNTER_RECONCILE_FIXED_DELAY_MS:30000}
   sse:
     timeout-ms: ${APTEN_SSE_TIMEOUT_MS:1800000}
     heartbeat-interval-ms: ${APTEN_SSE_HEARTBEAT_INTERVAL_MS:30000}
