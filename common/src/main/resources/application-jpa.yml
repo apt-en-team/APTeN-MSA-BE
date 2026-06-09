@@ -3,6 +3,7 @@ spring:
   jpa:
     database: mysql
     show-sql: ${JPA_SHOW_SQL}
+    open-in-view: false
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO}
     properties:

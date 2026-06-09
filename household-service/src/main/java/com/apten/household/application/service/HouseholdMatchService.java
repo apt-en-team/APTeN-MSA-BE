@@ -341,7 +341,7 @@ public class HouseholdMatchService {
                         .targetId(request.getUserId())
                         .title("입주 신청이 접수되었습니다.")
                         .content(request.getInputName() + " 님의 입주 신청이 접수되었습니다. 승인 여부를 확인해 주세요.")
-                        .linkPath("/admin/household/match-requests")
+                        .linkPath("/admin/households")
                         .build()
         );
 

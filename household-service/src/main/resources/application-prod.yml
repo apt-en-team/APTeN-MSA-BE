@@ -26,3 +26,6 @@ constants:
 apten:
   outbox:
     enabled: true
+  bootstrap:
+    household-type:
+      enabled: ${APTEN_BOOTSTRAP_HOUSEHOLD_TYPE_ENABLED:false}

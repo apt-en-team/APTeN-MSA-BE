@@ -45,7 +45,7 @@ public class Outbox {
 
     // relay가 아직 보낼 이벤트인지 실패 이벤트인지 판단하는 상태값이다.
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, columnDefinition = "VARCHAR(20)")
     private OutboxStatus status;
 
     // outbox row가 생성된 시각이며 오래된 이벤트부터 전송할 때 사용한다.
@@ -61,6 +61,16 @@ public class Outbox {
         this.payload = payload;
         this.status = OutboxStatus.INIT;
         this.createdAt = LocalDateTime.now();
+    }
+
+    // relay가 Kafka 전송 직전에 PROCESSING으로 변경해 다음 주기에서 중복 발행을 막는다.
+    public void markProcessing() {
+        this.status = OutboxStatus.PROCESSING;
+    }
+
+    // PROCESSING 상태에서 일정 시간이 지난 stuck 행을 INIT으로 되돌릴 때 사용한다.
+    public void markInit() {
+        this.status = OutboxStatus.INIT;
     }
 
     // Kafka 전송 실패 시 relay가 재조회 대상에서 제외되도록 FAILED로 변경한다.

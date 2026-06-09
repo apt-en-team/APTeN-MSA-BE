@@ -1,5 +1,7 @@
 package com.apten.common.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
@@ -18,6 +20,11 @@ public class JacksonFormatConfiguration {
 
             // long primitive 타입도 JSON 문자열로 변환한다.
             builder.serializerByType(Long.TYPE, ToStringSerializer.instance);
+
+            // Instant 직렬화 시 나노초(9자리) 대신 밀리초(3자리)로 제한한다.
+            // 나노초 포맷은 Jackson이 파싱하지 못해 Kafka consumer 역직렬화 오류가 발생한다.
+            builder.featuresToDisable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS);
+            builder.featuresToDisable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
         };
     }
 }

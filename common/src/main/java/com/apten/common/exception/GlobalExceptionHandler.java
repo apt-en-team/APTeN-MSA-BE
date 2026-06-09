@@ -1,10 +1,12 @@
 package com.apten.common.exception;
 
 import com.apten.common.response.ResultResponse;
+import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 @Slf4j
 @RestControllerAdvice
@@ -37,10 +39,23 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(IOException.class)
+    // SSE/스트리밍 연결에서 클라이언트가 끊으면 Broken pipe IOException이 발생한다.
+    // 응답 본문을 쓰지 않고 무시해 HttpMessageNotWritableException 연쇄 발생을 막는다.
+    public ResponseEntity<Void> handleIOException(IOException e) {
+        log.debug("Client disconnected (Broken pipe): {}", e.getMessage());
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(Exception.class)
     // 처리되지 않은 예외를 마지막에서 잡아 공통 500 응답으로 변환한다
     // 예외가 그대로 HTML 오류 페이지나 서비스별 제각각인 형태로 새지 않게 막아준다
     public ResponseEntity<ResultResponse<?>> handleException(Exception e) {
+        // SSE 연결 끊김으로 인한 AsyncRequestNotUsableException은 응답 쓰기가 불가능하므로 무시한다
+        if (e instanceof AsyncRequestNotUsableException) {
+            log.debug("SSE client disconnected: {}", e.getMessage());
+            return null;
+        }
         log.error("Unhandled exception", e);
 
         return ResponseEntity
