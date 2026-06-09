@@ -68,7 +68,7 @@ public class SensorStatusRepository {
                 operations.opsForHash().put(sensorKey, FIELD_ZONE_ID, String.valueOf(zoneId));
                 operations.opsForHash().put(sensorKey, FIELD_COMPLEX_ID, String.valueOf(complexId));
                 operations.opsForHash().put(sensorKey, FIELD_SPOT_NUMBER, spotNumber);
-                operations.opsForHash().put(sensorKey, FIELD_ZONE_TOTAL_SLOTS, String.valueOf(zoneTotalSlots));
+                operations.opsForHash().put(sensorKey, FIELD_ZONE_TOTAL_SLOTS, String.valueOf(zoneTotalSlots != null ? zoneTotalSlots : 0));
                 operations.opsForSet().add(REGISTERED_SET_KEY, sensorCode);
                 // 현재 상태와 요청 상태 조합으로 zone 카운터 차분 적용
                 if (currentStatus == null && initialStatus == SensorStatus.OCCUPIED) {

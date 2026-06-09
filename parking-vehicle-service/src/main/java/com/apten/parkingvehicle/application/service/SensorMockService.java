@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -173,7 +174,8 @@ public class SensorMockService {
                 .status(SensorStatus.valueOf(hash.get(SensorStatusRepository.FIELD_STATUS)))
                 .isActive(resolveSensorActive(complexId, sensorCode))
                 .zoneOccupied(sensorStatusRepository.getZoneOccupied(zoneId).intValue())
-                .zoneTotalSlots(Integer.parseInt(hash.get(SensorStatusRepository.FIELD_ZONE_TOTAL_SLOTS)))
+                .zoneTotalSlots(Optional.ofNullable(hash.get(SensorStatusRepository.FIELD_ZONE_TOTAL_SLOTS))
+                        .filter(v -> !v.equals("null")).map(Integer::parseInt).orElse(0))
                 .changedAt(LocalDateTime.parse(hash.get(SensorStatusRepository.FIELD_CHANGED_AT)))
                 .build();
     }
