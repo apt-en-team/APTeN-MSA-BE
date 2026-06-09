@@ -22,6 +22,7 @@ import com.apten.household.application.model.response.HouseholdMemberListRes;
 import com.apten.household.application.model.response.HouseholdMemberPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberPostRes;
 import com.apten.household.application.model.response.HouseholdMemberRepublishRes;
+import com.apten.household.application.model.response.HouseholdRepublishRes;
 import com.apten.household.application.model.response.HouseholdStatusPatchRes;
 import com.apten.household.application.model.response.MyHouseholdRes;
 import com.apten.household.domain.entity.ComplexCache;
@@ -141,11 +142,14 @@ public class HouseholdService {
                     continue;
                 }
 
+                // building_line_type 기반 자동 조회, 없으면 요청값 fallback
+                Long resolvedTypeId = householdTypeService.resolveTypeIdOrNull(complexId, building, unit);
+                if (resolvedTypeId == null) resolvedTypeId = typeId;
                 households.add(Household.builder()
                         .complexId(complexId)
                         .building(building)
                         .unit(unit)
-                        .typeId(typeId)
+                        .typeId(resolvedTypeId)
                         .status(HouseholdStatus.VACANT)
                         .headUserId(null)
                         .build());
@@ -489,6 +493,16 @@ public class HouseholdService {
         return HouseholdMemberRepublishRes.builder()
                 .republishedCount(members.size())
                 .message("전 세대원 이벤트 재발행 완료")
+                .build();
+    }
+
+    // 전 세대 이벤트 재발행 — HouseholdCache(동호 정보) 일괄 복구용 1회성 백필
+    public HouseholdRepublishRes republishAllHouseholds() {
+        List<Household> households = householdRepository.findAll();
+        households.forEach(householdOutboxService::saveHouseholdUpdatedEvent);
+        return HouseholdRepublishRes.builder()
+                .republishedCount(households.size())
+                .message("전 세대 이벤트 재발행 완료")
                 .build();
     }
 
