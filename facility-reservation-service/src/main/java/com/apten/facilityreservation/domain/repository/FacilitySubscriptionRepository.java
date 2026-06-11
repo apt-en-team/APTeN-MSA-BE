@@ -60,17 +60,18 @@ public interface FacilitySubscriptionRepository extends JpaRepository<FacilitySu
             FacilitySubscriptionStatus status
     );
 
-    // 월 청구 대상 구독 조회
+    // 월 청구 대상 구독 조회 — 문자열 'ACTIVE' 대신 enum 파라미터로 전달해야 CodeConverter가 '01'로 변환됨
     @Query("""
         SELECT s FROM FacilitySubscription s
         WHERE s.complexId = :complexId
-          AND s.status = 'ACTIVE'
+          AND s.status = :status
           AND s.subscribedAt <= :monthEnd
           AND (s.cancelledAt IS NULL OR s.cancelledAt >= :monthStart)
         """)
     List<FacilitySubscription> findBillableForMonth(
             @Param("complexId") Long complexId,
             @Param("monthStart") LocalDate monthStart,
-            @Param("monthEnd") LocalDate monthEnd
+            @Param("monthEnd") LocalDate monthEnd,
+            @Param("status") FacilitySubscriptionStatus status
     );
 }

@@ -2,6 +2,7 @@ package com.apten.facilityreservation.scheduler;
 
 import com.apten.facilityreservation.application.service.ReservationService;
 import lombok.RequiredArgsConstructor;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,7 @@ public class ReservationTempHoldExpireScheduler {
 
     // Redis TTL 기본값이 10분이므로 60초 주기로 실행해 만료 행을 적시에 정리한다.
     @Scheduled(fixedDelayString = "${apten.scheduler.temp-hold-expire.fixed-delay-ms:60000}")
+    @SchedulerLock(name = "reservation-temp-hold-expire", lockAtMostFor = "55s", lockAtLeastFor = "1s")
     public void expireSeatHolds() {
         reservationService.expireSeatHolds();
     }

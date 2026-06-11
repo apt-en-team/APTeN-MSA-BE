@@ -117,15 +117,25 @@ public class FacilitySubscriptionService {
         Map<Long, UserCache> userMap = userCacheRepository.findAllById(userIds)
                 .stream().collect(Collectors.toMap(UserCache::getId, u -> u));
 
+        List<Long> householdIds = subscriptions.stream()
+                .map(FacilitySubscription::getHouseholdId)
+                .filter(java.util.Objects::nonNull)
+                .distinct().toList();
+        Map<Long, HouseholdCache> householdMap = householdCacheRepository.findAllById(householdIds)
+                .stream().collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
+
         return subscriptions.stream()
                 .map(s -> {
                     UserCache user = s.getUserId() != null ? userMap.get(s.getUserId()) : null;
+                    HouseholdCache household = s.getHouseholdId() != null ? householdMap.get(s.getHouseholdId()) : null;
                     return AdminFacilitySubscriptionListRes.builder()
                             .subscriptionId(s.getId())
                             .complexId(s.getComplexId())
                             .householdId(s.getHouseholdId())
                             .userId(s.getUserId())
                             .subscriberName(user != null ? user.getName() : null)
+                            .buildingNo(household != null ? household.getBuildingNo() : null)
+                            .unitNo(household != null ? household.getUnitNo() : null)
                             .facilityId(s.getFacilityId())
                             .subscribedAt(s.getSubscribedAt())
                             .cancelledAt(s.getCancelledAt())

@@ -5,6 +5,7 @@ import com.apten.facilityreservation.application.model.request.FacilityFeePublis
 import com.apten.facilityreservation.application.service.FacilityFeeService;
 import java.time.YearMonth;
 import lombok.RequiredArgsConstructor;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,8 +23,8 @@ public class FacilityFeeScheduler {
 
     private final FacilityFeeService facilityFeeService;
 
-    // 매월 2일 새벽 2시 실행 — 전월 비용 산정 후 즉시 발행한다.
     @Scheduled(cron = "0 0 2 2 * ?")
+    @SchedulerLock(name = "facility-fee-calculate", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     public void calculateAndPublishPreviousMonthFees() {
         YearMonth previousMonth = YearMonth.now().minusMonths(1);
 

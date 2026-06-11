@@ -25,6 +25,12 @@ public class AdminFacilitySubscriptionListRes {
     // 구독 신청자 이름이다.
     private String subscriberName;
 
+    // 동 번호이다.
+    private String buildingNo;
+
+    // 호 번호이다.
+    private String unitNo;
+
     // 시설 ID이다.
     private Long facilityId;
 

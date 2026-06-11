@@ -12,6 +12,7 @@ import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.enums.FacilityFeeType;
+import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
@@ -104,7 +105,7 @@ public class FacilityFeeService {
 
         for (Long complexId : allComplexIds) {
             List<FacilitySubscription> billableSubscriptions = facilitySubscriptionRepository
-                    .findBillableForMonth(complexId, fromDate, toDate);
+                    .findBillableForMonth(complexId, fromDate, toDate, FacilitySubscriptionStatus.ACTIVE);
             if (billableSubscriptions.isEmpty()) {
                 continue;
             }

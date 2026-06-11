@@ -49,6 +49,7 @@ import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
@@ -646,17 +647,33 @@ public class ReservationService {
                         .stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
 
+        // 세대 동/호수 일괄 조회 (N+1 방지)
+        List<Long> householdIds = reservations.stream()
+                .map(Reservation::getHouseholdId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(householdIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                HouseholdCache::getHouseholdId, h -> h));
+
         List<AdminReservationListRes> items = reservations.stream()
                 .map(r -> {
                     Facility facility = facilityMap.get(r.getFacilityId());
                     FacilitySeat seat = r.getSeatId() != null ? seatMap.get(r.getSeatId()) : null;
                     UserCache user = r.getUserId() != null ? userMap.get(r.getUserId()) : null;
+                    HouseholdCache household =
+                            r.getHouseholdId() != null ? householdMap.get(r.getHouseholdId()) : null;
                     return AdminReservationListRes.builder()
                             .reservationId(r.getId())
                             .facilityId(r.getFacilityId())
                             .facilityName(facility != null ? facility.getName() : null)
                             .userId(r.getUserId())
                             .residentName(user != null ? user.getName() : null)
+                            .buildingNo(household != null ? household.getBuildingNo() : null)
+                            .unitNo(household != null ? household.getUnitNo() : null)
                             .reservationDate(r.getReservationDate())
                             .startTime(r.getStartTime())
                             .endTime(r.getEndTime())
@@ -696,7 +713,7 @@ public class ReservationService {
                 ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
                 : null;
 
-        com.apten.facilityreservation.domain.entity.HouseholdCache household =
+        HouseholdCache household =
                 (reservation.getHouseholdId() != null)
                         ? householdCacheRepository.findByHouseholdId(reservation.getHouseholdId()).orElse(null)
                         : null;

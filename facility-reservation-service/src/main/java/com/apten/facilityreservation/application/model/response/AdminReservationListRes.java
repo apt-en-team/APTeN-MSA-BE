@@ -27,6 +27,12 @@ public class AdminReservationListRes {
     // 입주민 이름이다.
     private String residentName;
 
+    // 동 번호이다.
+    private String buildingNo;
+
+    // 호 번호이다.
+    private String unitNo;
+
     // 예약일이다.
     private LocalDate reservationDate;
 
