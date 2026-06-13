@@ -111,3 +111,48 @@ OutboxRelay가 10초 주기로 INIT 상태 이벤트를 Kafka로 발행합니다
 **이윤주 — 게시판 / 투표**
 - Tiptap 에디터 기반 리치 텍스트 게시글, 이미지·파일 첨부 지원
 - 투표 세대 단위 중복 참여 방지 (세대주 1인 1표 정책 적용)
+
+---
+
+## 실행 방법
+
+### 사전 요구사항
+
+- Java 21
+- Docker Desktop
+
+### 1. Kafka + Redis 실행
+
+```bash
+docker compose up -d
+```
+
+| 컨테이너 | 이미지 | 포트 |
+|---|---|---|
+| apten-kafka | bitnami/kafka:3.7 | 9092 |
+| apten-redis | redis:7-alpine | 6379 |
+
+Kafka는 KRaft 모드(Zookeeper 없음)로 실행되며, 토픽은 자동 생성됩니다.  
+Docker Desktop 시작 시 두 컨테이너가 자동으로 실행됩니다.
+
+### 2. 환경변수 설정
+
+각 서비스 루트에 `.env` 파일을 생성하고 값을 채웁니다.
+
+```bash
+cp .env.example .env
+```
+
+> DB는 외부 MariaDB 서버(`112.222.157.157:5013`)에 직접 연결하는 방식입니다.  
+> Docker Compose에 DB가 포함되어 있지 않습니다.
+
+### 3. 서비스 실행
+
+각 서비스를 IntelliJ 또는 Gradle로 개별 실행합니다.
+
+```bash
+# 예시 (각 서비스 디렉토리에서)
+./gradlew bootRun
+```
+
+실행 순서: `common` 빌드 → `gateway-service` → 나머지 서비스
