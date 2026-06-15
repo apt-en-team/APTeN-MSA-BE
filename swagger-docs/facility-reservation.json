@@ -1,0 +1,2535 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Facility Reservation Service API",
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:9086"
+  } ],
+  "tags" : [ ],
+  "paths" : {
+    "/api/facilities" : {
+      "get" : {
+        "tags" : [ "Resident - 시설" ],
+        "summary" : "입주민 시설 목록 조회",
+        "description" : "입주민 시설 목록 조회",
+        "operationId" : "resident-facility-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-facility-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 시설 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/facility-subscriptions" : {
+      "get" : {
+        "tags" : [ "Resident - 시설 구독" ],
+        "summary" : "내 시설 구독 목록 조회",
+        "description" : "내 시설 구독 목록 조회",
+        "operationId" : "resident-subscription-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-subscription-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"나의 구독 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gx-programs" : {
+      "get" : {
+        "tags" : [ "Resident - GX 프로그램" ],
+        "summary" : "입주민 GX 프로그램 목록 조회",
+        "description" : "입주민 GX 프로그램 목록 조회",
+        "operationId" : "resident-gx-program-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-gx-program-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 GX 프로그램 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gx-reservations" : {
+      "post" : {
+        "tags" : [ "Resident - GX 예약" ],
+        "summary" : "GX 예약 신청",
+        "description" : "GX 예약 신청",
+        "operationId" : "resident-gx-reservation-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "resident-gx-reservation-create" : {
+                  "value" : "{\"programId\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-gx-reservation-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 예약 신청 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations" : {
+      "post" : {
+        "tags" : [ "Resident - 예약" ],
+        "summary" : "예약 생성",
+        "description" : "예약 생성",
+        "operationId" : "resident-reservation-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "resident-reservation-create" : {
+                  "value" : "{\"date\":\"2026-07-01\",\"facilityId\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-reservation-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"예약 생성 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities" : {
+      "get" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "관리자 시설 목록 조회",
+        "description" : "관리자 시설 목록 조회",
+        "operationId" : "admin-facility-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 시설 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "시설 등록",
+        "description" : "시설 등록",
+        "operationId" : "admin-facility-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-create" : {
+                  "value" : "{\"name\":\"헬스장\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-policies" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 정책" ],
+        "summary" : "시설 예약 정책 조회",
+        "description" : "시설 예약 정책 조회",
+        "operationId" : "admin-facility-policy-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-policy-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 예약 정책 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Admin - 시설 정책" ],
+        "summary" : "시설 예약 정책 설정",
+        "description" : "시설 예약 정책 설정",
+        "operationId" : "admin-facility-policy-update",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-policy-update" : {
+                  "value" : "{\"maxReservationDays\":7}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-policy-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 예약 정책 설정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-subscriptions" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 구독" ],
+        "summary" : "관리자 구독 목록 조회",
+        "description" : "관리자 구독 목록 조회",
+        "operationId" : "admin-subscription-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-subscription-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"구독 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-types" : {
+      "get" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "시설 타입 목록 조회",
+        "description" : "시설 타입 목록 조회",
+        "operationId" : "admin-facility-type-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-type-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 타입 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs" : {
+      "get" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "관리자 GX 프로그램 목록 조회",
+        "description" : "관리자 GX 프로그램 목록 조회",
+        "operationId" : "admin-gx-program-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-program-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 프로그램 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 프로그램 등록",
+        "description" : "GX 프로그램 등록",
+        "operationId" : "admin-gx-program-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-gx-program-create" : {
+                  "value" : "{\"name\":\"요가\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-program-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 프로그램 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reservations" : {
+      "get" : {
+        "tags" : [ "Admin - 예약" ],
+        "summary" : "관리자 예약 목록 조회",
+        "description" : "관리자 예약 목록 조회",
+        "operationId" : "admin-reservation-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-reservation-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 예약 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/facilities/{facilityId}" : {
+      "get" : {
+        "tags" : [ "Resident - 시설" ],
+        "summary" : "입주민 시설 상세 조회",
+        "description" : "입주민 시설 상세 조회",
+        "operationId" : "resident-facility-detail",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-facility-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 시설 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gx-programs/{programId}" : {
+      "get" : {
+        "tags" : [ "Resident - GX 프로그램" ],
+        "summary" : "입주민 GX 프로그램 상세 조회",
+        "description" : "입주민 GX 프로그램 상세 조회",
+        "operationId" : "resident-gx-program-detail",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-gx-program-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 GX 프로그램 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gx-reservations/my" : {
+      "get" : {
+        "tags" : [ "Resident - GX 예약" ],
+        "summary" : "내 GX 예약 목록 조회",
+        "description" : "내 GX 예약 목록 조회",
+        "operationId" : "resident-my-gx-reservation-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-my-gx-reservation-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 GX 예약 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/available-times" : {
+      "get" : {
+        "tags" : [ "Resident - 예약" ],
+        "summary" : "예약 가능 시간 조회",
+        "description" : "예약 가능 시간 조회",
+        "operationId" : "resident-reservation-available-times",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-reservation-available-times" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"예약 가능 시간 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/my" : {
+      "get" : {
+        "tags" : [ "Resident - 예약" ],
+        "summary" : "내 예약 통합 목록 조회",
+        "description" : "내 예약 통합 목록 조회",
+        "operationId" : "resident-my-reservation-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-my-reservation-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 예약 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/seat-holds" : {
+      "post" : {
+        "tags" : [ "Resident - 예약" ],
+        "summary" : "좌석 임시 선점",
+        "description" : "좌석 임시 선점",
+        "operationId" : "resident-seat-hold-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "resident-seat-hold-create" : {
+                  "value" : "{\"facilityId\":1,\"date\":\"2026-07-01\",\"seatId\":2}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-seat-hold-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"좌석 임시 선점 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/{reservationId}" : {
+      "get" : {
+        "tags" : [ "Resident - 예약" ],
+        "summary" : "내 예약 상세 조회",
+        "description" : "내 예약 상세 조회",
+        "operationId" : "resident-reservation-detail",
+        "parameters" : [ {
+          "name" : "reservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-reservation-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 예약 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}" : {
+      "get" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "관리자 시설 상세 조회",
+        "description" : "관리자 시설 상세 조회",
+        "operationId" : "admin-facility-detail",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 시설 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "시설 삭제",
+        "description" : "시설 삭제",
+        "operationId" : "admin-facility-delete",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 삭제 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "시설 수정",
+        "description" : "시설 수정",
+        "operationId" : "admin-facility-update",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-update" : {
+                  "value" : "{\"name\":\"수정된 헬스장\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 수정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-seats/{seatId}" : {
+      "patch" : {
+        "tags" : [ "Admin - 시설 좌석" ],
+        "summary" : "시설 좌석 수정",
+        "description" : "시설 좌석 수정",
+        "operationId" : "admin-facility-seat-update",
+        "parameters" : [ {
+          "name" : "seatId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-seat-update" : {
+                  "value" : "{\"seatNumber\":\"B-01\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-seat-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 좌석 수정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-subscriptions/households" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 구독" ],
+        "summary" : "세대별 구독 요약 목록 조회",
+        "description" : "세대별 구독 요약 목록 조회",
+        "operationId" : "admin-subscription-household-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-subscription-household-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대별 구독 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-subscriptions/{subscriptionId}" : {
+      "delete" : {
+        "tags" : [ "Admin - 시설 구독" ],
+        "summary" : "관리자 구독 강제 해지",
+        "description" : "관리자 구독 강제 해지",
+        "operationId" : "admin-subscription-cancel",
+        "parameters" : [ {
+          "name" : "subscriptionId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-subscription-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"구독이 해지되었습니다.\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-usage/status" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 현황" ],
+        "summary" : "시설 이용 현황 조회",
+        "description" : "시설 이용 현황 조회",
+        "operationId" : "admin-facility-usage-status",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-usage-status" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 이용 현황 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}" : {
+      "get" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "관리자 GX 프로그램 상세 조회",
+        "description" : "관리자 GX 프로그램 상세 조회",
+        "operationId" : "admin-gx-program-detail",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-program-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 프로그램 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 프로그램 수정",
+        "description" : "GX 프로그램 수정",
+        "operationId" : "admin-gx-program-update",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-gx-program-update" : {
+                  "value" : "{\"name\":\"필라테스\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-program-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 프로그램 수정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-reservations/{gxReservationId}" : {
+      "get" : {
+        "tags" : [ "Admin - GX 예약" ],
+        "summary" : "관리자 GX 예약 상세 조회",
+        "description" : "관리자 GX 예약 상세 조회",
+        "operationId" : "admin-gx-reservation-detail",
+        "parameters" : [ {
+          "name" : "gxReservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-reservation-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 GX 예약 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reservations/overview" : {
+      "get" : {
+        "tags" : [ "Admin - 예약" ],
+        "summary" : "관리자 예약 통합 개요 조회",
+        "description" : "관리자 예약 통합 개요 조회",
+        "operationId" : "admin-reservation-overview",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-reservation-overview" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 예약 통합 개요 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reservations/stats" : {
+      "get" : {
+        "tags" : [ "Admin - 예약" ],
+        "summary" : "관리자 예약 통계 조회",
+        "description" : "관리자 예약 통계 조회",
+        "operationId" : "admin-reservation-stats",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-reservation-stats" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 예약 통계 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reservations/{reservationId}" : {
+      "get" : {
+        "tags" : [ "Admin - 예약" ],
+        "summary" : "관리자 예약 상세 조회",
+        "description" : "관리자 예약 상세 조회",
+        "operationId" : "admin-reservation-detail",
+        "parameters" : [ {
+          "name" : "reservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-reservation-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 예약 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/facilities/{facilityId}/seat-status" : {
+      "get" : {
+        "tags" : [ "Resident - 시설" ],
+        "summary" : "입주민 좌석 상태 조회",
+        "description" : "입주민 좌석 상태 조회",
+        "operationId" : "resident-facility-seat-status",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-facility-seat-status" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 좌석 상태 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/facility-subscriptions/{facilityId}/cancel" : {
+      "post" : {
+        "tags" : [ "Resident - 시설 구독" ],
+        "summary" : "시설 구독 해지",
+        "description" : "시설 구독 해지",
+        "operationId" : "resident-subscription-cancel",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-subscription-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 구독 해지 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gx-reservations/{gxReservationId}/cancel" : {
+      "patch" : {
+        "tags" : [ "Resident - GX 예약" ],
+        "summary" : "GX 예약 취소",
+        "description" : "GX 예약 취소",
+        "operationId" : "resident-gx-reservation-cancel",
+        "parameters" : [ {
+          "name" : "gxReservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-gx-reservation-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 예약 취소 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gx-reservations/{gxReservationId}/waiting" : {
+      "get" : {
+        "tags" : [ "Resident - GX 예약" ],
+        "summary" : "GX 대기 순번 조회",
+        "description" : "GX 대기 순번 조회",
+        "operationId" : "resident-gx-reservation-waiting",
+        "parameters" : [ {
+          "name" : "gxReservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-gx-reservation-waiting" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 대기 순번 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reservations/{reservationId}/cancel" : {
+      "patch" : {
+        "tags" : [ "Resident - 예약" ],
+        "summary" : "예약 취소",
+        "description" : "예약 취소",
+        "operationId" : "resident-reservation-cancel",
+        "parameters" : [ {
+          "name" : "reservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "resident-reservation-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"예약 취소 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/active" : {
+      "patch" : {
+        "tags" : [ "Admin - 시설" ],
+        "summary" : "시설 활성/비활성 변경",
+        "description" : "시설 활성/비활성 변경",
+        "operationId" : "admin-facility-active",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-active" : {
+                  "value" : "{\"isActive\":true}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-active" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 활성 상태 변경 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/block-times" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 차단" ],
+        "summary" : "시설 차단 시간 목록 조회",
+        "description" : "시설 차단 시간 목록 조회",
+        "operationId" : "admin-facility-block-time-list",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-block-time-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 차단 시간 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 시설 차단" ],
+        "summary" : "시설 차단 시간 등록",
+        "description" : "시설 차단 시간 등록",
+        "operationId" : "admin-facility-block-time-create",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-block-time-create" : {
+                  "value" : "{\"startTime\":\"09:00\",\"endTime\":\"10:00\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-block-time-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 차단 시간 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/closure-rules" : {
+      "get" : {
+        "tags" : [ "Admin - 정기 휴무" ],
+        "summary" : "정기 휴무 규칙 목록 조회",
+        "description" : "정기 휴무 규칙 목록 조회",
+        "operationId" : "admin-facility-closure-rule-list",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-closure-rule-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"정기 휴무 규칙 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 정기 휴무" ],
+        "summary" : "정기 휴무 규칙 등록",
+        "description" : "정기 휴무 규칙 등록",
+        "operationId" : "admin-facility-closure-rule-create",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-closure-rule-create" : {
+                  "value" : "{\"dayOfWeek\":\"SUNDAY\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-closure-rule-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"정기 휴무 규칙 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/count-status" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 현황" ],
+        "summary" : "정원형 이용 현황 조회",
+        "description" : "정원형 이용 현황 조회",
+        "operationId" : "admin-facility-count-status",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-count-status" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"정원형 이용 현황 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/seat-status" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 현황" ],
+        "summary" : "좌석 상태 조회",
+        "description" : "좌석 상태 조회",
+        "operationId" : "admin-facility-seat-status",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-seat-status" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"좌석 상태 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/seats" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 좌석" ],
+        "summary" : "시설 좌석 목록 조회",
+        "description" : "시설 좌석 목록 조회",
+        "operationId" : "admin-facility-seat-list",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-seat-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 좌석 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 시설 좌석" ],
+        "summary" : "시설 좌석 등록",
+        "description" : "시설 좌석 등록",
+        "operationId" : "admin-facility-seat-create",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-seat-create" : {
+                  "value" : "{\"seatNumber\":\"A-01\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-seat-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 좌석 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facility-subscriptions/households/{householdId}" : {
+      "get" : {
+        "tags" : [ "Admin - 시설 구독" ],
+        "summary" : "세대별 구독 상세 조회",
+        "description" : "세대별 구독 상세 조회",
+        "operationId" : "admin-subscription-household-detail",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-subscription-household-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대별 구독 상세 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}/bulk-approve" : {
+      "post" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 일괄 승인 처리",
+        "description" : "GX 일괄 승인 처리",
+        "operationId" : "admin-gx-bulk-approve",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-gx-bulk-approve" : {
+                  "value" : "{\"reservationIds\":[1,2]}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-bulk-approve" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 일괄 승인 처리 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}/cancel" : {
+      "patch" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 프로그램 취소",
+        "description" : "GX 프로그램 취소",
+        "operationId" : "admin-gx-program-cancel",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-gx-program-cancel" : {
+                  "value" : "{\"reason\":\"강사 부재\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-program-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 프로그램 취소 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}/close-waiting" : {
+      "patch" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 모집 마감",
+        "description" : "GX 모집 마감",
+        "operationId" : "admin-gx-program-close-waiting",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-program-close-waiting" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 모집 마감 처리 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}/minimum-check" : {
+      "post" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 최소 인원 검증",
+        "description" : "GX 최소 인원 검증",
+        "operationId" : "admin-gx-minimum-check",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-minimum-check" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 최소 인원 검증 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}/reservations" : {
+      "get" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 프로그램 신청자 목록 조회",
+        "description" : "GX 프로그램 신청자 목록 조회",
+        "operationId" : "admin-gx-reservation-list-by-program",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-reservation-list-by-program" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 프로그램 신청자 목록 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-programs/{programId}/status" : {
+      "get" : {
+        "tags" : [ "Admin - GX 프로그램" ],
+        "summary" : "GX 현황 조회",
+        "description" : "GX 현황 조회",
+        "operationId" : "admin-gx-status",
+        "parameters" : [ {
+          "name" : "programId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-status" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 현황 조회 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-reservations/{gxReservationId}/approve" : {
+      "patch" : {
+        "tags" : [ "Admin - GX 예약" ],
+        "summary" : "GX 단건 승인 처리",
+        "description" : "GX 단건 승인 처리",
+        "operationId" : "admin-gx-reservation-approve",
+        "parameters" : [ {
+          "name" : "gxReservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-reservation-approve" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 단건 승인 처리 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-reservations/{gxReservationId}/cancel" : {
+      "patch" : {
+        "tags" : [ "Admin - GX 예약" ],
+        "summary" : "관리자 GX 예약 강제 취소",
+        "description" : "관리자 GX 예약 강제 취소",
+        "operationId" : "admin-gx-reservation-cancel",
+        "parameters" : [ {
+          "name" : "gxReservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-reservation-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 GX 예약 강제 취소 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/gx-reservations/{gxReservationId}/reject" : {
+      "patch" : {
+        "tags" : [ "Admin - GX 예약" ],
+        "summary" : "GX 단건 거절 처리",
+        "description" : "GX 단건 거절 처리",
+        "operationId" : "admin-gx-reservation-reject",
+        "parameters" : [ {
+          "name" : "gxReservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-gx-reservation-reject" : {
+                  "value" : "{\"reason\":\"정원 초과\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-gx-reservation-reject" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 단건 거절 처리 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reservations/{reservationId}/cancel" : {
+      "patch" : {
+        "tags" : [ "Admin - 예약" ],
+        "summary" : "관리자 예약 강제 취소",
+        "description" : "관리자 예약 강제 취소",
+        "operationId" : "admin-reservation-cancel",
+        "parameters" : [ {
+          "name" : "reservationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-reservation-cancel" : {
+                  "value" : "{\"reason\":\"운영 정책\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-reservation-cancel" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 예약 강제 취소 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/block-times/batch" : {
+      "post" : {
+        "tags" : [ "Admin - 시설 차단" ],
+        "summary" : "반복 차단 배치 등록",
+        "description" : "반복 차단 배치 등록",
+        "operationId" : "admin-facility-block-batch-create",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-block-batch-create" : {
+                  "value" : "{\"dayOfWeek\":\"MONDAY\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-block-batch-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"반복 차단 시간 배치 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/block-times/{blockTimeId}" : {
+      "patch" : {
+        "tags" : [ "Admin - 시설 차단" ],
+        "summary" : "시설 차단 시간 단건 수정",
+        "description" : "시설 차단 시간 단건 수정",
+        "operationId" : "admin-facility-block-time-update",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "blockTimeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-block-time-update" : {
+                  "value" : "{\"startTime\":\"10:00\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-block-time-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 차단 시간 수정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/closure-rules/{ruleId}" : {
+      "patch" : {
+        "tags" : [ "Admin - 정기 휴무" ],
+        "summary" : "정기 휴무 규칙 수정",
+        "description" : "정기 휴무 규칙 수정",
+        "operationId" : "admin-facility-closure-rule-update",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ruleId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-closure-rule-update" : {
+                  "value" : "{\"isActive\":false}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-closure-rule-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"정기 휴무 규칙 수정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/seats/bulk" : {
+      "post" : {
+        "tags" : [ "Admin - 시설 좌석" ],
+        "summary" : "시설 좌석 일괄 등록",
+        "description" : "시설 좌석 일괄 등록",
+        "operationId" : "admin-facility-seat-bulk-create",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "admin-facility-seat-bulk-create" : {
+                  "value" : "{\"count\":10}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-seat-bulk-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 좌석 일괄 등록 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/block-times/{blockTimeId}/deactivate" : {
+      "patch" : {
+        "tags" : [ "Admin - 시설 차단" ],
+        "summary" : "시설 차단 시간 단건 비활성화",
+        "description" : "시설 차단 시간 단건 비활성화",
+        "operationId" : "admin-facility-block-time-deactivate",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "blockTimeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-block-time-deactivate" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 차단 시간 비활성화 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/closure-rules/{ruleId}/deactivate" : {
+      "patch" : {
+        "tags" : [ "Admin - 정기 휴무" ],
+        "summary" : "정기 휴무 규칙 비활성화",
+        "description" : "정기 휴무 규칙 비활성화",
+        "operationId" : "admin-facility-closure-rule-deactivate",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "ruleId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-closure-rule-deactivate" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"정기 휴무 규칙 비활성화 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/facilities/{facilityId}/block-times/batch/{batchId}/deactivate" : {
+      "patch" : {
+        "tags" : [ "Admin - 시설 차단" ],
+        "summary" : "반복 차단 그룹 비활성화",
+        "description" : "반복 차단 그룹 비활성화",
+        "operationId" : "admin-facility-block-batch-deactivate",
+        "parameters" : [ {
+          "name" : "facilityId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "batchId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "admin-facility-block-batch-deactivate" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"반복 차단 그룹 비활성화 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/facility-fees/calculate" : {
+      "post" : {
+        "tags" : [ "Internal - 시설 비용" ],
+        "summary" : "시설 이용 비용 산정",
+        "description" : "시설 이용 비용 산정",
+        "operationId" : "internal-facility-fee-calculate",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "internal-facility-fee-calculate" : {
+                  "value" : "{\"billMonth\":1,\"billYear\":2026,\"complexId\":10}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "internal-facility-fee-calculate" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 이용 비용 산정 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/facility-fees/publish" : {
+      "post" : {
+        "tags" : [ "Internal - 시설 비용" ],
+        "summary" : "시설 이용 비용 발행",
+        "description" : "시설 이용 비용 발행",
+        "operationId" : "internal-facility-fee-publish",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+              },
+              "examples" : {
+                "internal-facility-fee-publish" : {
+                  "value" : "{\"billMonth\":1,\"billYear\":2026,\"complexId\":10}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "internal-facility-fee-publish" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 이용 비용 발행 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/gx-reservations/complete" : {
+      "post" : {
+        "tags" : [ "Internal - 예약" ],
+        "summary" : "GX 예약 완료 처리",
+        "description" : "GX 예약 완료 처리",
+        "operationId" : "internal-gx-reservation-complete",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "internal-gx-reservation-complete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"GX 이용완료 처리 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/reservation-temp-holds/expire" : {
+      "post" : {
+        "tags" : [ "Internal - 예약" ],
+        "summary" : "좌석 임시 선점 만료 처리",
+        "description" : "좌석 임시 선점 만료 처리",
+        "operationId" : "internal-temp-hold-expire",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "internal-temp-hold-expire" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"좌석 임시 선점 자동 해제 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/reservations/complete" : {
+      "post" : {
+        "tags" : [ "Internal - 예약" ],
+        "summary" : "일반 시설 예약 완료 처리",
+        "description" : "일반 시설 예약 완료 처리",
+        "operationId" : "internal-reservation-complete",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-facilities-facilityId486549215"
+                },
+                "examples" : {
+                  "internal-reservation-complete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"예약 완료 처리 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "api-admin-facilities-facilityId486549215" : {
+        "type" : "object"
+      }
+    }
+  }
+}
