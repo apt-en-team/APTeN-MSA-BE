@@ -26,7 +26,7 @@ import com.apten.apartmentcomplex.domain.repository.ApartmentComplexRepository;
 import com.apten.apartmentcomplex.domain.repository.ComplexFeatureRepository;
 import com.apten.apartmentcomplex.domain.repository.ComplexAdminRepository;
 import com.apten.apartmentcomplex.exception.ApartmentComplexErrorCode;
-import com.apten.apartmentcomplex.infrastructure.client.AuthInternalClient;
+import com.apten.apartmentcomplex.infrastructure.client.AuthInternalFeignClient;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateReq;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminCreateRes;
 import com.apten.apartmentcomplex.infrastructure.client.model.InternalAdminDeleteRes;
@@ -63,7 +63,7 @@ public class ApartmentComplexService {
     private final ApartmentComplexOutboxService apartmentComplexOutboxService;
     private final ComplexFeatureRepository complexFeatureRepository;
     private final ComplexAdminRepository complexAdminRepository;
-    private final AuthInternalClient authInternalClient;
+    private final AuthInternalFeignClient authInternalFeignClient;
 
     // 단지 등록 요청 검증
     private void validateCreateApartmentComplexReq(ApartmentComplexReq req) {
@@ -125,7 +125,7 @@ public class ApartmentComplexService {
         saveFeatures(savedApartmentComplex, normalizedFeatures);
 
         // 최초 관리자 계정 생성 (Auth 내부 API)
-        InternalAdminCreateRes createdAdmin = authInternalClient.createAdmin(
+        InternalAdminCreateRes createdAdmin = authInternalFeignClient.createAdmin(
                 InternalAdminCreateReq.builder()
                         .complexId(savedApartmentComplex.getId())
                         .email(req.getManagerEmail())
@@ -134,7 +134,7 @@ public class ApartmentComplexService {
                         .phone(req.getManagerPhone())
                         .adminRole("01")
                         .build()
-        );
+        ).getData();
 
         // 최초 관리자 단지 소속 저장
         ComplexAdmin complexAdmin = ComplexAdmin.builder()
@@ -293,7 +293,7 @@ public class ApartmentComplexService {
         validateAdminRole(req.getAdminRole());
 
         // 관리자 계정 생성 (Auth 내부 API)
-        InternalAdminCreateRes createdAdmin = authInternalClient.createAdmin(
+        InternalAdminCreateRes createdAdmin = authInternalFeignClient.createAdmin(
                 InternalAdminCreateReq.builder()
                         .complexId(complex.getId())
                         .email(req.getEmail())
@@ -302,7 +302,7 @@ public class ApartmentComplexService {
                         .phone(req.getPhone())
                         .adminRole(req.getAdminRole())
                         .build()
-        );
+        ).getData();
 
         // 기존 관리자 배정 이력 재사용
         ComplexAdmin admin = complexAdminRepository.findByComplexIdAndAdminUserId(complex.getId(), createdAdmin.getUserId())
@@ -365,7 +365,7 @@ public class ApartmentComplexService {
         complexAdminRepository.save(admin);
 
         // 관리자 계정 소프트 삭제 (Auth 내부 API)
-        InternalAdminDeleteRes deletedAdmin = authInternalClient.softDeleteAdmin(userId);
+        InternalAdminDeleteRes deletedAdmin = authInternalFeignClient.softDeleteAdmin(userId).getData();
 
         // user_cache 비동기 동기화 (Auth 이벤트)
         // TODO: 내부 호출과 DB 상태 변경 사이의 보상 처리 정책을 정리한다.
@@ -443,7 +443,7 @@ public class ApartmentComplexService {
         complexAdminRepository.save(admin);
 
         // 관리자 계정 수정 (Auth 내부 API)
-        authInternalClient.updateAdmin(
+        authInternalFeignClient.updateAdmin(
                 userId,
                 InternalAdminUpdateReq.builder()
                         .name(req.getName())
