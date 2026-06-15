@@ -368,7 +368,7 @@ public class FreeBoardService {
 
         return BoardStatisticsRes.builder()
                 .postCount(boardPostRepository.countByComplexIdAndIsDeletedFalse(complexId))
-                .commentCount(boardCommentRepository.countByIsDeletedFalse())
+                .commentCount(boardCommentRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .noticeCount(noticeRepository.countByComplexIdAndIsDeletedFalse(complexId))
                 .voteCount(voteRepository.countByComplexId(complexId))
                 .deletedPostCount(
