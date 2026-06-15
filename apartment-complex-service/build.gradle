@@ -18,6 +18,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    // HttpURLConnection은 PATCH 미지원 → HC5로 교체
+    implementation 'io.github.openfeign:feign-hc5'
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.0'
     runtimeOnly 'org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4.1:1.16'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'

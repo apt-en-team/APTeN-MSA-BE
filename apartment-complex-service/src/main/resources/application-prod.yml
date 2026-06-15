@@ -15,6 +15,12 @@ spring:
     url: ${COMPLEX_DB_URL}
     username: ${COMPLEX_DB_USERNAME}
     password: ${COMPLEX_DB_PASSWORD}
+  cloud:
+    openfeign:
+      httpclient:
+        # HttpURLConnection은 PATCH 미지원 — HC5 클라이언트로 교체
+        hc5:
+          enabled: true
 
 constants:
   api:
