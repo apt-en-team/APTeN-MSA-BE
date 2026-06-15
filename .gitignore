@@ -40,3 +40,4 @@ application-secret.yaml
 # Local test scripts and generated database notes
 /scripts/
 /docs/database/
+/docs/tech-improvement/
