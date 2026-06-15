@@ -21,7 +21,7 @@ dependencies {
 }
 
 openapi3 {
-    server = 'http://localhost:9085'
+    server = 'https://tc.greenart.n-e.kr'
     title = 'Board Service API'
     version = '1.0.0'
     format = 'json'

@@ -40,7 +40,7 @@ jar {
 }
 
 openapi3 {
-    server = 'http://localhost:9086'
+    server = 'https://tc.greenart.n-e.kr'
     title = 'Facility Reservation Service API'
     version = '1.0.0'
     format = 'json'

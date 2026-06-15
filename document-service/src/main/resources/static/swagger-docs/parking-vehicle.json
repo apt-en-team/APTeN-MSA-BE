@@ -5,7 +5,7 @@
     "version" : "1.0.0"
   },
   "servers" : [ {
-    "url" : "http://localhost:9084"
+    "url" : "https://tc.greenart.n-e.kr"
   } ],
   "tags" : [ ],
   "paths" : {

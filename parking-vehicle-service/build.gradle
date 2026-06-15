@@ -23,7 +23,7 @@ dependencies {
 }
 
 openapi3 {
-    server = 'http://localhost:9084'
+    server = 'https://tc.greenart.n-e.kr'
     title = 'Parking Vehicle Service API'
     version = '1.0.0'
     format = 'json'

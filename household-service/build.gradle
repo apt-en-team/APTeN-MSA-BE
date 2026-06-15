@@ -24,7 +24,7 @@ dependencies {
 }
 
 openapi3 {
-    server = 'http://localhost:9082'
+    server = 'https://tc.greenart.n-e.kr'
     title = 'Household Service API'
     version = '1.0.0'
     format = 'json'

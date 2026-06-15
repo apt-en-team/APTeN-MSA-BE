@@ -24,7 +24,7 @@ dependencies {
 }
 
 openapi3 {
-    server = 'http://localhost:9081'
+    server = 'https://tc.greenart.n-e.kr'
     title = 'Notification Service API'
     version = '1.0.0'
     format = 'json'
