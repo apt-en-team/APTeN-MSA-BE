@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.List;
 import com.apten.common.kafka.payload.NotificationEventPayload;
 import com.apten.household.infrastructure.kafka.HouseholdOutboxService;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import java.util.Map;
 import java.util.Optional;
@@ -79,6 +80,7 @@ public class HouseholdBillService {
 
     // 매일 자정에 발송일이 도달한 DRAFT 청구서를 자동 확정한다.
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "auto-confirm-bills", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     @Transactional
     public void autoConfirmBills() {
         LocalDate today = LocalDate.now();
@@ -95,6 +97,7 @@ public class HouseholdBillService {
 
     // 매월 1일 자정에 전월 기본 관리비를 모든 활성 단지에 자동 반영한다.
     @Scheduled(cron = "0 0 0 1 * *", zone = "Asia/Seoul")
+    @SchedulerLock(name = "auto-reflect-base-fee", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     @Transactional
     public void autoReflectBaseFee() {
         YearMonth lastMonth = YearMonth.now().minusMonths(1);

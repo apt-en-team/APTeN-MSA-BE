@@ -12,6 +12,7 @@ import com.apten.facilityreservation.domain.entity.GxProgram;
 import com.apten.facilityreservation.domain.entity.GxReservation;
 import com.apten.facilityreservation.domain.entity.Reservation;
 import com.apten.facilityreservation.domain.enums.FacilityFeeType;
+import com.apten.facilityreservation.domain.enums.FacilitySubscriptionStatus;
 import com.apten.facilityreservation.domain.enums.GxReservationStatus;
 import com.apten.facilityreservation.domain.enums.ReservationStatus;
 import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
@@ -104,7 +105,7 @@ public class FacilityFeeService {
 
         for (Long complexId : allComplexIds) {
             List<FacilitySubscription> billableSubscriptions = facilitySubscriptionRepository
-                    .findBillableForMonth(complexId, fromDate, toDate);
+                    .findBillableForMonth(complexId, fromDate, toDate, FacilitySubscriptionStatus.ACTIVE);
             if (billableSubscriptions.isEmpty()) {
                 continue;
             }
@@ -118,22 +119,26 @@ public class FacilityFeeService {
                     .stream()
                     .collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
-            for (FacilitySubscription subscription : billableSubscriptions) {
-                FacilityPolicy policy = policyByFacilityId.get(subscription.getFacilityId());
-                if (policy == null) {
-                    continue;
-                }
-                FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
-                if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
-                    continue;
-                }
-                // 신청/해지 기준일 적용
-                if (!isBillableInMonth(subscription, yearMonth, policy)) {
-                    continue;
-                }
-                BigDecimal fee = calcSubscriptionFee(policy, feeType);
-                addFee(aggregateMap, complexId, subscription.getHouseholdId(), fee);
-            }
+            // 세대+시설 단위로 그룹핑 → 실제 구독자 수 기준 요금 계산
+            Map<Long, Map<Long, List<FacilitySubscription>>> byHouseholdAndFacility = billableSubscriptions.stream()
+                    .collect(Collectors.groupingBy(FacilitySubscription::getHouseholdId,
+                            Collectors.groupingBy(FacilitySubscription::getFacilityId)));
+
+            byHouseholdAndFacility.forEach((householdId, byFacility) ->
+                byFacility.forEach((facilityId, subs) -> {
+                    FacilityPolicy policy = policyByFacilityId.get(facilityId);
+                    if (policy == null) return;
+                    FacilityFeeType feeType = policy.getFeeType() != null ? policy.getFeeType() : FacilityFeeType.FLAT;
+                    if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) return;
+                    // 기준일 적용: 한 명이라도 청구 대상이면 해당 구독만 포함
+                    List<FacilitySubscription> billable = subs.stream()
+                            .filter(s -> isBillableInMonth(s, yearMonth, policy))
+                            .toList();
+                    if (billable.isEmpty()) return;
+                    BigDecimal fee = calcSubscriptionFee(policy, feeType, billable.size());
+                    addFee(aggregateMap, complexId, householdId, fee);
+                })
+            );
         }
 
         // GX 월 비용 계산 (프로그램 시작일 기준)
@@ -289,13 +294,19 @@ public class FacilityFeeService {
         });
     }
 
-    // 구독형 월 청구 금액 계산
-    private BigDecimal calcSubscriptionFee(FacilityPolicy policy, FacilityFeeType feeType) {
+    // 구독형 월 청구 금액 계산 (subscriberCount = 해당 세대의 실제 구독자 수)
+    private BigDecimal calcSubscriptionFee(FacilityPolicy policy, FacilityFeeType feeType, int subscriberCount) {
         BigDecimal baseFee = nullSafe(policy.getBaseFee());
         if (feeType == FacilityFeeType.PER_PERSON) {
-            return baseFee;
+            // 실제 구독자 수 × 인당 요금
+            return baseFee.multiply(BigDecimal.valueOf(Math.max(1, subscriberCount)));
         }
-        // 기본 요금 + 초과 인원 요금
+        // FLAT: 기본료 + 기준 인원 초과 구독자 수 × 추가 요금
+        if (policy.getIncludedPersonCount() != null && policy.getExtraPersonFee() != null) {
+            long extraPersons = Math.max(0, subscriberCount - policy.getIncludedPersonCount());
+            BigDecimal extraFee = nullSafe(policy.getExtraPersonFee()).multiply(BigDecimal.valueOf(extraPersons));
+            return baseFee.add(extraFee);
+        }
         return baseFee;
     }
 

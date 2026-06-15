@@ -4,10 +4,12 @@ import com.apten.auth.exception.AuthErrorCode;
 import com.apten.common.exception.BusinessException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MailService {
@@ -85,6 +87,7 @@ public class MailService {
             mailSender.send(message);
 
         } catch (Exception e) {
+            log.error("[MailService] 비밀번호 재설정 메일 발송 실패. toEmail={}", toEmail, e);
             throw new BusinessException(AuthErrorCode.MAIL_SEND_FAILED);
         }
     }

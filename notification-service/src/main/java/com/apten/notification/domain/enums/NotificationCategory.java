@@ -38,7 +38,7 @@ public enum NotificationCategory implements EnumMapperType {
     public static NotificationCategory fromType(NotificationType type) {
         // 알림 type별로 어떤 사용자 설정 category를 확인할지 결정한다
         return switch (type) {
-            case FACILITY_REMINDER -> RESERVATION;
+            case FACILITY_REMINDER, RESERVATION_FORCE_CANCELLED -> RESERVATION;
             case GX_MINIMUM_REACHED, GX_APPROVAL_REMINDER, GX_APPROVED, GX_REJECTED -> GX;
             case VEHICLE_REGISTRATION_REQUESTED, VEHICLE_REGISTRATION_APPROVED,
                     VEHICLE_REGISTRATION_REJECTED, VEHICLE_ENTRY, VEHICLE_EXIT,

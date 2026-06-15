@@ -31,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.apten.auth.domain.entity.ResidentProfile;
@@ -396,6 +397,9 @@ public class AuthService {
     }
 
     // 비밀번호 재설정 메일 발송 서비스
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Transactional
     public AuthPasswordForgotPostRes sendPasswordResetMail(AuthPasswordForgotPostReq request) {
         // 계정 존재 여부 노출 방지 — 없어도 성공 응답
@@ -411,9 +415,7 @@ public class AuthService {
                     Duration.ofMinutes(30)
             );
 
-            // 재설정 링크 발송
-            // 나중에는 배포 서버로 고쳐야함
-            String resetLink = "http://localhost:5173/reset-password?token=" + rawToken;
+            String resetLink = frontendUrl + "/reset-password?token=" + rawToken;
             mailService.sendPasswordResetMail(user.getEmail(), resetLink);
         });
 

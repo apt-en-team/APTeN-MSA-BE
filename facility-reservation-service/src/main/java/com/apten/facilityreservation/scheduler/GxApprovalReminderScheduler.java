@@ -4,6 +4,7 @@ import com.apten.facilityreservation.application.service.GxProgramService;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,7 @@ public class GxApprovalReminderScheduler {
     private final GxProgramService gxProgramService;
 
     @Scheduled(cron = "${apten.scheduler.gx-approval-reminder.cron:0 0 9 * * *}")
+    @SchedulerLock(name = "gx-approval-reminder", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     public void sendApprovalReminders() {
         LocalDate targetDate = LocalDate.now().plusDays(7);
         log.info("[GxApprovalReminder] 승인 리마인더 스케줄 실행. targetDate={}", targetDate);

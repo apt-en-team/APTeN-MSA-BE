@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,7 @@ public class FacilityReminderScheduler {
     private final FacilityNotificationService facilityNotificationService;
 
     @Scheduled(cron = "${apten.scheduler.facility-reminder.cron:0 */5 * * * *}")
+    @SchedulerLock(name = "facility-reminder", lockAtMostFor = "4m", lockAtLeastFor = "30s")
     public void sendFacilityReminders() {
         LocalDate today = LocalDate.now();
         LocalTime from = LocalTime.now().plusMinutes(55);

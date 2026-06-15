@@ -20,6 +20,7 @@ public class FacilityNotificationService {
     private static final String TYPE_GX_REJECTED = "GX_REJECTED";
     private static final String TYPE_GX_MINIMUM_REACHED = "GX_MINIMUM_REACHED";
     private static final String TYPE_GX_APPROVAL_REMINDER = "GX_APPROVAL_REMINDER";
+    private static final String TYPE_RESERVATION_FORCE_CANCELLED = "RESERVATION_FORCE_CANCELLED";
 
     private static final String TARGET_FACILITY_RESERVATION = "FACILITY_RESERVATION";
     private static final String TARGET_GX_PROGRAM = "GX_PROGRAM";
@@ -85,6 +86,22 @@ public class FacilityNotificationService {
                         .title("GX 승인 대기 신청이 있습니다.")
                         .content(program.getName() + " 시작일이 가까워졌습니다. 승인 대기 신청을 확인해주세요.")
                         .linkPath("/admin/gx-programs")
+                        .build()
+        ));
+    }
+
+    // 관리자 강제 취소 알림
+    public void notifyReservationForceCancelled(Long userId, Long complexId, Long reservationId, String facilityName) {
+        outboxService.ifPresent(service -> service.saveNotificationEvent(
+                NotificationEventPayload.builder()
+                        .receiverUserId(userId)
+                        .complexId(complexId)
+                        .type(TYPE_RESERVATION_FORCE_CANCELLED)
+                        .targetType(TARGET_FACILITY_RESERVATION)
+                        .targetId(reservationId)
+                        .title("예약이 취소되었습니다.")
+                        .content(facilityName + " 예약이 관리자에 의해 취소되었습니다.")
+                        .linkPath("/resident/" + complexId + "/reservations/" + reservationId)
                         .build()
         ));
     }

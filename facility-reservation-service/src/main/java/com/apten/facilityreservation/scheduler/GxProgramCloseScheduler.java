@@ -3,6 +3,7 @@ package com.apten.facilityreservation.scheduler;
 import com.apten.facilityreservation.application.service.GxProgramService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ public class GxProgramCloseScheduler {
     private final GxProgramService gxProgramService;
 
     @Scheduled(cron = "${apten.scheduler.gx-program-close.cron:0 0 0 * * *}")
+    @SchedulerLock(name = "gx-program-close", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     public void closeExpiredPrograms() {
         log.info("[GxProgramClose] 만료 GX 프로그램 종료 처리 시작");
         gxProgramService.closeExpiredPrograms();

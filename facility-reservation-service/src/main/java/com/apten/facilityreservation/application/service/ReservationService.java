@@ -49,6 +49,7 @@ import com.apten.facilityreservation.domain.repository.FacilityPolicyRepository;
 import com.apten.facilityreservation.domain.repository.FacilityRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySubscriptionRepository;
 import com.apten.facilityreservation.domain.repository.FacilitySeatRepository;
+import com.apten.facilityreservation.domain.entity.HouseholdCache;
 import com.apten.facilityreservation.domain.repository.HouseholdCacheRepository;
 import com.apten.facilityreservation.domain.repository.HouseholdMemberCacheRepository;
 import com.apten.facilityreservation.domain.repository.ReservationRepository;
@@ -443,7 +444,7 @@ public class ReservationService {
         }
 
         // 시설 구독 자동 생성
-        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), memberCache.getHouseholdId(), reservation.getReservationDate());
+        autoCreateSubscriptionIfAbsent(complexId, facility.getId(), userId, memberCache.getHouseholdId(), reservation.getReservationDate());
 
         return ReservationPostRes.builder()
                 .reservationId(reservation.getId())
@@ -646,17 +647,33 @@ public class ReservationService {
                         .stream()
                         .collect(Collectors.toMap(UserCache::getId, u -> u));
 
+        // 세대 동/호수 일괄 조회 (N+1 방지)
+        List<Long> householdIds = reservations.stream()
+                .map(Reservation::getHouseholdId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, HouseholdCache> householdMap = householdIds.isEmpty() ? Map.of() :
+                householdCacheRepository.findAllById(householdIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                HouseholdCache::getHouseholdId, h -> h));
+
         List<AdminReservationListRes> items = reservations.stream()
                 .map(r -> {
                     Facility facility = facilityMap.get(r.getFacilityId());
                     FacilitySeat seat = r.getSeatId() != null ? seatMap.get(r.getSeatId()) : null;
                     UserCache user = r.getUserId() != null ? userMap.get(r.getUserId()) : null;
+                    HouseholdCache household =
+                            r.getHouseholdId() != null ? householdMap.get(r.getHouseholdId()) : null;
                     return AdminReservationListRes.builder()
                             .reservationId(r.getId())
                             .facilityId(r.getFacilityId())
                             .facilityName(facility != null ? facility.getName() : null)
                             .userId(r.getUserId())
                             .residentName(user != null ? user.getName() : null)
+                            .buildingNo(household != null ? household.getBuildingNo() : null)
+                            .unitNo(household != null ? household.getUnitNo() : null)
                             .reservationDate(r.getReservationDate())
                             .startTime(r.getStartTime())
                             .endTime(r.getEndTime())
@@ -696,7 +713,7 @@ public class ReservationService {
                 ? userCacheRepository.findById(reservation.getUserId()).orElse(null)
                 : null;
 
-        com.apten.facilityreservation.domain.entity.HouseholdCache household =
+        HouseholdCache household =
                 (reservation.getHouseholdId() != null)
                         ? householdCacheRepository.findByHouseholdId(reservation.getHouseholdId()).orElse(null)
                         : null;
@@ -752,7 +769,12 @@ public class ReservationService {
         // 강제 취소 처리 (마감 무관)
         reservation.cancel(ReservationCancelReason.ADMIN);
 
-        // TODO: 예약 강제 취소 알림 발행 (가은 담당)
+        if (reservation.getUserId() != null) {
+            Facility facility = facilityRepository.findByIdAndIsDeletedFalse(reservation.getFacilityId()).orElse(null);
+            String facilityName = facility != null ? facility.getName() : "시설";
+            facilityNotificationService.notifyReservationForceCancelled(
+                    reservation.getUserId(), complexId, reservation.getId(), facilityName);
+        }
 
         return AdminReservationCancelRes.builder()
                 .reservationId(reservation.getId())
@@ -845,9 +867,9 @@ public class ReservationService {
         }
     }
 
-    // 시설 구독 자동 생성
-    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long householdId, java.time.LocalDate subscribedAt) {
-        if (householdId == null) {
+    // 시설 구독 자동 생성 (userId 기준 개인 구독)
+    private void autoCreateSubscriptionIfAbsent(Long complexId, Long facilityId, Long userId, Long householdId, java.time.LocalDate subscribedAt) {
+        if (householdId == null || userId == null) {
             return;
         }
         FacilityPolicy policy = facilityPolicyRepository
@@ -860,20 +882,22 @@ public class ReservationService {
         if (feeType != FacilityFeeType.FLAT && feeType != FacilityFeeType.PER_PERSON) {
             return;
         }
-        if (facilitySubscriptionRepository.existsByHouseholdIdAndFacilityIdAndStatus(
-                householdId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
+        // 개인 단위 중복 체크
+        if (facilitySubscriptionRepository.existsByUserIdAndFacilityIdAndStatus(
+                userId, facilityId, FacilitySubscriptionStatus.ACTIVE)) {
             return;
         }
         // 구독 재생성 유예기간 확인
         java.util.Optional<FacilitySubscription> recentCancelled = facilitySubscriptionRepository
-                .findTopByHouseholdIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
-                        householdId, facilityId, FacilitySubscriptionStatus.CANCELLED);
+                .findTopByUserIdAndFacilityIdAndStatusOrderByCancelledAtDesc(
+                        userId, facilityId, FacilitySubscriptionStatus.CANCELLED);
         if (recentCancelled.isPresent() && isCancelledInGracePeriod(recentCancelled.get(), policy)) {
             return;
         }
         facilitySubscriptionRepository.save(FacilitySubscription.builder()
                 .complexId(complexId)
                 .householdId(householdId)
+                .userId(userId)
                 .facilityId(facilityId)
                 .subscribedAt(subscribedAt)
                 .build());

@@ -23,6 +23,7 @@ import com.apten.household.application.model.response.HouseholdMemberListRes;
 import com.apten.household.application.model.response.HouseholdMemberPatchRes;
 import com.apten.household.application.model.response.HouseholdMemberPostRes;
 import com.apten.household.application.model.response.HouseholdMemberRepublishRes;
+import com.apten.household.application.model.response.HouseholdRepublishRes;
 import com.apten.household.application.model.response.HouseholdStatusPatchRes;
 import com.apten.household.application.service.HouseholdRequestContextResolver;
 import com.apten.household.application.service.HouseholdService;
@@ -230,7 +231,7 @@ public class AdminHouseholdController {
         return ResultResponse.success("세대주 변경 성공", householdService.changeHouseholdHead(context.getComplexId(), householdId, request));
     }
 
-    //전 세대원 이벤트 재발행 API
+    // 전 세대원 이벤트 재발행 API
     @PostMapping("/household-members/republish")
     public ResultResponse<HouseholdMemberRepublishRes> republishHouseholdMembers(
             @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
@@ -238,5 +239,14 @@ public class AdminHouseholdController {
     ) {
         // 전 단지 세대원을 대상으로 하는 전역 1회성 백필이라 단지 컨텍스트 해석 없이 처리한다.
         return ResultResponse.success("전 세대원 이벤트 재발행 성공", householdService.republishAllHouseholdMembers());
+    }
+
+    // 전 세대 이벤트 재발행 API — HouseholdCache 동호 정보 일괄 복구용
+    @PostMapping("/households/republish")
+    public ResultResponse<HouseholdRepublishRes> republishHouseholds(
+            @RequestHeader(HeaderConstants.X_USER_ID) Long userId,
+            @RequestHeader(HeaderConstants.X_USER_ROLE) String userRole
+    ) {
+        return ResultResponse.success("전 세대 이벤트 재발행 성공", householdService.republishAllHouseholds());
     }
 }

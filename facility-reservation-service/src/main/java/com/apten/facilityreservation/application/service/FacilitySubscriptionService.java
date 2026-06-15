@@ -54,8 +54,7 @@ public class FacilitySubscriptionService {
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.USER_NOT_FOUND));
 
         FacilitySubscription subscription = facilitySubscriptionRepository
-                .findByHouseholdIdAndFacilityIdAndStatus(
-                        memberCache.getHouseholdId(), facilityId, FacilitySubscriptionStatus.ACTIVE)
+                .findByUserIdAndFacilityIdAndStatus(userId, facilityId, FacilitySubscriptionStatus.ACTIVE)
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.SUBSCRIPTION_NOT_FOUND));
 
         // 구독 단지 소속 검증
@@ -111,16 +110,38 @@ public class FacilitySubscriptionService {
                     .findByComplexIdOrderBySubscribedAtDesc(complexId);
         }
 
+        List<Long> userIds = subscriptions.stream()
+                .map(FacilitySubscription::getUserId)
+                .filter(java.util.Objects::nonNull)
+                .distinct().toList();
+        Map<Long, UserCache> userMap = userCacheRepository.findAllById(userIds)
+                .stream().collect(Collectors.toMap(UserCache::getId, u -> u));
+
+        List<Long> householdIds = subscriptions.stream()
+                .map(FacilitySubscription::getHouseholdId)
+                .filter(java.util.Objects::nonNull)
+                .distinct().toList();
+        Map<Long, HouseholdCache> householdMap = householdCacheRepository.findAllById(householdIds)
+                .stream().collect(Collectors.toMap(HouseholdCache::getHouseholdId, h -> h));
+
         return subscriptions.stream()
-                .map(s -> AdminFacilitySubscriptionListRes.builder()
-                        .subscriptionId(s.getId())
-                        .complexId(s.getComplexId())
-                        .householdId(s.getHouseholdId())
-                        .facilityId(s.getFacilityId())
-                        .subscribedAt(s.getSubscribedAt())
-                        .cancelledAt(s.getCancelledAt())
-                        .status(s.getStatus())
-                        .build())
+                .map(s -> {
+                    UserCache user = s.getUserId() != null ? userMap.get(s.getUserId()) : null;
+                    HouseholdCache household = s.getHouseholdId() != null ? householdMap.get(s.getHouseholdId()) : null;
+                    return AdminFacilitySubscriptionListRes.builder()
+                            .subscriptionId(s.getId())
+                            .complexId(s.getComplexId())
+                            .householdId(s.getHouseholdId())
+                            .userId(s.getUserId())
+                            .subscriberName(user != null ? user.getName() : null)
+                            .buildingNo(household != null ? household.getBuildingNo() : null)
+                            .unitNo(household != null ? household.getUnitNo() : null)
+                            .facilityId(s.getFacilityId())
+                            .subscribedAt(s.getSubscribedAt())
+                            .cancelledAt(s.getCancelledAt())
+                            .status(s.getStatus())
+                            .build();
+                })
                 .toList();
     }
 
@@ -133,7 +154,7 @@ public class FacilitySubscriptionService {
                 .orElseThrow(() -> new BusinessException(FacilityReservationErrorCode.USER_NOT_FOUND));
 
         List<FacilitySubscription> subscriptions = facilitySubscriptionRepository
-                .findByHouseholdIdAndComplexIdOrderBySubscribedAtDesc(memberCache.getHouseholdId(), complexId);
+                .findByUserIdAndComplexIdOrderBySubscribedAtDesc(userId, complexId);
 
         if (subscriptions.isEmpty()) {
             return List.of();
@@ -253,12 +274,16 @@ public class FacilitySubscriptionService {
                 facilityPolicyRepository.findByComplexIdAndFacilityIdInAndIsActiveTrue(complexId, facilityIds)
                         .stream().collect(Collectors.toMap(FacilityPolicy::getFacilityId, p -> p));
 
+        // 구독자 이름 조회용 userId 수집 (세대원 userMap 이미 있음)
         List<AdminHouseholdSubscriptionDetailRes.SubscriptionInfo> subInfos = subscriptions.stream()
                 .map(s -> {
                     Facility facility = facilityMap.get(s.getFacilityId());
                     FacilityPolicy policy = policyMap.get(s.getFacilityId());
+                    UserCache subscriber = s.getUserId() != null ? userMap.get(s.getUserId()) : null;
                     return AdminHouseholdSubscriptionDetailRes.SubscriptionInfo.builder()
                             .subscriptionId(s.getId())
+                            .userId(s.getUserId())
+                            .subscriberName(subscriber != null ? subscriber.getName() : null)
                             .facilityId(s.getFacilityId())
                             .facilityName(facility != null ? facility.getName() : "-")
                             .feeType(policy != null ? policy.getFeeType() : null)

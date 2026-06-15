@@ -46,6 +46,10 @@ public class FacilitySubscription extends BaseEntity {
     @Column(name = "household_id", nullable = false)
     private Long householdId;
 
+    // 구독 신청한 세대원 userId이다.
+    @Column(name = "user_id")
+    private Long userId;
+
     // 구독 대상 시설 ID이다.
     @Column(name = "facility_id", nullable = false)
     private Long facilityId;
