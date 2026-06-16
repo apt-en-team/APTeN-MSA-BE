@@ -31,4 +31,8 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
             "WHERE c.userId = :userId AND c.isDeleted = false AND p.isDeleted = false " +
             "ORDER BY c.createdAt DESC")
     Page<BoardComment> findByUserIdAndPostNotDeleted(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT COUNT(c) FROM BoardComment c JOIN BoardPost p ON c.postId = p.id " +
+            "WHERE p.complexId = :complexId AND c.isDeleted = false")
+    long countByComplexIdAndIsDeletedFalse(@Param("complexId") Long complexId);
 }

@@ -1,0 +1,1699 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Household Service API",
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "https://tc.greenart.n-e.kr"
+  } ],
+  "tags" : [ ],
+  "paths" : {
+    "/api/household-bills" : {
+      "get" : {
+        "tags" : [ "Resident - 관리비" ],
+        "summary" : "내 관리비 목록 조회",
+        "description" : "내 관리비 목록 조회",
+        "operationId" : "resident-bill-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "resident-bill-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 비용 조회 성공\",\"data\":{\"content\":[{\"billId\":1,\"billYear\":2026,\"billMonth\":1,\"totalFee\":50000,\"lateFee\":0,\"payableAmount\":50000,\"dueDate\":\"2026-01-15\",\"status\":\"확정완료\"}],\"page\":0,\"size\":12,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/building-line-types" : {
+      "get" : {
+        "tags" : [ "Admin - 동 라인 유형" ],
+        "summary" : "동 라인 평형 목록 조회",
+        "description" : "동 라인 평형 목록 조회",
+        "operationId" : "admin-building-line-type-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-building-line-type-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"동 라인 평형 목록 조회 성공\",\"data\":[{\"lineTypeId\":1,\"complexId\":10,\"building\":\"101\",\"lineStart\":1,\"lineEnd\":4}]}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 동 라인 유형" ],
+        "summary" : "동 라인 평형 등록",
+        "description" : "동 라인 평형 등록",
+        "operationId" : "admin-building-line-type-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-building-line-type-create" : {
+                  "value" : "{\"typeId\":1,\"lineStart\":1,\"lineEnd\":4,\"building\":\"101\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-building-line-type-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"동 라인 평형 등록 성공\",\"data\":{\"lineTypeId\":1,\"complexId\":10,\"building\":\"101\",\"lineStart\":1,\"lineEnd\":4}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/expected-residents" : {
+      "get" : {
+        "tags" : [ "Admin - 입주민 명부" ],
+        "summary" : "입주민 명부 목록 조회",
+        "description" : "입주민 명부 목록 조회",
+        "operationId" : "admin-expected-resident-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-expected-resident-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 명부 목록 조회 성공\",\"data\":{\"content\":[{\"expectedResidentId\":1,\"complexId\":10,\"householdId\":1,\"building\":\"101\",\"unit\":\"101\"}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 입주민 명부" ],
+        "summary" : "입주민 명부 등록",
+        "description" : "입주민 명부 등록",
+        "operationId" : "admin-expected-resident-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-expected-resident-create" : {
+                  "value" : "{\"phone\":\"010-1234-5678\",\"householdId\":1,\"name\":\"홍길동\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-expected-resident-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 명부 등록 성공\",\"data\":{\"expectedResidentId\":1,\"complexId\":10,\"householdId\":1,\"building\":\"101\",\"unit\":\"101\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-bills" : {
+      "get" : {
+        "tags" : [ "Admin - 세대 관리비" ],
+        "summary" : "관리자 관리비 목록 조회",
+        "description" : "관리자 관리비 목록 조회",
+        "operationId" : "admin-bill-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 관리비 목록 조회 성공\",\"data\":{\"content\":[{\"billId\":1,\"householdId\":100,\"building\":\"101\",\"unit\":\"101\",\"billYear\":2026,\"billMonth\":1}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalBillCount\":1,\"draftCount\":1,\"confirmedCount\":0,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-match-requests" : {
+      "get" : {
+        "tags" : [ "Admin - 세대 매칭" ],
+        "summary" : "세대 매칭 요청 목록 조회",
+        "description" : "세대 매칭 요청 목록 조회",
+        "operationId" : "admin-match-request-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-match-request-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 매칭 요청 목록 조회 성공\",\"data\":{\"content\":[],\"page\":0,\"size\":20,\"totalElements\":0,\"totalPages\":0,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-types" : {
+      "get" : {
+        "tags" : [ "Admin - 세대 유형" ],
+        "summary" : "평형 목록 조회",
+        "description" : "평형 목록 조회",
+        "operationId" : "admin-household-type-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-type-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"평형 목록 조회 성공\",\"data\":[{\"typeId\":1,\"typeCode\":\"33\",\"typeName\":\"33평\",\"exclusiveAreaM2\":84.2}]}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 세대 유형" ],
+        "summary" : "평형 등록",
+        "description" : "평형 등록",
+        "operationId" : "admin-household-type-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-type-create" : {
+                  "value" : "{\"typeName\":\"33평\",\"exclusiveAreaM2\":84.2,\"typeCode\":\"33\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-type-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"평형 등록 성공\",\"data\":{\"typeId\":1,\"typeCode\":\"33\",\"typeName\":\"33평\",\"exclusiveAreaM2\":84.2}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households" : {
+      "get" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 목록 조회",
+        "description" : "세대 목록 조회",
+        "operationId" : "admin-household-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 목록 조회 성공\",\"data\":{\"content\":[{\"householdId\":1,\"complexId\":10,\"building\":\"101\",\"unit\":\"101\",\"typeId\":1,\"typeName\":\"33평\",\"status\":\"입주\"}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 등록",
+        "description" : "세대 등록",
+        "operationId" : "admin-household-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-create" : {
+                  "value" : "{\"building\":\"101\",\"unit\":\"101\",\"typeId\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 등록 성공\",\"data\":{\"householdId\":1,\"complexId\":10,\"building\":\"101\",\"unit\":\"101\",\"status\":\"공실\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/household-bills/home" : {
+      "get" : {
+        "tags" : [ "Resident - 관리비" ],
+        "summary" : "홈 화면 관리비 카드 조회",
+        "description" : "홈 화면 관리비 카드 조회",
+        "operationId" : "resident-bill-home",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "resident-bill-home" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"홈 관리비 카드 조회 성공\",\"data\":{\"billId\":1,\"billYear\":2026,\"billMonth\":1,\"totalFee\":50000,\"payableAmount\":50000,\"dueDate\":\"2026-01-15\",\"status\":\"확정완료\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/household-bills/{billId}" : {
+      "get" : {
+        "tags" : [ "Resident - 관리비" ],
+        "summary" : "내 관리비 상세 조회",
+        "description" : "내 관리비 상세 조회",
+        "operationId" : "resident-bill-detail",
+        "parameters" : [ {
+          "name" : "billId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "resident-bill-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 관리비 상세 조회 성공\",\"data\":{\"billId\":1,\"householdId\":100,\"building\":\"101\",\"unit\":\"101\",\"billYear\":2026,\"billMonth\":1,\"baseFee\":50000,\"vehicleFee\":0,\"facilityFee\":0,\"visitorFee\":0,\"totalFee\":50000,\"lateFee\":0,\"payableAmount\":50000,\"dueDate\":\"2026-01-15\",\"status\":\"확정완료\",\"confirmedAt\":\"2026-01-10T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/me" : {
+      "get" : {
+        "tags" : [ "Resident - 세대" ],
+        "summary" : "내 세대 정보 조회",
+        "description" : "내 세대 정보 조회",
+        "operationId" : "resident-household-my",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "resident-household-my" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 세대 정보 조회 성공\",\"data\":{\"householdId\":1,\"complexId\":10,\"building\":\"101\",\"unit\":\"101\",\"status\":\"입주\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/building-line-types/resolve" : {
+      "get" : {
+        "tags" : [ "Admin - 동 라인 유형" ],
+        "summary" : "동호수 평형 조회",
+        "description" : "동호수 평형 조회",
+        "operationId" : "admin-building-line-type-resolve",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-building-line-type-resolve" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"동호수 평형 조회 성공\",\"data\":{\"lineTypeId\":1,\"complexId\":10,\"building\":\"101\",\"lineStart\":1,\"lineEnd\":4}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/building-line-types/{lineTypeId}" : {
+      "delete" : {
+        "tags" : [ "Admin - 동 라인 유형" ],
+        "summary" : "동 라인 평형 삭제",
+        "description" : "동 라인 평형 삭제",
+        "operationId" : "admin-building-line-type-delete",
+        "parameters" : [ {
+          "name" : "lineTypeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-building-line-type-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"동 라인 평형 삭제 성공\",\"data\":{\"lineTypeId\":1,\"complexId\":10,\"building\":\"101\",\"lineStart\":1,\"lineEnd\":4}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 동 라인 유형" ],
+        "summary" : "동 라인 평형 수정",
+        "description" : "동 라인 평형 수정",
+        "operationId" : "admin-building-line-type-update",
+        "parameters" : [ {
+          "name" : "lineTypeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-building-line-type-update" : {
+                  "value" : "{\"lineEnd\":5,\"typeId\":2,\"lineStart\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-building-line-type-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"동 라인 평형 수정 성공\",\"data\":{\"lineTypeId\":1,\"complexId\":10,\"building\":\"101\",\"lineStart\":1,\"lineEnd\":5}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/expected-residents/{expectedResidentId}" : {
+      "patch" : {
+        "tags" : [ "Admin - 입주민 명부" ],
+        "summary" : "입주민 명부 수정",
+        "description" : "입주민 명부 수정",
+        "operationId" : "admin-expected-resident-update",
+        "parameters" : [ {
+          "name" : "expectedResidentId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-expected-resident-update" : {
+                  "value" : "{\"name\":\"김철수\",\"phone\":\"010-9999-8888\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-expected-resident-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 명부 수정 성공\",\"data\":{\"expectedResidentId\":1,\"complexId\":10,\"householdId\":1,\"building\":\"101\",\"unit\":\"101\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-bill-policies/basic" : {
+      "get" : {
+        "tags" : [ "Admin - 관리비 정책" ],
+        "summary" : "관리비 정책 조회",
+        "description" : "관리비 정책 조회",
+        "operationId" : "admin-bill-policy-get",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-policy-get" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"청구 기본 정책 조회 성공\",\"data\":{\"complexId\":10,\"baseFee\":50000,\"dueDay\":15,\"sendDay\":1,\"homeDisplayEndDay\":20}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Admin - 관리비 정책" ],
+        "summary" : "관리비 정책 수정",
+        "description" : "관리비 정책 수정",
+        "operationId" : "admin-bill-policy-update",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-bill-policy-update" : {
+                  "value" : "{\"baseFee\":60000,\"homeDisplayEndDay\":25,\"dueDay\":20,\"sendDay\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-policy-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"청구 기본 정책 설정 성공\",\"data\":{\"complexId\":10,\"baseFee\":60000,\"dueDay\":20,\"sendDay\":1,\"homeDisplayEndDay\":25}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-bills/base-fees" : {
+      "post" : {
+        "tags" : [ "Admin - 세대 관리비" ],
+        "summary" : "기본 관리비 반영",
+        "description" : "기본 관리비 반영",
+        "operationId" : "admin-bill-base-fee-reflect",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-bill-base-fee-reflect" : {
+                  "value" : "{\"billYear\":2026,\"billMonth\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-base-fee-reflect" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"기본 관리비 반영 성공\",\"data\":{\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"affectedHouseholdCount\":50,\"reflectedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-bills/{billId}" : {
+      "get" : {
+        "tags" : [ "Admin - 세대 관리비" ],
+        "summary" : "관리자 관리비 상세 조회",
+        "description" : "관리자 관리비 상세 조회",
+        "operationId" : "admin-bill-detail",
+        "parameters" : [ {
+          "name" : "billId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 관리비 상세 조회 성공\",\"data\":{\"billId\":1,\"householdId\":100,\"building\":\"101\",\"unit\":\"101\",\"billYear\":2026,\"billMonth\":1,\"baseFee\":50000,\"vehicleFee\":0,\"facilityFee\":0,\"visitorFee\":0,\"totalFee\":50000,\"lateFee\":0,\"payableAmount\":50000,\"sendDate\":\"2026-01-01\",\"dueDate\":\"2026-01-15\",\"status\":\"임시계산\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-match-requests/approve-bulk" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대 매칭" ],
+        "summary" : "세대 매칭 일괄 승인",
+        "description" : "세대 매칭 일괄 승인",
+        "operationId" : "admin-match-request-approve-bulk",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-match-request-approve-bulk" : {
+                  "value" : "{\"matchRequestIds\":[1,2]}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-match-request-approve-bulk" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 매칭 일괄 승인 성공\",\"data\":[{\"matchRequestId\":1,\"matchStatus\":\"APPROVED\",\"processedAt\":\"2026-01-05T10:00:00\"}]}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-members/republish" : {
+      "post" : {
+        "tags" : [ "Admin - 세대원" ],
+        "summary" : "전 세대원 이벤트 재발행",
+        "description" : "전 세대원 이벤트 재발행",
+        "operationId" : "admin-household-member-republish",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-member-republish" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"전 세대원 이벤트 재발행 성공\",\"data\":{\"republishedCount\":100,\"message\":\"재발행 완료\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-members/{householdMemberId}" : {
+      "delete" : {
+        "tags" : [ "Admin - 세대원" ],
+        "summary" : "세대원 삭제",
+        "description" : "세대원 삭제",
+        "operationId" : "admin-household-member-delete",
+        "parameters" : [ {
+          "name" : "householdMemberId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-member-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대원 삭제 성공\",\"data\":{\"householdMemberId\":10,\"message\":\"세대원 삭제 완료\",\"deletedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 세대원" ],
+        "summary" : "세대원 수정",
+        "description" : "세대원 수정",
+        "operationId" : "admin-household-member-update",
+        "parameters" : [ {
+          "name" : "householdMemberId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-member-update" : {
+                  "value" : "{\"isActive\":true,\"role\":\"세대주\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-member-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대원 수정 성공\",\"data\":{\"householdMemberId\":10,\"role\":\"세대주\",\"isActive\":true,\"updatedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-types/{typeId}" : {
+      "delete" : {
+        "tags" : [ "Admin - 세대 유형" ],
+        "summary" : "평형 삭제",
+        "description" : "평형 삭제",
+        "operationId" : "admin-household-type-delete",
+        "parameters" : [ {
+          "name" : "typeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-type-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"평형 삭제 성공\",\"data\":{\"typeId\":1,\"typeCode\":\"33\",\"typeName\":\"33평\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 세대 유형" ],
+        "summary" : "평형 수정",
+        "description" : "평형 수정",
+        "operationId" : "admin-household-type-update",
+        "parameters" : [ {
+          "name" : "typeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-type-update" : {
+                  "value" : "{\"exclusiveAreaM2\":85.0,\"typeName\":\"33평형\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-type-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"평형 수정 성공\",\"data\":{\"typeId\":1,\"typeCode\":\"33\",\"typeName\":\"33평형\",\"exclusiveAreaM2\":85.0}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/bulk" : {
+      "post" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 일괄 등록",
+        "description" : "세대 일괄 등록",
+        "operationId" : "admin-household-bulk-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-bulk-create" : {
+                  "value" : "{\"floorEnd\":10,\"lineEnd\":4,\"typeId\":1,\"lineStart\":1,\"building\":\"101\",\"floorStart\":1}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-bulk-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 일괄 등록 성공\",\"data\":{\"complexId\":10,\"building\":\"101\",\"floorStart\":1,\"floorEnd\":10,\"createdCount\":0,\"skippedCount\":0}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/republish" : {
+      "post" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "전 세대 이벤트 재발행",
+        "description" : "전 세대 이벤트 재발행",
+        "operationId" : "admin-household-republish",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-republish" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"전 세대 이벤트 재발행 성공\",\"data\":{\"republishedCount\":50,\"message\":\"재발행 완료\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/{householdId}" : {
+      "get" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 상세 조회",
+        "description" : "세대 상세 조회",
+        "operationId" : "admin-household-detail",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 상세 조회 성공\",\"data\":{\"householdId\":1,\"complexId\":10,\"building\":\"101\",\"unit\":\"101\",\"typeId\":1,\"typeName\":\"33평\",\"status\":\"입주\",\"memberCount\":2,\"createdAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 삭제",
+        "description" : "세대 삭제",
+        "operationId" : "admin-household-delete",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 삭제 성공\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 정보 수정",
+        "description" : "세대 정보 수정",
+        "operationId" : "admin-household-update",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-update" : {
+                  "value" : "{\"typeId\":2}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 정보 수정 성공\",\"data\":{\"householdId\":1,\"building\":\"101\",\"unit\":\"101\",\"typeId\":2,\"status\":\"입주\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/household-bills/{billId}/comparison" : {
+      "get" : {
+        "tags" : [ "Resident - 관리비" ],
+        "summary" : "관리비 비교 조회",
+        "description" : "관리비 비교 조회",
+        "operationId" : "resident-bill-comparison",
+        "parameters" : [ {
+          "name" : "billId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "resident-bill-comparison" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리비 비교 조회 성공\",\"data\":{\"areaSize\":84.2,\"myAmounts\":[50000,52000],\"myAverage\":51000,\"avgAmounts\":[48000,49000],\"sameTypeAverage\":48500}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/expected-residents/{expectedResidentId}/disable" : {
+      "patch" : {
+        "tags" : [ "Admin - 입주민 명부" ],
+        "summary" : "입주민 명부 비활성화",
+        "description" : "입주민 명부 비활성화",
+        "operationId" : "admin-expected-resident-disable",
+        "parameters" : [ {
+          "name" : "expectedResidentId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-expected-resident-disable" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"입주민 명부 비활성화 성공\",\"data\":{\"expectedResidentId\":1,\"complexId\":10,\"householdId\":1,\"building\":\"101\",\"unit\":\"101\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-bills/{billId}/confirm" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대 관리비" ],
+        "summary" : "관리비 확정",
+        "description" : "관리비 확정",
+        "operationId" : "admin-bill-confirm",
+        "parameters" : [ {
+          "name" : "billId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-confirm" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 비용 확정 성공\",\"data\":{\"billId\":1,\"status\":\"확정완료\",\"confirmedAt\":\"2026-01-10T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-bills/{billId}/unconfirm" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대 관리비" ],
+        "summary" : "관리비 확정 취소",
+        "description" : "관리비 확정 취소",
+        "operationId" : "admin-bill-unconfirm",
+        "parameters" : [ {
+          "name" : "billId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-bill-unconfirm" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 비용 확정 취소 성공\",\"data\":{\"billId\":1,\"status\":\"임시계산\",\"updatedAt\":\"2026-01-11T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-match-requests/{matchRequestId}/approve" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대 매칭" ],
+        "summary" : "세대 매칭 단건 승인",
+        "description" : "세대 매칭 단건 승인",
+        "operationId" : "admin-match-request-approve",
+        "parameters" : [ {
+          "name" : "matchRequestId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-match-request-approve" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 매칭 승인 성공\",\"data\":{\"matchRequestId\":1,\"matchStatus\":\"APPROVED\",\"processedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/household-match-requests/{matchRequestId}/reject" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대 매칭" ],
+        "summary" : "세대 매칭 거절",
+        "description" : "세대 매칭 거절",
+        "operationId" : "admin-match-request-reject",
+        "parameters" : [ {
+          "name" : "matchRequestId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-match-request-reject" : {
+                  "value" : "{\"reason\":\"정보 불일치\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-match-request-reject" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 매칭 거절 성공\",\"data\":{\"matchRequestId\":1,\"matchStatus\":\"REJECTED\",\"processedAt\":\"2026-01-05T10:00:00\",\"reason\":\"정보 불일치\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/{householdId}/head" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대주 변경",
+        "description" : "세대주 변경",
+        "operationId" : "admin-household-head-change",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-head-change" : {
+                  "value" : "{\"newHeadUserId\":201}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-head-change" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대주 변경 성공\",\"data\":{\"householdId\":1,\"headUserId\":201,\"updatedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/{householdId}/history" : {
+      "get" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 이력 조회",
+        "description" : "세대 이력 조회",
+        "operationId" : "admin-household-history",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-history" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 이력 조회 성공\",\"data\":[{\"historyId\":1,\"fromStatus\":\"VACANT\",\"toStatus\":\"OCCUPIED\",\"reason\":\"입주\",\"changedAt\":\"2026-01-01T10:00:00\"}]}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/{householdId}/members" : {
+      "get" : {
+        "tags" : [ "Admin - 세대원" ],
+        "summary" : "세대원 목록 조회",
+        "description" : "세대원 목록 조회",
+        "operationId" : "admin-household-member-list",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-member-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대원 목록 조회 성공\",\"data\":[{\"householdMemberId\":10,\"userId\":200,\"role\":\"세대주\",\"name\":\"홍길동\"}]}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 세대원" ],
+        "summary" : "세대원 등록",
+        "description" : "세대원 등록",
+        "operationId" : "admin-household-member-add",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-member-add" : {
+                  "value" : "{\"role\":\"세대원\",\"userId\":200}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-member-add" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대원 등록 성공\",\"data\":{\"householdMemberId\":10,\"householdId\":1,\"userId\":200,\"role\":\"세대원\",\"isActive\":true}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/households/{householdId}/status" : {
+      "patch" : {
+        "tags" : [ "Admin - 세대" ],
+        "summary" : "세대 상태 변경",
+        "description" : "세대 상태 변경",
+        "operationId" : "admin-household-status-change",
+        "parameters" : [ {
+          "name" : "householdId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "admin-household-status-change" : {
+                  "value" : "{\"reason\":\"입주 처리\",\"status\":\"OCCUPIED\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "admin-household-status-change" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 상태 변경 성공\",\"data\":{\"householdId\":1,\"status\":\"입주\",\"changedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/household-match-requests" : {
+      "post" : {
+        "tags" : [ "Internal - 세대" ],
+        "summary" : "세대 매칭 요청 생성",
+        "description" : "세대 매칭 요청 생성",
+        "operationId" : "internal-household-match-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "internal-household-match-create" : {
+                  "value" : "{\"unit\":\"101\",\"userId\":200,\"complexId\":10,\"building\":\"101\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "internal-household-match-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"세대 매칭 요청 생성 성공\",\"data\":{\"matchRequestId\":1,\"matchedHouseholdId\":100,\"processType\":\"AUTO\",\"matchStatus\":\"APPROVED\",\"createdAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/household-bills/facility-fees" : {
+      "post" : {
+        "tags" : [ "Internal - 세대" ],
+        "summary" : "시설 비용 반영",
+        "description" : "시설 비용 반영",
+        "operationId" : "internal-facility-fee-reflect",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "internal-facility-fee-reflect" : {
+                  "value" : "{\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"householdId\":100,\"facilityFee\":20000}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "internal-facility-fee-reflect" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"시설 비용 반영 성공\",\"data\":{\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"affectedHouseholdCount\":1,\"reflectedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/household-bills/vehicle-fees" : {
+      "post" : {
+        "tags" : [ "Internal - 세대" ],
+        "summary" : "차량 비용 반영",
+        "description" : "차량 비용 반영",
+        "operationId" : "internal-vehicle-fee-reflect",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "internal-vehicle-fee-reflect" : {
+                  "value" : "{\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"householdId\":100,\"vehicleFee\":30000}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "internal-vehicle-fee-reflect" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"차량 비용 반영 성공\",\"data\":{\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"affectedHouseholdCount\":1,\"reflectedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/household-bills/visitor-fees" : {
+      "post" : {
+        "tags" : [ "Internal - 세대" ],
+        "summary" : "방문차량 비용 반영",
+        "description" : "방문차량 비용 반영",
+        "operationId" : "internal-visitor-fee-reflect",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-households486549215"
+              },
+              "examples" : {
+                "internal-visitor-fee-reflect" : {
+                  "value" : "{\"visitorFee\":5000,\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"householdId\":100}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-households486549215"
+                },
+                "examples" : {
+                  "internal-visitor-fee-reflect" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"방문차량 비용 반영 성공\",\"data\":{\"complexId\":10,\"billYear\":2026,\"billMonth\":1,\"affectedHouseholdCount\":1}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "api-admin-households486549215" : {
+        "type" : "object"
+      }
+    }
+  }
+}

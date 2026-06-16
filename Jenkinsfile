@@ -38,12 +38,13 @@ spec:
         booleanParam(name: 'FORCE_HOUSEHOLD', defaultValue: false, description: 'Household-Service를 강제로 빌드합니다.')
         booleanParam(name: 'FORCE_NOTIFICATION', defaultValue: false, description: 'Notification-Service를 강제로 빌드합니다.')
         booleanParam(name: 'FORCE_PARKING_VEHICLE', defaultValue: false, description: 'Parking-Vehicle-Service를 강제로 빌드합니다.')
+        booleanParam(name: 'FORCE_DOCUMENT', defaultValue: false, description: 'Document-Service를 강제로 빌드합니다.')
     }
 
     environment {
         REGISTRY = "harbor.greenart.n-e.kr"
         PROJECT  = "apten"
-        SERVICES = "apartment-complex-service,auth-service,board-service,facility-reservation-service,gateway-service,household-service,notification-service,parking-vehicle-service"
+        SERVICES = "apartment-complex-service,auth-service,board-service,document-service,facility-reservation-service,gateway-service,household-service,notification-service,parking-vehicle-service"
     }
 
     stages {
@@ -107,6 +108,7 @@ def shouldBuild(String serviceName) {
         'apartment-complex-service': 'apartment-complex',
         'auth-service': 'auth',
         'board-service': 'board',
+        'document-service': 'document',
         'facility-reservation-service': 'facility-reservation',
         'gateway-service': 'gateway',
         'household-service': 'household',

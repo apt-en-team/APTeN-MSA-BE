@@ -1,0 +1,446 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Notification Service API",
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "https://tc.greenart.n-e.kr"
+  } ],
+  "tags" : [ ],
+  "paths" : {
+    "/api/notifications" : {
+      "get" : {
+        "tags" : [ "Notification - 알림" ],
+        "summary" : "알림 목록 조회",
+        "description" : "알림 목록 조회",
+        "operationId" : "notification-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"알림 목록 조회 성공\",\"data\":{\"content\":[{\"notificationId\":1,\"title\":\"예약 완료\",\"content\":\"시설 예약이 완료되었습니다.\",\"type\":\"FACILITY_RESERVATION\",\"typeCode\":\"01\",\"typeValue\":\"시설 예약\",\"targetType\":\"RESERVATION\",\"targetTypeCode\":\"01\",\"targetTypeValue\":\"예약\",\"targetId\":100,\"linkPath\":\"/reservations/100\"}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/fcm-tokens" : {
+      "post" : {
+        "tags" : [ "Notification - FCM" ],
+        "summary" : "FCM 토큰 등록",
+        "description" : "FCM 토큰 등록",
+        "operationId" : "notification-fcm-token-register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "notification-fcm-token-register" : {
+                  "value" : "{\"deviceType\":\"ANDROID\",\"fcmToken\":\"fcm-token-value-abc123\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-fcm-token-register" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"FCM 토큰 등록 성공\",\"data\":{\"tokenRegistered\":true,\"updatedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Notification - FCM" ],
+        "summary" : "FCM 토큰 해제",
+        "description" : "FCM 토큰 해제",
+        "operationId" : "notification-fcm-token-delete",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "notification-fcm-token-delete" : {
+                  "value" : "{\"fcmToken\":\"fcm-token-value-abc123\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-fcm-token-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"FCM 토큰 해제 성공\",\"data\":{\"tokenDeleted\":true}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Notification - FCM" ],
+        "summary" : "FCM 토큰 갱신",
+        "description" : "FCM 토큰 갱신",
+        "operationId" : "notification-fcm-token-update",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "notification-fcm-token-update" : {
+                  "value" : "{\"oldToken\":\"old-token-abc\",\"newToken\":\"new-token-xyz\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-fcm-token-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"FCM 토큰 갱신 성공\",\"data\":{\"tokenUpdated\":true,\"updatedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all" : {
+      "patch" : {
+        "tags" : [ "Notification - 알림" ],
+        "summary" : "전체 알림 읽음 처리",
+        "description" : "전체 알림 읽음 처리",
+        "operationId" : "notification-read-all",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-read-all" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"전체 읽음 처리 성공\",\"data\":{\"updatedCount\":5,\"readAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/settings" : {
+      "get" : {
+        "tags" : [ "Notification - 알림" ],
+        "summary" : "알림 설정 조회",
+        "description" : "알림 설정 조회",
+        "operationId" : "notification-settings-get",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-settings-get" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"알림 설정 조회 성공\",\"data\":{\"settings\":[{\"category\":\"FACILITY_RESERVATION\",\"categoryCode\":\"01\",\"categoryValue\":\"시설 예약\",\"enabled\":true}]}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Notification - 알림" ],
+        "summary" : "알림 설정 변경",
+        "description" : "알림 설정 변경",
+        "operationId" : "notification-settings-update",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "notification-settings-update" : {
+                  "value" : "{\"settings\":[{\"category\":\"FACILITY_RESERVATION\",\"enabled\":false}]}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-settings-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"알림 설정 변경 성공\",\"data\":{\"updated\":true,\"settings\":[{\"category\":\"FACILITY_RESERVATION\",\"categoryCode\":\"01\",\"categoryValue\":\"시설 예약\",\"enabled\":false}],\"updatedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/unread-count" : {
+      "get" : {
+        "tags" : [ "Notification - 알림" ],
+        "summary" : "미읽음 알림 수 조회",
+        "description" : "미읽음 알림 수 조회",
+        "operationId" : "notification-unread-count",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-unread-count" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"미읽음 알림 수 조회 성공\",\"data\":{\"unreadCount\":3}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/{notificationId}/read" : {
+      "patch" : {
+        "tags" : [ "Notification - 알림" ],
+        "summary" : "알림 읽음 처리",
+        "description" : "알림 읽음 처리",
+        "operationId" : "notification-read",
+        "parameters" : [ {
+          "name" : "notificationId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "notification-read" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"알림 읽음 처리 성공\",\"data\":{\"notificationId\":1,\"isRead\":true,\"readAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/notifications" : {
+      "post" : {
+        "tags" : [ "Internal - 알림" ],
+        "summary" : "내부 알림 생성",
+        "description" : "내부 알림 생성",
+        "operationId" : "internal-notification-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "internal-notification-create" : {
+                  "value" : "{\"content\":\"시설 예약이 완료되었습니다.\",\"title\":\"예약 완료\",\"targetId\":200,\"targetType\":\"RESERVATION\",\"type\":\"FACILITY_RESERVATION\",\"receiverUserId\":100}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "internal-notification-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내부 알림 생성 성공\",\"data\":{\"notificationId\":1,\"receiverUserId\":100,\"createdAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/notifications/admin-broadcast" : {
+      "post" : {
+        "tags" : [ "Internal - 알림" ],
+        "summary" : "관리자 브로드캐스트 알림 생성",
+        "description" : "관리자 브로드캐스트 알림 생성",
+        "operationId" : "internal-notification-admin-broadcast",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "internal-notification-admin-broadcast" : {
+                  "value" : "{\"content\":\"새 공지가 등록되었습니다.\",\"title\":\"공지사항 등록\",\"complexId\":10,\"type\":\"ADMIN_BROADCAST\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "internal-notification-admin-broadcast" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 broadcast 알림 생성 성공\",\"data\":{\"targetCount\":5,\"createdCount\":4}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/notifications/cleanup" : {
+      "post" : {
+        "tags" : [ "Internal - 알림" ],
+        "summary" : "오래된 알림 정리",
+        "description" : "오래된 알림 정리",
+        "operationId" : "internal-notification-cleanup",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "internal-notification-cleanup" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"오래된 알림 정리 실행 성공\",\"data\":{\"deletedCount\":30,\"executedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/notifications/push" : {
+      "post" : {
+        "tags" : [ "Internal - 알림" ],
+        "summary" : "내부 푸시 발송",
+        "description" : "내부 푸시 발송",
+        "operationId" : "internal-notification-push",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/internal-notifications-push486549215"
+              },
+              "examples" : {
+                "internal-notification-push" : {
+                  "value" : "{\"notificationId\":1,\"receiverUserId\":100}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/internal-notifications-push486549215"
+                },
+                "examples" : {
+                  "internal-notification-push" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내부 푸시 발송 성공\",\"data\":{\"notificationId\":1,\"sent\":true,\"sentAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "internal-notifications-push486549215" : {
+        "type" : "object"
+      }
+    }
+  }
+}
