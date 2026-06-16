@@ -2,11 +2,14 @@ package com.apten.common.response;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.extern.jackson.Jacksonized;
 
 // 모든 서비스가 같은 JSON 응답 형태를 쓰도록 맞추는 공통 응답 객체
 // 성공 응답과 실패 응답을 하나의 포맷으로 통일해 프런트와 gateway가 일관되게 해석할 수 있게 한다
 @Getter
 @Builder
+// Feign/RestClient 역직렬화 시 Jackson이 Builder를 통해 인스턴스 생성하도록 허용
+@Jacksonized
 public class ResultResponse<T> {
 
     // 요청이 성공했는지 실패했는지 나타내는 플래그

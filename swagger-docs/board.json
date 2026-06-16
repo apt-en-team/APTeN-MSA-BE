@@ -1,0 +1,1325 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Board Service API",
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "https://tc.greenart.n-e.kr"
+  } ],
+  "tags" : [ ],
+  "paths" : {
+    "/api/files" : {
+      "post" : {
+        "tags" : [ "Board - 파일" ],
+        "summary" : "게시글 첨부파일 업로드",
+        "description" : "게시글 첨부파일 업로드",
+        "operationId" : "board-file-upload",
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-file-upload" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"첨부파일 업로드 성공\",\"data\":{\"files\":[],\"uploadedAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notices" : {
+      "get" : {
+        "tags" : [ "Notice - 공지" ],
+        "summary" : "공지 목록 조회",
+        "description" : "공지 목록 조회",
+        "operationId" : "notice-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "notice-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"공지 목록 조회 성공\",\"data\":{\"content\":[{\"noticeId\":1,\"title\":\"단지 공지사항\",\"writerName\":\"관리자\",\"createdAt\":\"2026-01-01T10:00:00\",\"hasFile\":false,\"isDeleted\":false}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/votes" : {
+      "get" : {
+        "tags" : [ "Vote - 투표" ],
+        "summary" : "투표 목록 조회",
+        "description" : "투표 목록 조회",
+        "operationId" : "vote-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "vote-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 목록 조회 성공\",\"data\":{\"content\":[{\"voteId\":1,\"title\":\"주민 찬반 투표\",\"description\":\"단지 리모델링 관련\",\"startAt\":\"2026-01-01T00:00:00\",\"endAt\":\"2026-01-31T23:59:00\",\"status\":\"진행 중\",\"agreeCount\":10,\"disagreeCount\":3,\"householdCount\":50}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/notices" : {
+      "get" : {
+        "tags" : [ "Admin - 공지" ],
+        "summary" : "관리자 공지 목록 조회",
+        "description" : "관리자 공지 목록 조회",
+        "operationId" : "admin-notice-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-notice-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 공지 목록 조회 성공\",\"data\":{\"content\":[{\"noticeId\":1,\"title\":\"공지사항\",\"writerName\":\"관리자\",\"createdAt\":\"2026-01-01T10:00:00\",\"hasFile\":false,\"isDeleted\":false}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 공지" ],
+        "summary" : "공지 작성",
+        "description" : "공지 작성",
+        "operationId" : "admin-notice-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "admin-notice-create" : {
+                  "value" : "{\"content\":\"공지 내용입니다.\",\"title\":\"공지사항 제목\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-notice-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"공지 작성 성공\",\"data\":{\"noticeId\":1,\"title\":\"공지사항 제목\",\"createdAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/votes" : {
+      "get" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "관리자 투표 목록 조회",
+        "description" : "관리자 투표 목록 조회",
+        "operationId" : "admin-vote-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 투표 목록 조회 성공\",\"data\":{\"content\":[{\"voteId\":1,\"title\":\"단지 리모델링 찬반투표\",\"description\":\"투표 설명\",\"startAt\":\"2026-01-01T00:00:00\",\"endAt\":\"2026-01-31T23:59:00\",\"status\":\"진행 중\",\"agreeCount\":10,\"disagreeCount\":3,\"householdCount\":50}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false,\"summary\":{\"total\":5,\"open\":2,\"ready\":1,\"closed\":2}}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "투표 생성",
+        "description" : "투표 생성",
+        "operationId" : "admin-vote-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "admin-vote-create" : {
+                  "value" : "{\"endAt\":\"2026-01-31T23:59:59\",\"startAt\":\"2026-01-01T00:00:00\",\"description\":\"투표 설명\",\"noticeId\":10,\"title\":\"단지 리모델링 찬반투표\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 생성 성공\",\"data\":{\"voteId\":1,\"noticeId\":10,\"title\":\"단지 리모델링 찬반투표\",\"startAt\":\"2026-01-01T00:00:00\",\"endAt\":\"2026-01-31T23:59:00\",\"status\":\"시작 전\",\"createdAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/my-comments" : {
+      "get" : {
+        "tags" : [ "Board - 댓글" ],
+        "summary" : "내 댓글 조회",
+        "description" : "내 댓글 조회",
+        "operationId" : "board-my-comment-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-my-comment-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 댓글 조회 성공\",\"data\":{\"content\":[{\"commentId\":10,\"postId\":1,\"postTitle\":\"게시글 제목\",\"content\":\"댓글 내용\",\"createdAt\":\"2026-01-01T10:00:00\"}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/my-posts" : {
+      "get" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "내 게시글 조회",
+        "description" : "내 게시글 조회",
+        "operationId" : "board-my-post-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-my-post-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"내 게시글 조회 성공\",\"data\":{\"content\":[{\"postId\":1,\"writerName\":\"홍길동\",\"title\":\"내 게시글\",\"preview\":\"내용\",\"viewCount\":5,\"likeCount\":1,\"createdAt\":\"2026-01-01T10:00:00\",\"hasFile\":false}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/posts" : {
+      "get" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "게시글 목록 조회",
+        "description" : "게시글 목록 조회",
+        "operationId" : "board-post-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-post-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 목록 조회 성공\",\"data\":{\"content\":[{\"postId\":1,\"userId\":100,\"writerName\":\"홍길동\",\"category\":\"FREE\",\"title\":\"테스트 게시글\",\"preview\":\"내용 미리보기\",\"viewCount\":10,\"likeCount\":3,\"commentCount\":2,\"isDeleted\":false,\"createdAt\":\"2026-01-01T10:00:00\",\"hasFile\":false}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "게시글 작성",
+        "description" : "게시글 작성",
+        "operationId" : "board-post-create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "board-post-create" : {
+                  "value" : "{\"content\":\"게시글 내용입니다.\",\"title\":\"테스트 게시글\",\"files\":[],\"category\":\"FREE\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-post-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 작성 성공\",\"data\":{\"postId\":1,\"title\":\"테스트 게시글\",\"createdAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/files/notices" : {
+      "post" : {
+        "tags" : [ "Board - 파일" ],
+        "summary" : "공지 첨부파일 업로드",
+        "description" : "공지 첨부파일 업로드",
+        "operationId" : "notice-file-upload",
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "notice-file-upload" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"공지 첨부파일 업로드 성공\",\"data\":{\"files\":[],\"uploadedAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notices/{noticeId}" : {
+      "get" : {
+        "tags" : [ "Notice - 공지" ],
+        "summary" : "공지 상세 조회",
+        "description" : "공지 상세 조회",
+        "operationId" : "notice-detail",
+        "parameters" : [ {
+          "name" : "noticeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "notice-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"공지 상세 조회 성공\",\"data\":{\"noticeId\":1,\"complexId\":100,\"userId\":200,\"writerName\":\"관리자\",\"title\":\"단지 공지사항\",\"content\":\"공지 내용입니다.\",\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-02T10:00:00\",\"isDeleted\":false,\"files\":[]}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/votes/{voteId}" : {
+      "get" : {
+        "tags" : [ "Vote - 투표" ],
+        "summary" : "투표 상세 조회",
+        "description" : "투표 상세 조회",
+        "operationId" : "vote-detail",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "vote-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 상세 조회 성공\",\"data\":{\"voteId\":1,\"noticeId\":10,\"complexId\":100,\"title\":\"주민 찬반 투표\",\"description\":\"단지 리모델링 관련\",\"startAt\":\"2026-01-01T00:00:00\",\"endAt\":\"2026-01-31T23:59:00\",\"status\":\"진행 중\",\"agreeCount\":10,\"disagreeCount\":3,\"householdCount\":50,\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-01T10:00:00\",\"participated\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/boards/posts" : {
+      "get" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "관리자 게시글 목록 조회",
+        "description" : "관리자 게시글 목록 조회",
+        "operationId" : "admin-board-post-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-post-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 게시글 목록 조회 성공\",\"data\":{\"content\":[{\"postId\":1,\"userId\":200,\"writerName\":\"홍길동\",\"category\":\"FREE\",\"title\":\"게시글 제목\",\"preview\":\"내용 미리보기\",\"viewCount\":10,\"likeCount\":3,\"commentCount\":2,\"isDeleted\":false,\"createdAt\":\"2026-01-01T10:00:00\",\"hasFile\":false}],\"page\":0,\"size\":10,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/boards/statistics" : {
+      "get" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "게시판 통계 조회",
+        "description" : "게시판 통계 조회",
+        "operationId" : "admin-board-statistics",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-statistics" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시판 통계 조회 성공\",\"data\":{\"postCount\":100,\"commentCount\":300,\"noticeCount\":20,\"voteCount\":5,\"deletedPostCount\":3}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/notices/{noticeId}" : {
+      "get" : {
+        "tags" : [ "Admin - 공지" ],
+        "summary" : "관리자 공지 상세 조회",
+        "description" : "관리자 공지 상세 조회",
+        "operationId" : "admin-notice-detail",
+        "parameters" : [ {
+          "name" : "noticeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-notice-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 공지 상세 조회 성공\",\"data\":{\"noticeId\":1,\"complexId\":100,\"userId\":200,\"writerName\":\"관리자\",\"title\":\"공지사항\",\"content\":\"공지 내용\",\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-02T10:00:00\",\"isDeleted\":false,\"files\":[]}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Admin - 공지" ],
+        "summary" : "공지 삭제",
+        "description" : "공지 삭제",
+        "operationId" : "admin-notice-delete",
+        "parameters" : [ {
+          "name" : "noticeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-notice-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"공지 삭제 성공\",\"data\":{\"noticeId\":1,\"deletedAt\":\"2026-01-03T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 공지" ],
+        "summary" : "공지 수정",
+        "description" : "공지 수정",
+        "operationId" : "admin-notice-update",
+        "parameters" : [ {
+          "name" : "noticeId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "admin-notice-update" : {
+                  "value" : "{\"content\":\"수정된 내용\",\"title\":\"수정된 공지\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-notice-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"공지 수정 성공\",\"data\":{\"noticeId\":1,\"title\":\"수정된 공지\",\"content\":\"수정된 내용\",\"updatedAt\":\"2026-01-02T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/votes/{voteId}" : {
+      "get" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "관리자 투표 상세 조회",
+        "description" : "관리자 투표 상세 조회",
+        "operationId" : "admin-vote-detail",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"관리자 투표 상세 조회 성공\",\"data\":{\"voteId\":1,\"noticeId\":10,\"complexId\":100,\"title\":\"단지 리모델링 찬반투표\",\"description\":\"투표 설명\",\"startAt\":\"2026-01-01T00:00:00\",\"endAt\":\"2026-01-31T23:59:00\",\"status\":\"진행 중\",\"agreeCount\":10,\"disagreeCount\":3,\"householdCount\":50,\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-01T10:00:00\",\"participated\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "투표 삭제",
+        "description" : "투표 삭제",
+        "operationId" : "admin-vote-delete",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 삭제 성공\",\"data\":{\"voteId\":1,\"deletedAt\":\"2026-01-03T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "투표 수정",
+        "description" : "투표 수정",
+        "operationId" : "admin-vote-update",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "admin-vote-update" : {
+                  "value" : "{\"description\":\"수정된 설명\",\"title\":\"수정된 투표 제목\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 수정 성공\",\"data\":{\"voteId\":1,\"title\":\"수정된 투표 제목\",\"startAt\":\"2026-01-01T00:00:00\",\"endAt\":\"2026-01-31T23:59:00\",\"updatedAt\":\"2026-01-02T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/comments/{commentId}" : {
+      "delete" : {
+        "tags" : [ "Board - 댓글" ],
+        "summary" : "댓글 삭제",
+        "description" : "댓글 삭제",
+        "operationId" : "board-comment-delete",
+        "parameters" : [ {
+          "name" : "commentId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-comment-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 삭제 성공\",\"data\":{\"commentId\":10,\"deletedAt\":\"2026-01-03T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Board - 댓글" ],
+        "summary" : "댓글 수정",
+        "description" : "댓글 수정",
+        "operationId" : "board-comment-update",
+        "parameters" : [ {
+          "name" : "commentId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "board-comment-update" : {
+                  "value" : "{\"content\":\"수정된 댓글\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-comment-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 수정 성공\",\"data\":{\"commentId\":10,\"content\":\"수정된 댓글\",\"updatedAt\":\"2026-01-02T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/posts/popular" : {
+      "get" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "인기글 조회",
+        "description" : "인기글 조회",
+        "operationId" : "board-popular-post-list",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-popular-post-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"인기글 조회 성공\",\"data\":[{\"postId\":1,\"title\":\"인기글\",\"writerName\":\"홍길동\",\"commentCount\":10,\"likeCount\":20,\"viewCount\":100,\"createdAt\":\"2026-01-01T10:00:00\",\"hasFile\":false}]}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/posts/{postId}" : {
+      "get" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "게시글 상세 조회",
+        "description" : "게시글 상세 조회",
+        "operationId" : "board-post-detail",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-post-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 상세 조회 성공\",\"data\":{\"postId\":1,\"complexId\":100,\"userId\":200,\"writerName\":\"홍길동\",\"category\":\"FREE\",\"title\":\"테스트 게시글\",\"content\":\"게시글 내용\",\"viewCount\":10,\"likeCount\":3,\"liked\":false,\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-02T10:00:00\",\"isDeleted\":false,\"files\":[]}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "게시글 삭제",
+        "description" : "게시글 삭제",
+        "operationId" : "board-post-delete",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-post-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 삭제 성공\",\"data\":{\"postId\":1,\"deletedAt\":\"2026-01-04T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "게시글 수정",
+        "description" : "게시글 수정",
+        "operationId" : "board-post-update",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "board-post-update" : {
+                  "value" : "{\"content\":\"수정된 내용\",\"title\":\"수정된 제목\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-post-update" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 수정 성공\",\"data\":{\"postId\":1,\"title\":\"수정된 제목\",\"content\":\"수정된 내용\",\"updatedAt\":\"2026-01-03T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/votes/{voteId}/participations" : {
+      "post" : {
+        "tags" : [ "Vote - 투표" ],
+        "summary" : "투표 참여",
+        "description" : "투표 참여",
+        "operationId" : "vote-participate",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "vote-participate" : {
+                  "value" : "{\"choice\":\"AGREE\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "vote-participate" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 참여 성공\",\"data\":{\"voteId\":1,\"householdId\":50,\"choice\":\"찬성\",\"participatedAt\":\"2026-01-05T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/boards/comments/{commentId}" : {
+      "delete" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "댓글 강제 삭제",
+        "description" : "댓글 강제 삭제",
+        "operationId" : "admin-board-comment-force-delete",
+        "parameters" : [ {
+          "name" : "commentId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-comment-force-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 강제 삭제 성공\",\"data\":{\"commentId\":10,\"deletedAt\":\"2026-01-03T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/boards/posts/{postId}" : {
+      "get" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "관리자 게시글 상세 조회",
+        "description" : "관리자 게시글 상세 조회",
+        "operationId" : "admin-board-post-detail",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-post-detail" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 상세 조회 성공\",\"data\":{\"postId\":1,\"complexId\":100,\"userId\":200,\"writerName\":\"홍길동\",\"category\":\"FREE\",\"title\":\"게시글 제목\",\"content\":\"게시글 내용\",\"viewCount\":10,\"likeCount\":3,\"liked\":false,\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-02T10:00:00\",\"isDeleted\":false,\"files\":[]}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "게시글 강제 삭제",
+        "description" : "게시글 강제 삭제",
+        "operationId" : "admin-board-post-force-delete",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-post-force-delete" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"게시글 강제 삭제 성공\",\"data\":{\"postId\":1,\"deletedAt\":\"2026-01-03T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/votes/{voteId}/close" : {
+      "patch" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "투표 종료 처리",
+        "description" : "투표 종료 처리",
+        "operationId" : "admin-vote-close",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-close" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 종료 처리 성공\",\"data\":{\"voteId\":1,\"status\":\"종료\",\"closedAt\":\"2026-01-15T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/votes/{voteId}/results" : {
+      "get" : {
+        "tags" : [ "Admin - 투표" ],
+        "summary" : "투표 결과 조회",
+        "description" : "투표 결과 조회",
+        "operationId" : "admin-vote-result",
+        "parameters" : [ {
+          "name" : "voteId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-vote-result" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"투표 결과 조회 성공\",\"data\":{\"voteId\":1,\"title\":\"단지 리모델링 찬반투표\",\"status\":\"진행 중\",\"agreeCount\":10,\"disagreeCount\":3,\"householdCount\":50}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/posts/{postId}/comments" : {
+      "get" : {
+        "tags" : [ "Board - 댓글" ],
+        "summary" : "댓글 목록 조회",
+        "description" : "댓글 목록 조회",
+        "operationId" : "board-comment-list",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-comment-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 목록 조회 성공\",\"data\":{\"content\":[{\"commentId\":10,\"postId\":1,\"userId\":100,\"writerName\":\"홍길동\",\"userRole\":\"RESIDENT\",\"content\":\"댓글 내용\",\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-01T10:00:00\"}],\"page\":0,\"size\":20,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Board - 댓글" ],
+        "summary" : "댓글 작성",
+        "description" : "댓글 작성",
+        "operationId" : "board-comment-create",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "board-comment-create" : {
+                  "value" : "{\"content\":\"댓글 내용입니다.\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-comment-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 작성 성공\",\"data\":{\"commentId\":10,\"postId\":1,\"content\":\"댓글 내용입니다.\",\"createdAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/boards/posts/{postId}/comments" : {
+      "get" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "관리자 댓글 목록 조회",
+        "description" : "관리자 댓글 목록 조회",
+        "operationId" : "admin-board-comment-list",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-comment-list" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 목록 조회 성공\",\"data\":{\"content\":[{\"commentId\":10,\"postId\":1,\"userId\":100,\"writerName\":\"홍길동\",\"userRole\":\"RESIDENT\",\"content\":\"댓글 내용\",\"createdAt\":\"2026-01-01T10:00:00\",\"updatedAt\":\"2026-01-01T10:00:00\"}],\"page\":0,\"size\":100,\"totalElements\":1,\"totalPages\":1,\"hasNext\":false}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Admin - 게시판" ],
+        "summary" : "관리자 댓글 작성",
+        "description" : "관리자 댓글 작성",
+        "operationId" : "admin-board-comment-create",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+              },
+              "examples" : {
+                "admin-board-comment-create" : {
+                  "value" : "{\"content\":\"관리자 댓글입니다.\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "admin-board-comment-create" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"댓글 작성 성공\",\"data\":{\"commentId\":10,\"postId\":1,\"content\":\"관리자 댓글입니다.\",\"createdAt\":\"2026-01-01T10:00:00\"}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boards/posts/{postId}/likes/toggle" : {
+      "post" : {
+        "tags" : [ "Board - 게시글" ],
+        "summary" : "좋아요 등록/취소",
+        "description" : "좋아요 등록/취소",
+        "operationId" : "board-post-like-toggle",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-admin-boards-posts-postId486549215"
+                },
+                "examples" : {
+                  "board-post-like-toggle" : {
+                    "value" : "{\"success\":true,\"code\":\"SUCCESS\",\"message\":\"좋아요 등록 또는 취소 성공\",\"data\":{\"postId\":1,\"liked\":true,\"likeCount\":4}}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "api-admin-boards-posts-postId486549215" : {
+        "type" : "object"
+      }
+    }
+  }
+}

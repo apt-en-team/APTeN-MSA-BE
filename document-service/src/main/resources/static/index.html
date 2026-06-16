@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>APTeN API Docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+        body { margin: 0; }
+    </style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+<script>
+    SwaggerUIBundle({
+        urls: [
+            { url: "/swagger-docs/apartment-complex.json", name: "Apartment Complex" },
+            { url: "/swagger-docs/facility-reservation.json", name: "Facility Reservation" },
+            { url: "/swagger-docs/board.json", name: "Board" },
+            { url: "/swagger-docs/household.json", name: "Household" },
+            { url: "/swagger-docs/notification.json", name: "Notification" },
+            { url: "/swagger-docs/parking-vehicle.json", name: "Parking Vehicle" },
+            { url: "/swagger-docs/auth.json", name: "Auth" },
+        ],
+        dom_id: '#swagger-ui',
+        presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIStandalonePreset
+        ],
+        layout: "StandaloneLayout",
+        deepLinking: true,
+        urls_primary_name: "Apartment Complex",
+    });
+</script>
+</body>
+</html>
