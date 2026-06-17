@@ -16,7 +16,8 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(prefix = "apten.outbox", name = "enabled", havingValue = "true")
+// polling-enabled 미설정 시 기존 서비스 호환을 위해 기본값 true로 동작한다.
+@ConditionalOnProperty(prefix = "apten.outbox", name = "polling-enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxRelay {
 
     private final OutboxRepository outboxRepository;
