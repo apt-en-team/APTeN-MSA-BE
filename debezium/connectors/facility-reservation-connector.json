@@ -15,6 +15,12 @@
     "include.schema.changes": "false",
 
     "snapshot.mode": "no_data",
+    "snapshot.locking.mode": "none",
+    "database.server.id": "184054",
+    "database.ssl.mode": "disabled",
+
+    "schema.history.internal.kafka.bootstrap.servers": "kafka-broker:9092",
+    "schema.history.internal.kafka.topic": "schema-history.facility-cdc",
 
     "transforms": "outbox",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
