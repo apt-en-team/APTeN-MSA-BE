@@ -1,0 +1,28 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: document-service
+  web:
+    resources:
+      static-locations: classpath:/static/,classpath:/static/swagger-docs/
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+    urls:
+      - name: "인증 서비스 (Auth)"
+        url: /swagger-docs/auth.json
+      - name: "단지 서비스 (Apartment Complex)"
+        url: /swagger-docs/apartment-complex.json
+      - name: "게시판 서비스 (Board)"
+        url: /swagger-docs/board.json
+      - name: "시설예약 서비스 (Facility Reservation)"
+        url: /swagger-docs/facility-reservation.json
+      - name: "세대 서비스 (Household)"
+        url: /swagger-docs/household.json
+      - name: "알림 서비스 (Notification)"
+        url: /swagger-docs/notification.json
+      - name: "주차/차량 서비스 (Parking & Vehicle)"
+        url: /swagger-docs/parking-vehicle.json

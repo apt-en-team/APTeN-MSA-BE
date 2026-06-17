@@ -1,0 +1,39 @@
+{
+  "name": "facility-reservation-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.mariadb.MariaDbConnector",
+
+    "database.hostname": "112.222.157.157",
+    "database.port": "5013",
+    "database.user": "debezium",
+    "database.password": "${DEBEZIUM_DB_PASSWORD}",
+
+    "topic.prefix": "facility-cdc",
+
+    "database.include.list": "my_facility",
+    "table.include.list": "my_facility.outbox",
+    "include.schema.changes": "false",
+
+    "snapshot.mode": "no_data",
+
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.table.field.event.id": "id",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.table.field.event.type": "event_type",
+    "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.route.by.field": "topic",
+    "transforms.outbox.route.topic.replacement": "${routedByValue}",
+    "transforms.outbox.table.fields.additional.placement": "event_type:header:eventType",
+    "transforms.outbox.table.op.invalid.behavior": "warn",
+
+    "tombstones.on.delete": "false",
+
+    "errors.tolerance": "all",
+    "errors.deadletterqueue.topic.name": "outbox-dlq",
+    "errors.deadletterqueue.context.headers.enable": "true",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter"
+  }
+}

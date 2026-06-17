@@ -24,6 +24,10 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false      # CDC 방식: Debezium binlog 감지로 Kafka 발행. OutboxRelay 비활성.
+    cleanup-enabled: true       # Debezium이 row 삭제 안 하므로 보관 기간 초과분 자동 정리.
+    cleanup-retention-days: 3   # 3일 이상 된 outbox row 삭제.
+    cleanup-cron: "0 0 3 * * *" # 매일 새벽 3시 실행.
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:false}
