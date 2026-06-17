@@ -13,6 +13,7 @@
 |---|---|
 | 사용자 / 관리자 | [APTeN 바로가기](https://tc.greenart.n-e.kr) |
 | 마스터 관리자 | [마스터 로그인](https://tc.greenart.n-e.kr/admin/master) |
+| API 문서 (Swagger UI) | [Swagger 바로가기](http://tc.greenart.n-e.kr:30090) |
 
 ### 테스트 계정
 
@@ -46,6 +47,7 @@
 | ORM | Spring Data JPA (Hibernate), MyBatis |
 | DB | MariaDB, Redis |
 | Message Broker | Apache Kafka |
+| 서비스 간 통신 | Spring Cloud OpenFeign |
 | 분산 락 | ShedLock + Redis |
 | 실시간 알림 | WebSocket, FCM (firebase-admin 9.4.3) |
 | SMS | CoolSMS (nurigo SDK 4.3.0) |
@@ -66,6 +68,7 @@
 | household-service | 9084 | 세대 관리, 관리비 스케줄러 |
 | board-service | 9085 | 게시판, 공지, 투표, 파일 업로드 |
 | facility-reservation-service | 9086 | 시설 예약, GX 신청/승인, Redis 좌석 임시선점 |
+| document-service | 9090 | Swagger UI 포탈, 서비스별 API 문서 정적 서빙 |
 | common | — | 공통 라이브러리 (Outbox, Kafka, Security, 응답/예외) |
 
 ---
