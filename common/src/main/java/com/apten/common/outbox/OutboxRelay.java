@@ -2,22 +2,18 @@ package com.apten.common.outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 // producer 서비스에서 저장된 outbox 이벤트를 Kafka로 보내고 성공한 row를 삭제하는 relay이다.
-@Component
+// 등록 조건(polling-enabled)은 OutboxAutoConfiguration @Bean 메서드에서 처리한다.
 @RequiredArgsConstructor
 @Slf4j
-// polling-enabled 미설정 시 기존 서비스 호환을 위해 기본값 true로 동작한다.
-@ConditionalOnProperty(prefix = "apten.outbox", name = "polling-enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxRelay {
 
     private final OutboxRepository outboxRepository;

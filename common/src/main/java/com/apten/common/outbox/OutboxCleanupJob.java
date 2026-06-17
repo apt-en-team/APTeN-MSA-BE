@@ -3,18 +3,15 @@ package com.apten.common.outbox;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 // CDC 방식에서 Debezium이 row를 삭제하지 않으므로 보관 기간 초과 outbox row를 주기 정리한다.
-@Component
+// 등록 조건(cleanup-enabled)은 OutboxAutoConfiguration @Bean 메서드에서 처리한다.
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(prefix = "apten.outbox", name = "cleanup-enabled", havingValue = "true")
 public class OutboxCleanupJob {
 
     private final OutboxRepository outboxRepository;
