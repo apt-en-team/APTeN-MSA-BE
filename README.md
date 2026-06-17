@@ -47,6 +47,7 @@
 | ORM | Spring Data JPA (Hibernate), MyBatis |
 | DB | MariaDB, Redis |
 | Message Broker | Apache Kafka |
+| CDC | Debezium 2.7 (MariaDB Connector + Outbox Event Router SMT) |
 | 서비스 간 통신 | Spring Cloud OpenFeign |
 | 분산 락 | ShedLock + Redis |
 | 실시간 알림 | WebSocket, FCM (firebase-admin 9.4.3) |
@@ -83,9 +84,10 @@
 ```
 MASTER는 여러 단지를 오가며 작업하므로 `X-Selected-Complex-Id` 전용 헤더를 별도로 전달합니다.
 
-**Kafka + Outbox 패턴**  
+**Kafka + Outbox 패턴 (CDC 방식)**  
 도메인 로직과 Outbox 행 저장을 같은 트랜잭션에서 처리해 이벤트 유실을 방지합니다.  
-OutboxRelay가 10초 주기로 INIT 상태 이벤트를 Kafka로 발행합니다.
+Debezium이 MariaDB binlog를 실시간으로 감지해 Outbox INSERT를 Kafka로 발행합니다.  
+애플리케이션 레벨의 Polling 쿼리를 제거해 DB 부하를 낮추고 발행 지연을 줄였습니다.
 
 **Database per Service**  
 각 서비스는 독립 DB를 사용하며, 타 서비스 데이터는 Kafka 이벤트로 동기화된 로컬 Cache Table을 통해 조회합니다.
@@ -97,10 +99,11 @@ OutboxRelay가 10초 주기로 INIT 상태 이벤트를 Kafka로 발행합니다
 
 ## 핵심 구현 포인트
 
-**박소영 — 시설예약 / 알림**
+**박소영 — 시설예약 / 알림 / 공통**
 - Redis SET NX 기반 좌석 임시선점으로 동시 중복 선택 방지, DB TempHold와 이중 관리
 - GX 대기순번 직렬화: 낙관적 락·Redis 분산락 비교 후 JPA PESSIMISTIC_WRITE 락 선택, 취소 시 waitNo 자동 재정렬
 - 알림 DB 선저장 후 WebSocket·FCM 발송, FCM 장애 격리로 인앱 알림 정상 보존
+- Outbox Polling → Debezium CDC 전환 PoC 구현 및 MSA 전체 서비스 확장 (DB SELECT -38%, 응답 시간 -36%)
 
 **김가은 — 인증 / 주차**
 - OAuth2(Google·Kakao·Naver) 소셜 로그인, JWT 발급·갱신·블랙리스트 처리
@@ -134,11 +137,25 @@ docker compose up -d
 |---|---|---|
 | apten-kafka | bitnami/kafka:3.7 | 9092 |
 | apten-redis | redis:7-alpine | 6379 |
+| apten-kafka-connect | quay.io/debezium/connect:2.7 | 8083 |
 
 Kafka는 KRaft 모드(Zookeeper 없음)로 실행되며, 토픽은 자동 생성됩니다.  
-Docker Desktop 시작 시 두 컨테이너가 자동으로 실행됩니다.
+Docker Desktop 시작 시 컨테이너가 자동으로 실행됩니다.
 
-### 2. 환경변수 설정
+### 2. Debezium 커넥터 등록
+
+```bash
+./debezium/register-connector.sh
+```
+
+Kafka Connect가 준비될 때까지 자동으로 대기한 뒤 6개 서비스의 Outbox CDC 커넥터를 등록합니다.  
+특정 서비스만 등록하려면 서비스명을 인자로 전달합니다.
+
+```bash
+./debezium/register-connector.sh auth complex
+```
+
+### 3. 환경변수 설정
 
 각 서비스 루트에 `.env` 파일을 생성하고 값을 채웁니다.
 
@@ -149,7 +166,7 @@ cp .env.example .env
 > DB는 외부 MariaDB 서버(`112.222.157.157:5013`)에 직접 연결하는 방식입니다.  
 > Docker Compose에 DB가 포함되어 있지 않습니다.
 
-### 3. 서비스 실행
+### 4. 서비스 실행
 
 각 서비스를 IntelliJ 또는 Gradle로 개별 실행합니다.
 
