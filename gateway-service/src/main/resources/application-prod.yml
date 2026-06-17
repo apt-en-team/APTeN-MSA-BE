@@ -91,6 +91,11 @@ spring:
           predicates:
             - Path=/ws/notifications,/ws/notifications/**
 
+        - id: document-service
+          uri: http://document-service:80
+          predicates:
+            - Path=/swagger,/swagger-ui/**,/v3/api-docs/**,/swagger-docs/**
+
 gateway:
   auth:
     excluded-paths:
@@ -99,6 +104,10 @@ gateway:
       - /oauth2/**
       - /api/apartment-complexes/**
       - /api/files/serve/**
+      - /swagger
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /swagger-docs/**
     jwt-secret: ${JWT_SECRET_KEY}
 
 # nginx 등 리버스 프록시가 설정한 X-Forwarded-* 헤더를 신뢰해 원본 요청 정보 복원

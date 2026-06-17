@@ -1,14 +1,23 @@
 #!/bin/bash
 # facility-reservation-service Outbox CDC 커넥터를 Kafka Connect REST API로 등록한다.
 # 사전 조건: docker-compose up으로 kafka-connect 컨테이너가 RUNNING 상태여야 한다.
-# 사용법: DEBEZIUM_DB_PASSWORD=<비밀번호> ./debezium/register-connector.sh
+# 사용법: ./debezium/register-connector.sh  (.env의 DEBEZIUM_DB_PASSWORD를 자동으로 읽는다)
 
 set -e
 
 CONNECT_URL="http://localhost:8083"
 CONNECTOR_NAME="facility-reservation-outbox-connector"
-CONNECTOR_FILE="$(dirname "$0")/connectors/facility-reservation-connector.json"
-DB_PASSWORD="${DEBEZIUM_DB_PASSWORD:?DEBEZIUM_DB_PASSWORD 환경변수가 필요합니다.}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONNECTOR_FILE="${SCRIPT_DIR}/connectors/facility-reservation-connector.json"
+
+# 프로젝트 루트의 .env에서 DEBEZIUM_DB_PASSWORD를 읽는다.
+# 이미 환경변수가 설정되어 있으면 .env 값보다 우선한다.
+ENV_FILE="${SCRIPT_DIR}/../.env"
+if [ -f "${ENV_FILE}" ] && [ -z "${DEBEZIUM_DB_PASSWORD}" ]; then
+  DEBEZIUM_DB_PASSWORD=$(grep '^DEBEZIUM_DB_PASSWORD=' "${ENV_FILE}" | cut -d'=' -f2-)
+fi
+
+DB_PASSWORD="${DEBEZIUM_DB_PASSWORD:?DEBEZIUM_DB_PASSWORD가 .env에 없거나 비어있습니다. 강사님 비밀번호를 .env에 입력하세요.}"
 
 echo "=============================="
 echo " Outbox CDC 커넥터 등록 시작"
