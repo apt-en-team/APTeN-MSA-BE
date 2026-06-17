@@ -92,6 +92,11 @@ spring:
           predicates:
             - Path=/ws/notifications,/ws/notifications/**
 
+        - id: document-service
+          uri: http://localhost:9090
+          predicates:
+            - Path=/swagger,/swagger-ui/**,/v3/api-docs/**,/swagger-docs/**
+
 gateway:
   auth:
     excluded-paths:
@@ -100,6 +105,11 @@ gateway:
       - /oauth2/**
       - /api/apartment-complexes/**
       - /api/files/serve/**
+      - /swagger
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /swagger-docs/**
+      - /.well-known/**
     jwt-secret: ${JWT_SECRET_KEY}
 
 server:
