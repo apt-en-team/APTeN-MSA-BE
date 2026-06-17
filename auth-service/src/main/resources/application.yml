@@ -87,6 +87,7 @@ springdoc:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
   bootstrap:
     master:
       enabled: ${APTEN_BOOTSTRAP_MASTER_ENABLED:false}

@@ -91,6 +91,10 @@ springdoc:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
+    cleanup-enabled: true
+    cleanup-retention-days: 3
+    cleanup-cron: "0 0 3 * * *"
   bootstrap:
     master:
       enabled: ${APTEN_BOOTSTRAP_MASTER_ENABLED:false}
