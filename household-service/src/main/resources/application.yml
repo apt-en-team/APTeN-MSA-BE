@@ -27,6 +27,7 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
   bootstrap:
     household-type:
       enabled: ${APTEN_BOOTSTRAP_HOUSEHOLD_TYPE_ENABLED:false}
