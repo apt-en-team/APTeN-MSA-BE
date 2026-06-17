@@ -27,6 +27,10 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
+    cleanup-enabled: true
+    cleanup-retention-days: 3
+    cleanup-cron: "0 0 3 * * *"
   bootstrap:
     household-type:
       enabled: ${APTEN_BOOTSTRAP_HOUSEHOLD_TYPE_ENABLED:false}

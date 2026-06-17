@@ -30,6 +30,7 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
 
 file:
   upload-dir: C:/Users/a0103/download

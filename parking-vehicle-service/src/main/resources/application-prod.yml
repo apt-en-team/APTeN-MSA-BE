@@ -27,6 +27,10 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
+    cleanup-enabled: true
+    cleanup-retention-days: 3
+    cleanup-cron: "0 0 3 * * *"
   scheduler:
     parking-mock:
       enabled: ${APTEN_SCHEDULER_PARKING_MOCK_ENABLED:true}

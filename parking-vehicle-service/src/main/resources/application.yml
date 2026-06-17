@@ -27,6 +27,7 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: false
   scheduler:
     parking-mock:
       enabled: ${APTEN_SCHEDULER_PARKING_MOCK_ENABLED:true}

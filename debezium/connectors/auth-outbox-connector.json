@@ -1,5 +1,5 @@
 {
-  "name": "facility-reservation-outbox-connector",
+  "name": "auth-outbox-connector",
   "config": {
     "connector.class": "io.debezium.connector.mariadb.MariaDbConnector",
 
@@ -8,19 +8,19 @@
     "database.user": "${DEBEZIUM_DB_USER}",
     "database.password": "${DEBEZIUM_DB_PASSWORD}",
 
-    "topic.prefix": "facility-cdc",
+    "topic.prefix": "auth-cdc",
 
-    "database.include.list": "my_facility",
-    "table.include.list": "my_facility.outbox",
+    "database.include.list": "my_auth",
+    "table.include.list": "my_auth.outbox",
     "include.schema.changes": "false",
 
     "snapshot.mode": "no_data",
     "snapshot.locking.mode": "none",
-    "database.server.id": "184054",
+    "database.server.id": "184055",
     "database.ssl.mode": "disabled",
 
     "schema.history.internal.kafka.bootstrap.servers": "kafka-broker:9092",
-    "schema.history.internal.kafka.topic": "schema-history.facility-cdc",
+    "schema.history.internal.kafka.topic": "schema-history.auth-cdc",
 
     "transforms": "outbox",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
