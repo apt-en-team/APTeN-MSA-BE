@@ -13,7 +13,7 @@
 |---|---|
 | 사용자 / 관리자 | [APTeN 바로가기](https://tc.greenart.n-e.kr) |
 | 마스터 관리자 | [마스터 로그인](https://tc.greenart.n-e.kr/admin/master) |
-| API 문서 (Swagger UI) | [Swagger 바로가기](http://tc.greenart.n-e.kr:30090) |
+| API 문서 (Swagger UI) | [Swagger 바로가기](https://tc.greenart.n-e.kr/swagger) |
 
 ### 테스트 계정
 

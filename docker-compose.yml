@@ -24,6 +24,30 @@ services:
     volumes:
       - kafka-data:/bitnami/kafka
 
+  kafka-connect:
+    image: debezium/connect:2.7
+    container_name: apten-kafka-connect
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      # 같은 docker network의 kafka 브로커에 연결
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: apten-connect-group
+      # 커넥터 설정/오프셋/상태를 Kafka 내부 토픽에 저장
+      CONFIG_STORAGE_TOPIC: connect-configs
+      OFFSET_STORAGE_TOPIC: connect-offsets
+      STATUS_STORAGE_TOPIC: connect-statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      # SMT 처리 실패 이벤트를 DLQ 토픽으로 분리
+      ERRORS_TOLERANCE: all
+      ERRORS_DEADLETTERQUEUE_TOPIC_NAME: outbox-dlq
+      ERRORS_DEADLETTERQUEUE_CONTEXT_HEADERS_ENABLE: "true"
+    depends_on:
+      - kafka
+
   redis:
     image: redis:7-alpine
     container_name: apten-redis

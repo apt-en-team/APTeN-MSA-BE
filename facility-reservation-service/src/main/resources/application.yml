@@ -23,6 +23,7 @@ constants:
 apten:
   outbox:
     enabled: true
+    polling-enabled: true  # 기본값 폴링 ON. prod 프로파일에서 false로 CDC 전환.
   bootstrap:
     facility-type:
       enabled: ${APTEN_BOOTSTRAP_FACILITY_TYPE_ENABLED:false}
